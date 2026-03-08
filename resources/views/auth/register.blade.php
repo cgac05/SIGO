@@ -69,3 +69,28 @@
         </div>
     </form>
 </x-guest-layout>
+<script>
+    const inputTelefono = document.getElementById('phone');
+
+    inputTelefono.addEventListener('input', function (e) {
+        let x = e.target.value.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,2})(\d{0,2})/);
+        
+        // La magia del formato: (311)-111-11-11
+        if (!x[2]) {
+            e.target.value = x[1] ? `(${x[1]}` : '';
+        } else if (!x[3]) {
+            e.target.value = `(${x[1]})-${x[2]}`;
+        } else if (!x[4]) {
+            e.target.value = `(${x[1]})-${x[2]}-${x[3]}`;
+        } else {
+            e.target.value = `(${x[1]})-${x[2]}-${x[3]}-${x[4]}`;
+        }
+    });
+
+    // Evitar que borren el paréntesis inicial si hay números
+    inputTelefono.addEventListener('keydown', function(e) {
+        if (e.key === 'Backspace' && e.target.value.length === 1) {
+            e.target.value = '';
+        }
+    });
+</script>
