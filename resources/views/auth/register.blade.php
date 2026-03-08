@@ -20,20 +20,33 @@
                 <x-text-input id="apellido_materno" class="block mt-1 w-full" type="text" name="apellido_materno" required />
             </div>
         </div>
-
-        <!-- Phone -->
-        <div>
-            <x-input-label for="phone" :value="__('Numero de telefono')" />
-            <x-text-input id="phone" class="block mt-1 w-full" type="text" name="phone" :value="old('phone')" required autofocus autocomplete="phone" />
-            <x-input-error :messages="$errors->get('phone')" class="mt-2" />
+        <div class="mt-4">
+            <x-input-label for="curp" :value="__('CURP')" />
+            <x-text-input id="curp" class="block mt-1 w-full uppercase" type="text" name="curp" maxlength="18" required />
         </div>
-
         <!-- Email Address -->
         <div class="mt-4">
             <x-input-label for="email" :value="__('Correo electronico')" />
             <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autocomplete="username" />
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
+         <div class="grid grid-cols-2 gap-4 mt-4">
+            <div>
+                <x-input-label for="phone" :value="__('Número de telefono')" />
+                <x-text-input id="phone" class="block mt-1 w-full" type="text" name="phone" :value="old('phone')" required />
+            </div>
+
+            <div ">
+                <x-input-label for="fecha_nacimiento" :value="__('Fecha de Nacimiento')" />
+                <x-text-input id="fecha_nacimiento" class="block mt-1 w-full" type="date" name="fecha_nacimiento" readonly />
+            </div>
+            <input type="hidden" name="genero" id="genero">
+        </div>
+
+       
+        
+
+        
 
         <!-- Password -->
         <div class="mt-4">
@@ -69,13 +82,14 @@
         </div>
     </form>
 </x-guest-layout>
+<!-- Este script formatea el número de teléfono a medida que el usuario escribe, siguiendo el formato (311)-111-11-11 -->
 <script>
     const inputTelefono = document.getElementById('phone');
 
     inputTelefono.addEventListener('input', function (e) {
         let x = e.target.value.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,2})(\d{0,2})/);
         
-        // La magia del formato: (311)-111-11-11
+        
         if (!x[2]) {
             e.target.value = x[1] ? `(${x[1]}` : '';
         } else if (!x[3]) {
@@ -93,4 +107,28 @@
             e.target.value = '';
         }
     });
+    document.getElementById('curp').addEventListener('input', function (e) {
+    let curp = e.target.value.toUpperCase();
+    
+    if (curp.length >= 10) {
+        // Extraer año, mes y día
+        let anio = curp.substring(4, 6);
+        let mes  = curp.substring(6, 8);
+        let dia  = curp.substring(8, 10);
+
+        // Ajustar el siglo (Si el año es > 25, asumimos 1900, si no 2000)
+        let siglo = parseInt(anio) > 25 ? '19' : '20';
+        let fechaCompleta = `${siglo}${anio}-${mes}-${dia}`;
+
+        document.getElementById('fecha_nacimiento').value = fechaCompleta;
+    }
+    let generoChar = curp.substring(10, 11); // Posición 11 de la CURP
+        
+        // Guardamos 'H' o 'M' en el campo oculto
+        if (generoChar === 'H' || generoChar === 'M') {
+            document.getElementById('genero').value = generoChar;
+        } else {
+            document.getElementById('genero').value = '';
+        }
+});
 </script>
