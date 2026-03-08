@@ -1,48 +1,46 @@
 <?php
-
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
+    // 1. Apuntamos a tu tabla de SQL Server
+    protected $table = 'Personal';
+
+    // 2. Definimos tu llave primaria personalizada
+    protected $primaryKey = 'id_empleado';
+
+    // 3. Campos que se pueden llenar
     protected $fillable = [
-        'name',
-        'email',
-        'password',
+        'nombre',
+        'correo_inst',
+        'pass_hash',
+        'fk_rol',
+        'activo',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
-
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    // 4. Laravel busca 'password' por defecto, le decimos que use 'pass_hash'
+    public function getAuthPassword()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->pass_hash;
+    }
+
+    // 5. Desactivamos timestamps si no los agregaste en el script SQL
+    public $timestamps = false;
+
+   
+    public function getEmailAttribute()
+    {
+        return $this->correo_inst;
+    }
+    // Dentro de tu clase User, añade esto:
+    public function getAuthIdentifierName()
+    {
+        return 'id_empleado';
     }
 }
+?>
