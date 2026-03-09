@@ -31,10 +31,14 @@ class RegisteredUserController extends Controller
 {
     // 1. Validación inicial en Laravel (Filtro rápido)
     $request->validate([
-        'nombre' => ['required', 'string', 'max:50'],
+        'name' => ['required', 'string', 'max:50'],
         'apellido_paterno' => ['required', 'string', 'max:50'],
+        'apellido_materno' => ['required', 'string', 'max:50'],
+        'fecha_nacimiento' => ['required', 'date'],
+        'genero' => ['required', 'string', 'in:H,M'],
+        'telefono' => ['required', 'string', 'regex:/^\(\d{3}\) \d{3}-\d{4}$/'], // Formato (311) 123-4567
         'curp' => ['required', 'string', 'size:18'],
-        'correo_inst' => ['required', 'string', 'lowercase', 'email', 'max:100'],
+        'email' => ['required', 'string', 'lowercase', 'email', 'max:100'],
         'password' => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::defaults()],
     ]);
 
@@ -42,14 +46,14 @@ class RegisteredUserController extends Controller
         // 2. Ejecutar el SP y recibir el status_code
         // Usamos SET NOCOUNT ON para que PHP no se confunda con mensajes internos de SQL
         $resultado = \DB::select('SET NOCOUNT ON; EXEC sp_RegistrarBeneficiario ?, ?, ?, ?, ?, ?, ?, ?, ?', [
-            $request->nombre,
+            $request->name,
             $request->apellido_paterno,
             $request->apellido_materno,
             $request->curp,
             $request->fecha_nacimiento, // Viene de tu script de CURP
             $request->genero,           // Viene de tu campo oculto
             $request->telefono,         // Viene con la máscara (311)...
-            $request->correo,
+            $request->email,
             $request->password
         ]);
 
