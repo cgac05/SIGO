@@ -13,6 +13,7 @@ class Beneficiario extends Authenticatable
     protected $primaryKey = 'curp';
     public $incrementing = false;
     protected $keyType = 'string';
+    public $timestamps = false;
 
     protected $fillable = ['curp', 'nombre', 'apellido_paterno', 'apellido_materno', 'correo_electronico', 'pass_hash', 'activo'];
     protected $hidden = ['pass_hash', 'remember_token'];
@@ -20,5 +21,15 @@ class Beneficiario extends Authenticatable
     public function getAuthPassword()
     {
         return $this->pass_hash;
+    }
+
+    public function getAuthIdentifierName()
+    {
+        return 'curp';
+    }
+
+    public function getAuthIdentifier()
+    {
+        return $this->curp;
     }
 }

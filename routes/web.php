@@ -2,14 +2,27 @@
 
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
 Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+    // Detectar qué guard está autenticado
+    if (Auth::guard('beneficiario')->check()) {
+        $user = Auth::guard('beneficiario')->user();
+        return view('dashboard', ['user' => $user, 'tipo' => 'beneficiario']);
+    }
+    
+    if (Auth::guard('web')->check()) {
+        $user = Auth::guard('web')->user();
+        return view('dashboard', ['user' => $user, 'tipo' => 'personal']);
+    }
+    
+    // Si no está autenticado en ningún guard, redirigir a login
+    return redirect()->route('login');
+})->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
