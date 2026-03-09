@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ApoyoController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
@@ -46,3 +47,11 @@ Route::middleware(['auth:beneficiario'])->group(function () {
 });
 
 require __DIR__.'/auth.php';
+
+// Rutas para administrar apoyos (listar + crear)
+// - GET  /apoyos       -> `index()` devuelve la vista HTML con la tabla
+// - POST /apoyos       -> `store()` crea un nuevo apoyo (acepta formularios normales y AJAX)
+// - GET  /apoyos/list  -> `list()` devuelve JSON con los apoyos (usado por AJAX para recarga)
+Route::get('/apoyos', [ApoyoController::class, 'index'])->name('apoyos.index');
+Route::post('/apoyos', [ApoyoController::class, 'store'])->name('apoyos.store');
+Route::get('/apoyos/list', [ApoyoController::class, 'list'])->name('apoyos.list');
