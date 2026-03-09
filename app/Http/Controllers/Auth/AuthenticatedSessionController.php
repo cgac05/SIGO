@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Beneficiario; // Importa tu modelo de Beneficiario
+use App\Models\User; // Importa tu modelo de User
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,13 +25,28 @@ class AuthenticatedSessionController extends Controller
      * Handle an incoming authentication request.
      */
     public function store(LoginRequest $request): RedirectResponse
-    {
-        $request->authenticate();
+{
+    $resultado = \DB::select('SET NOCOUNT ON; EXEC sp_LoginUniversal ?, ?', [
+        $request->email,
+        $request->password
+    ]);
 
-        $request->session()->regenerate();
+    $usuarioLogueado = $resultado[0];
 
-        return redirect()->intended(route('dashboard', absolute: false));
+    if ($usuarioLogueado->tipo == 'personal') {
+        $user = \App\Models\User::find($usuarioLogueado->id);
+        \Auth::guard('web')->login($user);
+        return redirect()->intended(route('dashboard'));
+    } 
+    
+    if ($usuarioLogueado->tipo == 'beneficiario') {
+        $user = \App\Models\Beneficiario::find($usuarioLogueado->id);
+        \Auth::guard('beneficiario')->login($user);
+        return redirect()->intended(route('dashboard'));
     }
+
+    return back()->withErrors(['email' => 'Credenciales incorrectas.']);
+}
 
     /**
      * Destroy an authenticated session.

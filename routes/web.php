@@ -17,4 +17,19 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
+
+// Ruta para el Personal (Administradores)
+Route::middleware(['auth', 'verified'])->group(function () {
+    //Route::get('/dashboard/admin', function () {
+        return view('dashboard'); // O la vista específica de admin
+    //})->name('dashboard.admin');
+});
+
+// Ruta para los Beneficiarios (Jóvenes)
+Route::middleware(['auth:beneficiario'])->group(function () {
+    //Route::get('/dashboard/beneficiario', function () {
+        return view('dashboard'); // Crea esta vista después
+    //})->name('dashboard.beneficiario');
+});
+
 require __DIR__.'/auth.php';

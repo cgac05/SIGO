@@ -9,13 +9,13 @@ class User extends Authenticatable
     use Notifiable;
 
     // 1. Apuntamos a tu tabla de SQL Server
-    protected $table = 'Beneficiarios';
+    protected $table = 'Personal';
 
     // 2. Definimos tu llave primaria personalizada
-    //protected $primaryKey = 'id_empleado';
-    protected $primaryKey = 'curp'; // Indica que no es 'id'
-    public $incrementing = false;   // Indica que no es un número auto-incremental
-    protected $keyType = 'string';  // Indica que es texto
+    protected $primaryKey = 'id_empleado';
+    //protected $primaryKey = 'curp'; // Indica que no es 'id'
+    //public $incrementing = false;   // Indica que no es un número auto-incremental
+    //protected $keyType = 'string';  // Indica que es texto
     // 3. Campos que se pueden llenar
     protected $fillable = [
         'nombre',
