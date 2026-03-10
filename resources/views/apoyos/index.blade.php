@@ -41,8 +41,15 @@
                                                         - El modal contiene el formulario para crear un nuevo Apoyo. El envío
                                                             se intercepta por JavaScript y se envía por Fetch/AJAX.
                                                 --}}
-                                                <x-modal name="apoyoModal" :show="false">
-                                                        <div class="p-4">
+                                                                                                {{--
+                                                                                                        Modal de creación de Apoyo.
+                                                                                                        - El `name="apoyoModal"` permite controlarlo desde JS global
+                                                                                                            mediante `open-modal`/`close-modal`.
+                                                                                                        - El formulario tiene `id="apoyo-form"` y es enviado por AJAX
+                                                                                                            (ver script abajo). Priorizar la validación en el servidor.
+                                                                                                --}}
+                                                                                                <x-modal name="apoyoModal" :show="false">
+                                                                                                                <div class="p-4">
                                                                 {{--
                                                                         Formulario de creación de Apoyo.
                                                                         - `id="apoyo-form"` es usado por el script para interceptar el submit
@@ -50,6 +57,7 @@
                                                                         - El campo `activo` se envía siempre (hidden+checkbox) para evitar
                                                                             problemas con checkboxes desmarcados.
                                                                 --}}
+                                                                {{-- Formulario multipart; enviado por Fetch como FormData. --}}
                                                                 <form id="apoyo-form" method="POST" action="{{ route('apoyos.store') }}" enctype="multipart/form-data">
                                     @csrf
                                     <div class="space-y-4">
@@ -247,6 +255,7 @@
 
             // Interceptar el submit del formulario para enviarlo por AJAX
             const form = document.getElementById('apoyo-form');
+            // Interceptamos el envío para usar Fetch; el servidor devuelve JSON.
             if (form){
                 form.addEventListener('submit', async function(ev){
                     ev.preventDefault();
@@ -260,6 +269,8 @@
                         const data = await res.json();
                         if (!res.ok || !data.success){
                             const msg = data && data.message ? data.message : 'Error al guardar el apoyo.';
+                            // Mostrar error al usuario. En producción considerar mostrar errores
+                            // más amigables / localizados según `data.message`.
                             alert(msg);
                             return;
                         }

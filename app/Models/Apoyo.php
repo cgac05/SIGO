@@ -24,7 +24,8 @@ class Apoyo extends Model
     public $incrementing = true;
     protected $keyType = 'int';
     public $timestamps = false;
-    // En lugar de enviarlo con guiones, lo enviamos plano para que SQL no se confunda
+    // No usamos timestamps automáticos; las fechas se guardan manualmente.
+    // Formato personalizado para evitar problemas con el driver SQL Server/DB.
     protected $dateFormat = 'Ymd H:i:s';
     protected $fillable = [
         'nombre_apoyo',
@@ -37,5 +38,12 @@ class Apoyo extends Model
         'foto_ruta',
         'descripcion',
     ];
+
+    /**
+     * Nota sobre migraciones/llaves:
+     * - La tabla `Apoyos` se crea por la migración `2026_03_08_000001_create_apoyos_and_aux_tables.php`.
+     * - Si se requiere relacionar con Eloquent, se pueden añadir relaciones hasOne/hasMany
+     *   a `BDFinanzas` o `BDInventario` según el tipo de apoyo.
+     */
 }
 

@@ -27,4 +27,11 @@ class BDFinanzas extends Model
         'monto_asignado',
         'monto_ejercido',
     ];
+
+    /**
+     * Nota: las inserciones en `BD_Finanzas` se realizan desde
+     * `ApoyoController::store()` cuando `tipo_apoyo === 'Económico'`.
+     * Si se desea lógica adicional (ej. métodos para sumar movimientos),
+     * implementarla en este modelo.
+     */
 }
