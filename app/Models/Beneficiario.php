@@ -15,8 +15,13 @@ class Beneficiario extends Authenticatable
     protected $keyType = 'string';
     public $timestamps = false;
 
-    protected $fillable = ['curp', 'nombre', 'apellido_paterno', 'apellido_materno', 'correo_electronico', 'pass_hash', 'activo'];
+    protected $fillable = ['curp', 'nombre', 'apellido_paterno', 'apellido_materno', 'correo_electronico', 'correo', 'pass_hash', 'activo'];
     protected $hidden = ['pass_hash', 'remember_token'];
+
+    public function getCorreoElectronicoAttribute()
+    {
+        return $this->attributes['correo_electronico'] ?? $this->attributes['correo'] ?? null;
+    }
 
     public function getAuthPassword()
     {

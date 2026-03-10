@@ -218,6 +218,45 @@
 
         <div class="max-w-7xl mx-auto">
 
+            {{-- Historial de solicitudes registradas --}}
+            <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 mb-8">
+                <div class="flex items-center justify-between gap-3 mb-4">
+                    <h3 class="text-base md:text-lg font-extrabold" style="color: var(--sigo-navy)">Mis solicitudes recientes</h3>
+                    <span class="text-xs text-gray-500">Ultimos 10 registros</span>
+                </div>
+
+                @if(isset($misSolicitudes) && count($misSolicitudes) > 0)
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-gray-500 border-b border-gray-200">
+                                    <th class="py-2 pr-4 font-semibold">Folio</th>
+                                    <th class="py-2 pr-4 font-semibold">Apoyo</th>
+                                    <th class="py-2 pr-4 font-semibold">Fecha</th>
+                                    <th class="py-2 pr-4 font-semibold">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($misSolicitudes as $solicitud)
+                                    <tr class="border-b border-gray-100 text-gray-700">
+                                        <td class="py-2 pr-4 font-semibold">{{ $solicitud->folio }}</td>
+                                        <td class="py-2 pr-4">{{ $solicitud->nombre_apoyo ?? 'Sin nombre' }}</td>
+                                        <td class="py-2 pr-4">{{ $solicitud->fecha_creacion ? \Illuminate\Support\Carbon::parse($solicitud->fecha_creacion)->format('d/m/Y H:i') : 'Sin fecha' }}</td>
+                                        <td class="py-2 pr-4">
+                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                                                {{ $solicitud->estado ?? 'Pendiente' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <p class="text-sm text-gray-500">Aun no tienes solicitudes registradas.</p>
+                @endif
+            </div>
+
             {{-- Sin apoyos vigentes --}}
             <template x-if="apoyos.length === 0">
                 <div class="empty-state">

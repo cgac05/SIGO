@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
@@ -66,8 +67,16 @@ class AuthenticatedSessionController extends Controller
 
     // ── Beneficiario ───────────────────────────────────────────────
     if ($usuarioLogueado->tipo === 'beneficiario') {
+        $emailColumn = 'correo';
 
-        $user = Beneficiario::where('correo', $request->email)->first();
+        foreach (['correo_electronico', 'correo', 'email'] as $candidateColumn) {
+            if (Schema::hasColumn('Beneficiarios', $candidateColumn)) {
+                $emailColumn = $candidateColumn;
+                break;
+            }
+        }
+
+        $user = Beneficiario::where($emailColumn, $request->email)->first();
 
         if (!$user) {
             return back()->withInput()
@@ -92,6 +101,7 @@ class AuthenticatedSessionController extends Controller
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('web')->logout();
+        Auth::guard('beneficiario')->logout();
 
         $request->session()->invalidate();
 

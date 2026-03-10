@@ -42,11 +42,12 @@
         </div>
          <div class="grid grid-cols-2 gap-4 mt-4">
             <div>
-                <x-input-label for="phone" :value="__('Número de telefono')" />
-                <x-text-input id="phone" class="block mt-1 w-full" type="text" name="phone" :value="old('phone')" required />
+                <x-input-label for="telefono" :value="__('Número de telefono')" />
+                <x-text-input id="telefono" class="block mt-1 w-full" type="text" name="telefono" :value="old('telefono')" required />
+                <x-input-error :messages="$errors->get('telefono')" class="mt-2" />
             </div>
 
-            <div ">
+            <div>
                 <x-input-label for="fecha_nacimiento" :value="__('Fecha de Nacimiento')" />
                 <x-text-input id="fecha_nacimiento" class="block mt-1 w-full" type="date" name="fecha_nacimiento" readonly />
             </div>
@@ -92,22 +93,18 @@
         </div>
     </form>
 </x-guest-layout>
-<!-- Este script formatea el número de teléfono a medida que el usuario escribe, siguiendo el formato (311)-111-11-11 -->
+<!-- Este script formatea el numero de telefono como (311) 123-4567 -->
 <script>
-    const inputTelefono = document.getElementById('phone');
+    const inputTelefono = document.getElementById('telefono');
 
     inputTelefono.addEventListener('input', function (e) {
-        let x = e.target.value.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,2})(\d{0,2})/);
+        let x = e.target.value.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,4})/);
         
         
         if (!x[2]) {
             e.target.value = x[1] ? `(${x[1]}` : '';
-        } else if (!x[3]) {
-            e.target.value = `(${x[1]})-${x[2]}`;
-        } else if (!x[4]) {
-            e.target.value = `(${x[1]})-${x[2]}-${x[3]}`;
         } else {
-            e.target.value = `(${x[1]})-${x[2]}-${x[3]}-${x[4]}`;
+            e.target.value = x[3] ? `(${x[1]}) ${x[2]}-${x[3]}` : `(${x[1]}) ${x[2]}`;
         }
     });
 

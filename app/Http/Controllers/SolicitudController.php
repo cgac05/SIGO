@@ -3,13 +3,22 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class SolicitudController extends Controller
 {
     public function guardar(Request $request)
     {
-        $curpBeneficiario = 'PART000000XXXXXX00'; // Tu CURP de prueba temporal
+        $curpBeneficiario = Auth::guard('beneficiario')->id();
+
+        if (!$curpBeneficiario) {
+            return redirect()->back()->with('error', 'Debes iniciar sesion como beneficiario para registrar una solicitud.');
+        }
+
+        $request->validate([
+            'apoyo' => ['required'],
+        ]);
 
         DB::beginTransaction();
 

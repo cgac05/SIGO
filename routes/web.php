@@ -5,6 +5,7 @@ use App\Http\Controllers\ApoyoController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 
 Route::get('/', function () {
     return view('welcome');
@@ -29,11 +30,17 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/Registrar-Solicitud', function () {
-    $ahora = now();
+    $hoy = now()->toDateString();
     $apoyos = DB::table('Apoyos')
         ->where('activo', 1)
-        ->where('fechaInicio', '<=', $ahora)
-        ->where('fechafin', '>=', $ahora)
+        ->where(function ($query) use ($hoy) {
+            $query->whereNull('fechaInicio')
+                ->orWhereDate('fechaInicio', '<=', $hoy);
+        })
+        ->where(function ($query) use ($hoy) {
+            $query->whereNull('fechafin')
+                ->orWhereDate('fechafin', '>=', $hoy);
+        })
         ->orderBy('id_apoyo', 'desc')
         ->get();
 
@@ -42,15 +49,46 @@ Route::get('/Registrar-Solicitud', function () {
         ->get();
 
     $apoyosData = $apoyos->map(function($apoyo) use ($requisitos) {
+        if (!empty($apoyo->fechaInicio)) {
+            $apoyo->fechaInicio = Carbon::parse($apoyo->fechaInicio)->toDateString();
+        }
+
+        if (!empty($apoyo->fechafin)) {
+            $apoyo->fechafin = Carbon::parse($apoyo->fechafin)->toDateString();
+        }
+
         $apoyo->requisitos = $requisitos->where('fk_id_apoyo', $apoyo->id_apoyo)->values();
         return $apoyo;
     });
 
-    return view('solicitudes.registrar', ['apoyosJson' => $apoyosData->toJson()]);
+    $misSolicitudes = collect();
+    $curpBeneficiario = Auth::guard('beneficiario')->id();
 
-})->middleware(['auth', 'verified'])->name('solicitudes.registrar');
+    if ($curpBeneficiario) {
+        $misSolicitudes = DB::table('Solicitudes')
+            ->leftJoin('Apoyos', 'Solicitudes.fk_id_apoyo', '=', 'Apoyos.id_apoyo')
+            ->where('Solicitudes.fk_curp', $curpBeneficiario)
+            ->orderByDesc('Solicitudes.folio')
+            ->select([
+                'Solicitudes.folio',
+                'Solicitudes.estado',
+                'Solicitudes.fecha_creacion',
+                'Apoyos.nombre_apoyo',
+            ])
+            ->limit(10)
+            ->get();
+    }
 
-Route::post('/guardar-solicitud', [SolicitudController::class, 'guardar'])->name('solicitud.guardar');
+    return view('solicitudes.registrar', [
+        'apoyosJson' => $apoyosData->toJson(),
+        'misSolicitudes' => $misSolicitudes,
+    ]);
+
+})->middleware('auth:web,beneficiario')->name('solicitudes.registrar');
+
+Route::post('/guardar-solicitud', [SolicitudController::class, 'guardar'])
+    ->middleware('auth:web,beneficiario')
+    ->name('solicitud.guardar');
 
 Route::get('/apoyos',      [ApoyoController::class, 'index'])->name('apoyos.index');
 Route::post('/apoyos',     [ApoyoController::class, 'store'])->name('apoyos.store');

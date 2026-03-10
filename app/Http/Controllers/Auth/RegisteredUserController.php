@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Beneficiario;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
-use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\RedirectResponse;   
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -61,11 +62,17 @@ class RegisteredUserController extends Controller
 
         // 3. Evaluar el status_code (Lógica de Robustez)
         if ($respuesta->status_code == 0) {
-            // ÉXITO: Buscamos al usuario por su CURP (que es la PK)
-            $user = \App\Models\User::find($respuesta->curp);
+            // ÉXITO: Buscamos al beneficiario por su CURP (PK en Beneficiarios)
+            $user = Beneficiario::find($respuesta->curp);
+
+            if (!$user) {
+                return back()->withErrors([
+                    'error' => 'Registro creado, pero no se pudo recuperar el beneficiario para iniciar sesion.',
+                ])->withInput();
+            }
             
-            // Iniciamos sesión automáticamente
-            \Auth::login($user);
+            // Iniciamos sesión con el guard de beneficiarios
+            \Auth::guard('beneficiario')->login($user);
 
             return redirect(route('dashboard', absolute: false));
         } 
