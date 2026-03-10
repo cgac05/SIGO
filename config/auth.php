@@ -38,7 +38,11 @@ return [
     'guards' => [
         'web' => [
             'driver' => 'session',
-            'provider' => 'users',
+            'provider' => 'users', // Para el Personal
+        ],
+        'beneficiario' => [
+            'driver' => 'session',
+            'provider' => 'beneficiarios', // Para los jóvenes
         ],
     ],
 
@@ -63,6 +67,11 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', App\Models\User::class),
+        ],
+
+        'beneficiarios' => [
+            'driver' => 'eloquent',
+            'model' => env('AUTH_BENEFICIARIO_MODEL', App\Models\Beneficiario::class),
         ],
 
         // 'users' => [

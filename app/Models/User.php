@@ -13,7 +13,9 @@ class User extends Authenticatable
 
     // 2. Definimos tu llave primaria personalizada
     protected $primaryKey = 'id_empleado';
-
+    //protected $primaryKey = 'curp'; // Indica que no es 'id'
+    //public $incrementing = false;   // Indica que no es un número auto-incremental
+    //protected $keyType = 'string';  // Indica que es texto
     // 3. Campos que se pueden llenar
     protected $fillable = [
         'nombre',
