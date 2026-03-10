@@ -31,6 +31,11 @@ class Apoyo extends Model
         'tipo_apoyo',
         'monto_maximo',
         'activo',
+        'fecha_Creacion',
+        'fechaInicio',
+        'fechafin',
+        'foto_ruta',
+        'descripcion',
     ];
 }
 

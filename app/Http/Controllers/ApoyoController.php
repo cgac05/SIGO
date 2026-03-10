@@ -80,6 +80,7 @@ class ApoyoController extends Controller
         'nombre_apoyo' => 'required|string|max:100',
         'tipo_apoyo' => 'required|in:Económico,Especie',
         'monto_maximo' => 'nullable|numeric',
+            'descripcion' => 'required|string',
         'monto_inicial_asignado' => 'nullable|numeric',
         'stock_inicial' => 'nullable|integer',
         'activo' => 'nullable|boolean',
@@ -99,15 +100,24 @@ class ApoyoController extends Controller
         }
 
         // 2. USO DEL MODELO (Para que funcione el $dateFormat y no truene la fecha)
+        // Determinar valor de 'activo' de forma robusta cuando el formulario
+        // envía tanto el hidden (0) como el checkbox (1) o sólo uno de ellos.
+        $activoRaw = $request->input('activo');
+        if (is_array($activoRaw)) {
+            $activoRaw = end($activoRaw); // tomar el último valor enviado (checkbox sobrescribe hidden)
+        }
+        $activo = filter_var($activoRaw, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+
         $apoyo = \App\Models\Apoyo::create([
             'nombre_apoyo'   => $data['nombre_apoyo'],
             'tipo_apoyo'     => $data['tipo_apoyo'],
             'monto_maximo'   => $data['monto_maximo'] ?? ($data['monto_inicial_asignado'] ?? 0),
-            'activo'         => $request->boolean('activo') ? 1 : 0,
+            'activo'         => $activo,
             'fecha_Creacion' => now(),
             'fechaInicio'    => $data['fechaInicio'],
             'fechafin'       => $data['fechafin'],
             'foto_ruta'      => $fotoRuta,
+            'descripcion'    => $data['descripcion'],
         ]);
 
         // 3. RELACIONES SECUNDARIAS
