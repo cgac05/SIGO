@@ -24,6 +24,7 @@ class Apoyo extends Model
     public $incrementing = true;
     protected $keyType = 'int';
     public $timestamps = false;
+    
     // En lugar de enviarlo con guiones, lo enviamos plano para que SQL no se confunda
     protected $dateFormat = 'Ymd H:i:s';
     protected $fillable = [
@@ -31,9 +32,9 @@ class Apoyo extends Model
         'tipo_apoyo',
         'monto_maximo',
         'activo',
-        'fecha_Creacion',
-        'fechaInicio',
-        'fechafin',
+        'fecha_Creacion' => 'datetime',
+        'fechaInicio'    => 'datetime',
+        'fechafin'       => 'datetime',
         'foto_ruta',
         'descripcion',
     ];

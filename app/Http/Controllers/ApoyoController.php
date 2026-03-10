@@ -108,17 +108,22 @@ class ApoyoController extends Controller
         }
         $activo = filter_var($activoRaw, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
 
-        $apoyo = \App\Models\Apoyo::create([
-            'nombre_apoyo'   => $data['nombre_apoyo'],
-            'tipo_apoyo'     => $data['tipo_apoyo'],
-            'monto_maximo'   => $data['monto_maximo'] ?? ($data['monto_inicial_asignado'] ?? 0),
-            'activo'         => $activo,
-            'fecha_Creacion' => now(),
-            'fechaInicio'    => $data['fechaInicio'],
-            'fechafin'       => $data['fechafin'],
-            'foto_ruta'      => $fotoRuta,
-            'descripcion'    => $data['descripcion'],
-        ]);
+        // ... dentro del try ...
+
+$apoyo = \App\Models\Apoyo::create([
+    'nombre_apoyo'   => $data['nombre_apoyo'],
+    'tipo_apoyo'     => $data['tipo_apoyo'],
+    'monto_maximo'   => $data['monto_maximo'] ?? ($data['monto_inicial_asignado'] ?? 0),
+    'activo'         => $activo,
+    'fecha_Creacion' => now(), // Genera un objeto Carbon automáticamente
+    
+    // Convertimos el string a objeto Carbon para que el modelo aplique el $dateFormat
+    'fechaInicio'    => \Carbon\Carbon::parse($data['fechaInicio']),
+    'fechafin'       => \Carbon\Carbon::parse($data['fechafin']),
+    
+    'foto_ruta'      => $fotoRuta,
+    'descripcion'    => $data['descripcion'],
+]);
 
         // 3. RELACIONES SECUNDARIAS
         if ($data['tipo_apoyo'] === 'Económico') {
