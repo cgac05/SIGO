@@ -1,8 +1,25 @@
 @props([
-    'name',
-    'show' => false,
-    'maxWidth' => '2xl'
+        'name' => '',
+        'show' => false,
+        'maxWidth' => '2xl'
 ])
+
+{{--
+        Componente modal genérico.
+
+        Props:
+        - name: identificador opcional del modal. Si se proporciona, el componente escucha
+            eventos de ventana `open-modal` y `close-modal` con `event.detail == name` para
+            abrir/cerrar el modal desde cualquier parte del JS.
+        - show: estado inicial (boolean).
+        - maxWidth: clase de tamaño para centrar/limitar el ancho del contenedor.
+
+        Comportamiento importante:
+        - Emitir `window.dispatchEvent(new CustomEvent('open-modal',{detail:'theName'}))` abrirá
+            el modal si `name` coincide.
+        - Emitir `window.dispatchEvent(new CustomEvent('close-modal',{detail:'theName'}))` cerrará
+            el modal si `name` coincide.
+--}}
 
 @php
 $maxWidth = [
