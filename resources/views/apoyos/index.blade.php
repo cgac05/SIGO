@@ -50,7 +50,7 @@
                                                                         - El campo `activo` se envía siempre (hidden+checkbox) para evitar
                                                                             problemas con checkboxes desmarcados.
                                                                 --}}
-                                                                <form id="apoyo-form" method="POST" action="{{ route('apoyos.store') }}">
+                                                                <form id="apoyo-form" method="POST" action="{{ route('apoyos.store') }}" enctype="multipart/form-data">
                                     @csrf
                                     <div class="space-y-4">
                                         <div>
@@ -68,22 +68,61 @@
                                             <x-input-error :messages="$errors->get('tipo_apoyo')" class="mt-2" />
                                         </div>
 
-                                        <div>
-                                            <x-input-label for="monto_maximo" :value="__('Monto Máximo')" />
-                                            <x-text-input id="monto_maximo" name="monto_maximo" type="number" step="0.01" class="mt-1 block w-full" />
-                                            <x-input-error :messages="$errors->get('monto_maximo')" class="mt-2" />
-                                        </div>
+                                        <div class="flex gap-4">
+                                            <div class="flex-1">
+                                                <x-input-label for="monto_maximo" :value="__('Monto Máximo')" />
+                                                <x-text-input id="monto_maximo" name="monto_maximo" type="number" step="0.01" class="mt-1 block w-full" />
+                                                <x-input-error :messages="$errors->get('monto_maximo')" class="mt-2" />
+                                            </div>
 
-                                        <div x-show="tipo=='Económico'" x-cloak>
-                                            <x-input-label for="monto_inicial_asignado" :value="__('Monto Inicial Asignado')" />
-                                            <x-text-input id="monto_inicial_asignado" name="monto_inicial_asignado" type="number" step="0.01" class="mt-1 block w-full" />
-                                            <x-input-error :messages="$errors->get('monto_inicial_asignado')" class="mt-2" />
+                                            <div class="flex-1" x-show="tipo=='Económico'" x-cloak>
+                                                <x-input-label for="monto_inicial_asignado" :value="__('Monto Inicial Asignado')" />
+                                                <x-text-input id="monto_inicial_asignado" name="monto_inicial_asignado" type="number" step="0.01" class="mt-1 block w-full" />
+                                                <x-input-error :messages="$errors->get('monto_inicial_asignado')" class="mt-2" />
+                                            </div>
                                         </div>
 
                                         <div x-show="tipo=='Especie'" x-cloak>
                                             <x-input-label for="stock_inicial" :value="__('Stock Inicial')" />
                                             <x-text-input id="stock_inicial" name="stock_inicial" type="number" class="mt-1 block w-full" />
                                             <x-input-error :messages="$errors->get('stock_inicial')" class="mt-2" />
+                                        </div>
+
+                                        <div class="flex gap-4">
+                                            <div class="flex-1">
+                                                <x-input-label for="fechaInicio" :value="__('Fecha de Inicio')" />
+                                                <input id="fechaInicio" name="fechaInicio" type="date" class="mt-1 block w-full border-gray-300 rounded-md" required />
+                                                <x-input-error :messages="$errors->get('fechaInicio')" class="mt-2" />
+                                            </div>
+
+                                            <div class="flex-1">
+                                                <x-input-label for="fechafin" :value="__('Fecha de Fin')" />
+                                                <input id="fechafin" name="fechafin" type="date" class="mt-1 block w-full border-gray-300 rounded-md" required />
+                                                <x-input-error :messages="$errors->get('fechafin')" class="mt-2" />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <x-input-label for="foto_ruta" :value="__('Foto del Apoyo')" />
+                                            <input id="foto_ruta" name="foto_ruta" type="file" accept="image/*" class="mt-1 block w-full" />
+                                            <x-input-error :messages="$errors->get('foto_ruta')" class="mt-2" />
+                                        </div>
+
+                                        <div>
+                                            <x-input-label :value="__('Documentos Requeridos')" />
+                                            <div class="mt-2 grid grid-cols-2 gap-2">
+                                                @if(isset($tiposDocumentos) && $tiposDocumentos->count())
+                                                    @foreach($tiposDocumentos as $td)
+                                                        <label class="flex items-center gap-2">
+                                                            <input type="checkbox" name="documentos_requeridos[]" value="{{ $td->id_tipo_doc }}" class="form-checkbox">
+                                                            <span class="text-sm">{{ $td->nombre_documento }}</span>
+                                                        </label>
+                                                    @endforeach
+                                                @else
+                                                    <div class="text-sm text-gray-500">No hay tipos de documento configurados.</div>
+                                                @endif
+                                            </div>
+                                            <x-input-error :messages="$errors->get('documentos_requeridos')" class="mt-2" />
                                         </div>
 
                                         {{--

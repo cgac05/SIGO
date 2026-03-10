@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 /**
  * Controller para administrar los apoyos.
@@ -28,7 +30,10 @@ class ApoyoController extends Controller
     public function index()
     {
         $apoyos = DB::table('Apoyos')->orderBy('id_apoyo', 'desc')->get();
-        return view('apoyos.index', compact('apoyos'));
+        // Cargar catálogos necesarios para el formulario
+        $tiposDocumentos = DB::table('Cat_TiposDocumento')->select('id_tipo_doc', 'nombre_documento')->orderBy('nombre_documento')->get();
+
+        return view('apoyos.index', compact('apoyos', 'tiposDocumentos'));
     }
 
     /**
@@ -77,6 +82,11 @@ class ApoyoController extends Controller
             'monto_inicial_asignado' => 'nullable|numeric',
             'stock_inicial' => 'nullable|integer',
             'activo' => 'nullable|boolean',
+            'fechaInicio' => 'required|date',
+            'fechafin' => 'required|date',
+            'foto_ruta' => 'nullable|image|max:5120', // max 5MB
+            'documentos_requeridos' => 'nullable|array',
+            'documentos_requeridos.*' => 'integer|exists:Cat_TiposDocumento,id_tipo_doc',
         ]);
 
         // Ajustes según tipo: forzar campos requeridos según el tipo seleccionado
@@ -97,12 +107,28 @@ class ApoyoController extends Controller
         // Inicio de transacción: se asegura la atomicidad entre las tablas relacionadas
         DB::beginTransaction();
         try {
+            // Procesar la imagen si se subió y generar ruta relativa
+            $fotoRuta = null;
+            if ($request->hasFile('foto_ruta')) {
+                $file = $request->file('foto_ruta');
+                $path = $file->store('apoyos', 'public'); // storage/app/public/apoyos/...
+                $fotoRuta = 'storage/' . $path; // ruta relativa para usar desde public
+            }
+
+            // Preparar fechas como DATETIME
+            $fechaInicio = Carbon::parse($data['fechaInicio'])->startOfDay();
+            $fechaFin = Carbon::parse($data['fechafin'])->endOfDay();
+
             // Inserción principal en la tabla Apoyos. insertGetId devuelve el id_autoincremental
             $id = DB::table('Apoyos')->insertGetId([
                 'nombre_apoyo' => $data['nombre_apoyo'],
                 'tipo_apoyo' => $data['tipo_apoyo'],
                 'monto_maximo' => $data['monto_maximo'],
                 'activo' => $activo ? 1 : 0,
+                'fecha_Creacion' => Carbon::now(),
+                'fechaInicio' => $fechaInicio->toDateTimeString(),
+                'fechafin' => $fechaFin->toDateTimeString(),
+                'foto_ruta' => $fotoRuta,
             ], 'id_apoyo');
 
             // Inserción secundaria dependiendo del tipo: Finanzas o Inventario
@@ -117,6 +143,18 @@ class ApoyoController extends Controller
                     'fk_id_apoyo' => $id,
                     'stock_actual' => $data['stock_inicial'],
                 ]);
+            }
+
+            // Insertar los requisitos seleccionados (si los hay)
+            $documentos = $request->input('documentos_requeridos', []);
+            if (is_array($documentos) && count($documentos) > 0) {
+                foreach ($documentos as $docId) {
+                    DB::table('Requisitos_Apoyo')->insert([
+                        'fk_id_apoyo' => $id,
+                        'fk_id_tipo_doc' => $docId,
+                        'es_obligatorio' => 1,
+                    ]);
+                }
             }
 
             // Confirmar transacción
