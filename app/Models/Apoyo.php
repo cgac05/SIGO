@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+
 /**
  * Modelo Eloquent para la tabla `Apoyos`.
  *
@@ -23,7 +24,8 @@ class Apoyo extends Model
     public $incrementing = true;
     protected $keyType = 'int';
     public $timestamps = false;
-
+    // En lugar de enviarlo con guiones, lo enviamos plano para que SQL no se confunda
+    protected $dateFormat = 'Ymd H:i:s';
     protected $fillable = [
         'nombre_apoyo',
         'tipo_apoyo',
