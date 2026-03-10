@@ -26,51 +26,65 @@ class AuthenticatedSessionController extends Controller
      * Handle an incoming authentication request.
      */
     public function store(LoginRequest $request): RedirectResponse
-    {
-        try {
-            $resultado = DB::select('SET NOCOUNT ON; EXEC sp_LoginUniversal ?, ?', [
-                $request->email,
-                $request->password,
-            ]);
+{
+    try {
+        $resultado = DB::select('SET NOCOUNT ON; EXEC sp_LoginUniversal ?, ?', [
+            $request->email,
+            $request->password,
+        ]);
 
-            if (empty($resultado)) {
-                return back()->withInput()->withErrors(['email' => 'Credenciales incorrectas.'])->with('auth_error', 'Credenciales incorrectas.');
-            }
-
-            $usuarioLogueado = $resultado[0];
-        } catch (\Exception $e) {
-            return back()->withInput()->withErrors(['email' => 'Error en el sistema: ' . $e->getMessage()])->with('auth_error', 'Error en el sistema.');
+        if (empty($resultado)) {
+            return back()->withInput()
+                ->withErrors(['email' => 'Credenciales incorrectas.'])
+                ->with('auth_error', 'Credenciales incorrectas.');
         }
 
-        // Personal y administrativo usan el guard web.
-        if (in_array($usuarioLogueado->tipo, ['personal', 'administrativo'], true)) {
-            $user = User::find($usuarioLogueado->id);
+        $usuarioLogueado = $resultado[0];
 
-            if (!$user) {
-                return back()->withInput()->withErrors(['email' => 'Usuario administrativo/personal no encontrado.'])->with('auth_error', 'Usuario administrativo/personal no encontrado.');
-            }
-
-            Auth::guard('web')->login($user);
-            $request->session()->regenerate();
-
-            return redirect()->intended(route('dashboard'));
-        }
-
-        if ($usuarioLogueado->tipo === 'beneficiario') {
-            $user = Beneficiario::find($usuarioLogueado->id);
-
-            if (!$user) {
-                return back()->withInput()->withErrors(['email' => 'Beneficiario no encontrado.'])->with('auth_error', 'Beneficiario no encontrado.');
-            }
-
-            Auth::guard('beneficiario')->login($user);
-            $request->session()->regenerate();
-
-            return redirect()->intended(route('dashboard'));
-        }
-
-        return back()->withInput()->withErrors(['email' => 'Tipo de usuario no permitido.'])->with('auth_error', 'Tipo de usuario no permitido.');
+    } catch (\Exception $e) {
+        return back()->withInput()
+            ->withErrors(['email' => 'Error en el sistema: ' . $e->getMessage()])
+            ->with('auth_error', 'Error en el sistema.');
     }
+
+    // ── Personal ───────────────────────────────────────────────────
+    if (in_array($usuarioLogueado->tipo, ['personal', 'administrativo'], true)) {
+
+        $user = User::where('correo_inst', $request->email)->first();
+
+        if (!$user) {
+            return back()->withInput()
+                ->withErrors(['email' => 'Usuario no encontrado.'])
+                ->with('auth_error', 'Usuario no encontrado.');
+        }
+
+        Auth::guard('web')->login($user);
+        $request->session()->regenerate();
+
+        return redirect()->intended(route('dashboard'));
+    }
+
+    // ── Beneficiario ───────────────────────────────────────────────
+    if ($usuarioLogueado->tipo === 'beneficiario') {
+
+        $user = Beneficiario::where('correo', $request->email)->first();
+
+        if (!$user) {
+            return back()->withInput()
+                ->withErrors(['email' => 'Beneficiario no encontrado.'])
+                ->with('auth_error', 'Beneficiario no encontrado.');
+        }
+
+        Auth::guard('beneficiario')->login($user);
+        $request->session()->regenerate();
+
+        return redirect()->intended(route('dashboard'));
+    }
+
+    return back()->withInput()
+        ->withErrors(['email' => 'Tipo de usuario no permitido.'])
+        ->with('auth_error', 'Tipo de usuario no permitido.');
+}
 
     /**
      * Destroy an authenticated session.
