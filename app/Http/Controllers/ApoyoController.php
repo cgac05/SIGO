@@ -122,20 +122,17 @@ class ApoyoController extends Controller
             }
             $activo = filter_var($activoRaw, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
 
-            // Crear el registro principal en la tabla `Apoyos` usando el modelo Eloquent.
-            // Usamos Eloquent para respetar `$fillable` y `dateFormat` definidos en el modelo.
-            $apoyo = \App\\Models\\Apoyo::create([
-                'nombre_apoyo'   => $data['nombre_apoyo'],
-                'tipo_apoyo'     => $data['tipo_apoyo'],
-                // si no se indicó monto_maximo, usar el monto inicial asignado si existe
-                'monto_maximo'   => $data['monto_maximo'] ?? ($data['monto_inicial_asignado'] ?? 0),
-                'activo'         => $activo,
-                'fecha_Creacion' => now(),
-                'fechaInicio'    => $data['fechaInicio'],
-                'fechafin'       => $data['fechafin'],
-                'foto_ruta'      => $fotoRuta,
-                'descripcion'    => $data['descripcion'],
-            ]);
+        $apoyo = \App\Models\Apoyo::create([
+            'nombre_apoyo'   => $data['nombre_apoyo'],
+            'tipo_apoyo'     => $data['tipo_apoyo'],
+            'monto_maximo'   => $data['monto_maximo'] ?? ($data['monto_inicial_asignado'] ?? 0),
+            'activo'         => $activo,
+            'fecha_Creacion' => now(),
+            'fechaInicio'    => $data['fechaInicio'],
+            'fechafin'       => $data['fechafin'],
+            'foto_ruta'      => $fotoRuta,
+            'descripcion'    => $data['descripcion'],
+        ]);
 
             // Inserciones auxiliares: según el tipo de apoyo, crear registro en la tabla
             // financiera o en inventario. Usamos Query Builder directo porque no

@@ -24,17 +24,17 @@ class Apoyo extends Model
     public $incrementing = true;
     protected $keyType = 'int';
     public $timestamps = false;
-    // No usamos timestamps automáticos; las fechas se guardan manualmente.
-    // Formato personalizado para evitar problemas con el driver SQL Server/DB.
+    
+    // En lugar de enviarlo con guiones, lo enviamos plano para que SQL no se confunda
     protected $dateFormat = 'Ymd H:i:s';
     protected $fillable = [
         'nombre_apoyo',
         'tipo_apoyo',
         'monto_maximo',
         'activo',
-        'fecha_Creacion',
-        'fechaInicio',
-        'fechafin',
+        'fecha_Creacion' => 'datetime',
+        'fechaInicio'    => 'datetime',
+        'fechafin'       => 'datetime',
         'foto_ruta',
         'descripcion',
     ];
