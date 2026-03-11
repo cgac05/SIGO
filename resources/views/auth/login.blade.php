@@ -78,7 +78,7 @@
     @csrf
     <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
     
-    <button type="submit" class="btn btn-primary">Enviar</button>
+    <button type="submit" class="btn btn-primary"></button>
     </form>
 
     <script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.site_key') }}"></script>

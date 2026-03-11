@@ -92,6 +92,25 @@
             </x-primary-button>
         </div>
     </form>
+    <form id="sigo-form" action="{{ route('login') }}" method="POST">
+    @csrf
+    <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
+    
+    <button type="submit" class="btn btn-primary"></button>
+    </form>
+
+    <script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.site_key') }}"></script>
+    <script>
+        document.getElementById('sigo-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            grecaptcha.ready(function() {
+                grecaptcha.execute('{{ config('services.recaptcha.site_key') }}', {action: 'submit'}).then(function(token) {
+                    document.getElementById('g-recaptcha-response').value = token;
+                    document.getElementById('sigo-form').submit();
+                });
+            });
+        });
+    </script>
 </x-guest-layout>
 <!-- Este script formatea el numero de telefono como (311) 123-4567 -->
 <script>
