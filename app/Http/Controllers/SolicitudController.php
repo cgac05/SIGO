@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
+
 class SolicitudController extends Controller
 {
     public function guardar(Request $request)
@@ -23,6 +24,15 @@ class SolicitudController extends Controller
         DB::beginTransaction();
 
         try {
+            // El 'g-recaptcha-response' es el nombre del input hidden que pusimos en la vista
+        $request->validate([
+            'g-recaptcha-response' => ['required', new Recaptcha],
+            'nombre_campo_sigo'    => 'required|string|max:255',
+            'otro_campo'           => 'required',
+        ], [
+            // Opcional: Personaliza el mensaje si el campo falta
+            'g-recaptcha-response.required' => 'El token de seguridad es obligatorio.',
+        ]);
             // 1. Guardar la Solicitud
             $folio = DB::table('Solicitudes')->insertGetId([
                 'fk_curp' => $curpBeneficiario,

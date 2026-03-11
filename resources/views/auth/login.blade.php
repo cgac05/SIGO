@@ -1,7 +1,11 @@
 <x-guest-layout>
     <!-- Session Status -->
     <x-auth-session-status class="mb-4" :status="session('status')" />
-
+    @if ($errors->has('g-recaptcha-response'))
+        <div class="alert alert-danger">
+            {{ $errors->first('g-recaptcha-response') }}
+        </div>
+    @endif
     @if (session('auth_error') || $errors->any())
         <div class="bg-red-600 text-white font-bold text-lg px-6 py-4 rounded mb-4 border-4 border-red-800">
             <div class="flex items-center mb-2">
@@ -70,4 +74,23 @@
             </x-primary-button>
         </div>
     </form>
+    <form id="sigo-form" action="{{ route('login') }}" method="POST">
+    @csrf
+    <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
+    
+    <button type="submit" class="btn btn-primary">Enviar</button>
+    </form>
+
+    <script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.site_key') }}"></script>
+    <script>
+        document.getElementById('sigo-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            grecaptcha.ready(function() {
+                grecaptcha.execute('{{ config('services.recaptcha.site_key') }}', {action: 'submit'}).then(function(token) {
+                    document.getElementById('g-recaptcha-response').value = token;
+                    document.getElementById('sigo-form').submit();
+                });
+            });
+        });
+    </script>
 </x-guest-layout>
