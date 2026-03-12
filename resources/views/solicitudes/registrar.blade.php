@@ -378,6 +378,8 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
                                         </svg>
                                         <span x-text="req.nombre_documento"></span>
+                                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/70 uppercase"
+                                              x-text="tipoArchivoLabel(req)"></span>
                                     </span>
                                 </template>
                             </div>
@@ -389,6 +391,7 @@
                     <form action="{{ route('solicitud.guardar') }}" method="POST" enctype="multipart/form-data" id="formSolicitud">
                         @csrf
                         <input type="hidden" name="apoyo" :value="apoyoActual && apoyoActual.id_apoyo"/>
+                        <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response-solicitud">
 
                         <template x-if="apoyoActual && apoyoActual.requisitos && apoyoActual.requisitos.length > 0">
                             <div>
@@ -399,10 +402,11 @@
                                             <label>
                                                 <span x-text="req.nombre_documento"></span>
                                                 <span class="text-red-500 ml-1">*</span>
+                                                <span class="ml-2 text-[10px] font-bold text-gray-500 uppercase" x-text="tipoArchivoLabel(req)"></span>
                                             </label>
                                             <input type="file"
                                                    :name="'documento_' + req.fk_id_tipo_doc"
-                                                   :accept="req.fk_id_tipo_doc == 7 ? 'image/jpeg,image/png' : '.pdf'"
+                                                   :accept="getAcceptByTipo(req)"
                                                    required/>
                                         </div>
                                     </template>
@@ -485,7 +489,17 @@
                     this.confirmarAbierto = true;
                 },
                 enviarSolicitud() {
-                    document.getElementById('formSolicitud').submit();
+                    if (typeof grecaptcha === 'undefined') {
+                        document.getElementById('formSolicitud').submit();
+                        return;
+                    }
+                    grecaptcha.ready(() => {
+                        grecaptcha.execute('{{ config('services.recaptcha.site_key') }}', { action: 'solicitud' })
+                            .then(token => {
+                                document.getElementById('g-recaptcha-response-solicitud').value = token;
+                                document.getElementById('formSolicitud').submit();
+                            });
+                    });
                 },
                 formatFecha(fecha) {
                     if (!fecha) return '—';
@@ -493,9 +507,35 @@
                         const d = new Date(fecha);
                         return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
                     } catch(e) { return fecha; }
+                },
+                tipoArchivoLabel(req) {
+                    const tipo = (req && req.tipo_archivo_permitido ? req.tipo_archivo_permitido : 'pdf').toLowerCase();
+                    switch (tipo) {
+                        case 'image': return 'imagen';
+                        case 'word': return 'word';
+                        case 'excel': return 'excel/csv';
+                        case 'zip': return 'zip';
+                        case 'any': return 'libre';
+                        default: return 'pdf';
+                    }
+                },
+                getAcceptByTipo(req) {
+                    const validar = !req || req.validar_tipo_archivo === undefined || Number(req.validar_tipo_archivo) === 1;
+                    if (!validar) return '';
+
+                    const tipo = (req && req.tipo_archivo_permitido ? req.tipo_archivo_permitido : 'pdf').toLowerCase();
+                    switch (tipo) {
+                        case 'image': return 'image/jpeg,image/png,image/webp';
+                        case 'word': return '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                        case 'excel': return '.xls,.xlsx,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv';
+                        case 'zip': return '.zip,.rar,.7z,application/zip,application/x-rar-compressed,application/x-7z-compressed';
+                        case 'any': return '';
+                        default: return '.pdf,application/pdf';
+                    }
                 }
             }
         }
     </script>
 
+<script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.site_key') }}"></script>
 </x-app-layout>

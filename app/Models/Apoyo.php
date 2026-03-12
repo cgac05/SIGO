@@ -24,19 +24,24 @@ class Apoyo extends Model
     public $incrementing = true;
     protected $keyType = 'int';
     public $timestamps = false;
-    
-    // En lugar de enviarlo con guiones, lo enviamos plano para que SQL no se confunda
-    protected $dateFormat = 'Ymd H:i:s';
+
     protected $fillable = [
         'nombre_apoyo',
+        'anio_fiscal',
         'tipo_apoyo',
         'monto_maximo',
+        'cupo_limite',
         'activo',
-        'fecha_Creacion' => 'datetime',
-        'fechaInicio'    => 'datetime',
-        'fechafin'       => 'datetime',
+        'fecha_inicio',
+        'fecha_fin',
         'foto_ruta',
         'descripcion',
+    ];
+
+    protected $casts = [
+        'activo' => 'boolean',
+        'fecha_inicio' => 'datetime',
+        'fecha_fin' => 'datetime',
     ];
 }
 

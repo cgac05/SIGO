@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Rules\Recaptcha;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -29,44 +29,11 @@ class LoginRequest extends FormRequest
         return [
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
+            'remember' => ['nullable', 'boolean'],
+            'g-recaptcha-response' => app()->environment('testing') ? ['nullable'] : ['required', new Recaptcha],
         ];
     }
 
-    /**
-     * Attempt to authenticate the request's credentials.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
-    public function authenticate(): void
-{
-    $this->ensureIsNotRateLimited();
-
-    try {
-        // Ejecutamos el SP
-        $usuarioData = \DB::select('SET NOCOUNT ON; EXEC sp_LoginUsuario ?, ?, ?', [
-            $this->email,
-            $this->password,
-            $this->ip()
-        ]);
-
-        if (empty($usuarioData)) {
-            throw new \Exception('No se encontraron datos.');
-        }
-
-        // Si llegamos aquí, las credenciales son correctas
-        $user = \App\Models\User::find($usuarioData[0]->id_empleado);
-        \Auth::login($user, $this->boolean('remember'));
-        \Illuminate\Support\Facades\RateLimiter::clear($this->throttleKey());
-
-    } catch (\Exception $e) {
-        // Si el SP lanza el RAISERROR, caemos aquí
-        \Illuminate\Support\Facades\RateLimiter::hit($this->throttleKey());
-
-        throw \Illuminate\Validation\ValidationException::withMessages([
-            'email' => 'Las credenciales proporcionadas son incorrectas o el usuario está inactivo.',
-        ]);
-    }
-}
     /**
      * Ensure the login request is not rate limited.
      *

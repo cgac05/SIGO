@@ -1,4 +1,5 @@
 <nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
+    @php($currentUser = Auth::user())
     <!-- Primary Navigation Menu -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
@@ -15,9 +16,11 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
-                    <x-nav-link :href="url('/Registrar-Solicitud')" :active="request()->is('Registrar-Solicitud')">
-                         {{ __('Registrar Solicitud') }}
-                    </x-nav-link>
+                    @if($currentUser?->isBeneficiario() && $currentUser?->hasCompleteBeneficiarioProfile())
+                        <x-nav-link :href="url('/Registrar-Solicitud')" :active="request()->is('Registrar-Solicitud')">
+                             {{ __('Registrar Solicitud') }}
+                        </x-nav-link>
+                    @endif
                 </div>
             </div>
 
@@ -26,15 +29,7 @@
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
-                            <div>
-                                @if(Auth::guard('beneficiario')->check())
-                                    {{ Auth::guard('beneficiario')->user()->nombre }} {{ Auth::guard('beneficiario')->user()->apellido_paterno }}
-                                @elseif(Auth::guard('web')->check())
-                                    {{ Auth::guard('web')->user()->name }}
-                                @else
-                                    Usuario
-                                @endif
-                            </div>
+                            <div>{{ $currentUser?->display_name ?? 'Usuario' }}</div>
 
                             <div class="ms-1">
                                 <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
@@ -86,15 +81,8 @@
         <!-- Responsive Settings Options -->
         <div class="pt-4 pb-1 border-t border-gray-200">
             <div class="px-4">
-                @if(Auth::guard('beneficiario')->check())
-                    <div class="font-medium text-base text-gray-800">
-                        {{ Auth::guard('beneficiario')->user()->nombre }} {{ Auth::guard('beneficiario')->user()->apellido_paterno }}
-                    </div>
-                    <div class="font-medium text-sm text-gray-500">{{ Auth::guard('beneficiario')->user()->correo_electronico }}</div>
-                @elseif(Auth::guard('web')->check())
-                    <div class="font-medium text-base text-gray-800">{{ Auth::guard('web')->user()->name }}</div>
-                    <div class="font-medium text-sm text-gray-500">{{ Auth::guard('web')->user()->email }}</div>
-                @endif
+                <div class="font-medium text-base text-gray-800">{{ $currentUser?->display_name }}</div>
+                <div class="font-medium text-sm text-gray-500">{{ $currentUser?->email }}</div>
             </div>
 
             <div class="mt-3 space-y-1">
