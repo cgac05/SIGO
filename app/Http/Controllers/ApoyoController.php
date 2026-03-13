@@ -31,6 +31,8 @@ class ApoyoController extends Controller
      */
     public function index()
     {
+        $user = Auth::user()->load('personal');
+
         $apoyos = DB::table('Apoyos')
             ->select([
                 'id_apoyo',
@@ -42,13 +44,20 @@ class ApoyoController extends Controller
                 'cupo_limite',
                 'fecha_inicio as fechaInicio',
                 'fecha_fin as fechafin',
+                'foto_ruta',
+                'descripcion',
             ])
             ->orderBy('id_apoyo', 'desc')
             ->get();
 
+        \Log::info('ApoyoController@index - Apoyos cargados', [
+            'count' => $apoyos->count(),
+            'apoyos_ids' => $apoyos->pluck('id_apoyo')->toArray(),
+        ]);
+
         $tiposDocumentos = DB::table('Cat_TiposDocumento')->select('id_tipo_doc', 'nombre_documento')->orderBy('nombre_documento')->get();
 
-        return view('apoyos.index', compact('apoyos', 'tiposDocumentos'));
+        return view('apoyos.index', compact('apoyos', 'tiposDocumentos', 'user'));
     }
 
     /**
@@ -258,6 +267,8 @@ class ApoyoController extends Controller
                 'cupo_limite',
                 'fecha_inicio as fechaInicio',
                 'fecha_fin as fechafin',
+                'foto_ruta',
+                'descripcion',
             ])
             ->orderBy('id_apoyo', 'desc')
             ->get();
@@ -369,6 +380,178 @@ class ApoyoController extends Controller
             DB::rollBack();
 
             return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Mostrar el formulario de edición de un apoyo.
+     *
+     * GET /apoyos/{id}/edit
+     */
+    public function edit($id)
+    {
+        $apoyo = Apoyo::findOrFail($id);
+
+        $tiposDocumentos = DB::table('Cat_TiposDocumento')
+            ->select('id_tipo_doc', 'nombre_documento', 'tipo_archivo_permitido', 'validar_tipo_archivo')
+            ->orderBy('nombre_documento')
+            ->get();
+
+        $requisitosActuales = DB::table('Requisitos_Apoyo')
+            ->where('fk_id_apoyo', $id)
+            ->pluck('fk_id_tipo_doc')
+            ->toArray();
+
+        return view('apoyos.edit', compact('apoyo', 'tiposDocumentos', 'requisitosActuales'));
+    }
+
+    /**
+     * Actualizar un apoyo existente.
+     *
+     * POST /apoyos/{id}
+     */
+    public function update(Request $request, $id)
+    {
+        $apoyo = Apoyo::findOrFail($id);
+
+        $data = $request->validate([
+            'nombre_apoyo' => 'required|string|max:100',
+            'tipo_apoyo' => 'required|in:Económico,Especie',
+            'monto_maximo' => 'nullable|numeric',
+            'descripcion' => 'nullable|string',
+            'monto_inicial_asignado' => 'nullable|numeric|required_if:tipo_apoyo,Económico',
+            'stock_inicial' => 'nullable|integer|required_if:tipo_apoyo,Especie',
+            'cupo_limite' => 'nullable|integer|min:1',
+            'activo' => 'nullable|boolean',
+            'fechaInicio' => 'required|date',
+            'fechafin' => 'required|date|after_or_equal:fechaInicio',
+            'foto_ruta' => 'nullable|image|max:5120',
+            'documentos_requeridos' => 'nullable|array',
+            'documentos_requeridos.*' => 'integer|exists:Cat_TiposDocumento,id_tipo_doc',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            $payload = [
+                'nombre_apoyo' => $data['nombre_apoyo'],
+                'tipo_apoyo' => $data['tipo_apoyo'],
+                'monto_maximo' => $data['monto_maximo'] ?? ($data['monto_inicial_asignado'] ?? 0),
+                'cupo_limite' => $data['cupo_limite'] ?? null,
+                'activo' => filter_var($request->input('activo'), FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
+                'fecha_inicio' => Carbon::parse($data['fechaInicio']),
+                'fecha_fin' => Carbon::parse($data['fechafin']),
+            ];
+
+            if ($request->hasFile('foto_ruta')) {
+                // Eliminar imagen anterior si existe
+                if ($apoyo->foto_ruta && file_exists(public_path($apoyo->foto_ruta))) {
+                    unlink(public_path($apoyo->foto_ruta));
+                }
+                $payload['foto_ruta'] = 'storage/' . $request->file('foto_ruta')->store('apoyos', 'public');
+            }
+
+            if (Schema::hasColumn('Apoyos', 'descripcion')) {
+                $payload['descripcion'] = $data['descripcion'] ?? null;
+            }
+
+            $apoyo->update($payload);
+
+            // Actualizar BD_Finanzas o BD_Inventario
+            if ($data['tipo_apoyo'] === 'Económico') {
+                $finanzas = DB::table('BD_Finanzas')->where('fk_id_apoyo', $id)->first();
+                if ($finanzas) {
+                    DB::table('BD_Finanzas')
+                        ->where('fk_id_apoyo', $id)
+                        ->update(['monto_asignado' => $data['monto_inicial_asignado'] ?? 0]);
+                } else {
+                    DB::table('BD_Finanzas')->insert([
+                        'fk_id_apoyo' => $id,
+                        'monto_asignado' => $data['monto_inicial_asignado'] ?? 0,
+                        'monto_ejercido' => 0,
+                    ]);
+                }
+            } else {
+                $inventario = DB::table('BD_Inventario')->where('fk_id_apoyo', $id)->first();
+                if ($inventario) {
+                    DB::table('BD_Inventario')
+                        ->where('fk_id_apoyo', $id)
+                        ->update(['stock_actual' => $data['stock_inicial'] ?? 0]);
+                } else {
+                    DB::table('BD_Inventario')->insert([
+                        'fk_id_apoyo' => $id,
+                        'stock_actual' => $data['stock_inicial'] ?? 0,
+                    ]);
+                }
+            }
+
+            // Actualizar requisitos
+            if (! empty($data['documentos_requeridos'])) {
+                DB::table('Requisitos_Apoyo')->where('fk_id_apoyo', $id)->delete();
+                foreach ($data['documentos_requeridos'] as $docId) {
+                    DB::table('Requisitos_Apoyo')->insert([
+                        'fk_id_apoyo' => $id,
+                        'fk_id_tipo_doc' => $docId,
+                        'es_obligatorio' => 1,
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            // Retornar el apoyo actualizado como JSON
+            $apoyoActualizado = DB::table('Apoyos')
+                ->where('id_apoyo', $id)
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Apoyo actualizado correctamente.',
+                'apoyo' => $apoyoActualizado,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Eliminar un apoyo.
+     *
+     * DELETE /apoyos/{id}
+     */
+    public function destroy($id)
+    {
+        DB::beginTransaction();
+
+        try {
+            $apoyo = Apoyo::findOrFail($id);
+
+            // Eliminar imagen si existe
+            if ($apoyo->foto_ruta && file_exists(public_path($apoyo->foto_ruta))) {
+                unlink(public_path($apoyo->foto_ruta));
+            }
+
+            // Eliminar en cascada (BD_Finanzas, BD_Inventario, Requisitos_Apoyo)
+            $apoyo->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Apoyo eliminado correctamente.',
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+            ], 500);
         }
     }
 }
