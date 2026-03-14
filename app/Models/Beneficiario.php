@@ -2,34 +2,46 @@
 
 namespace App\Models;
 
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Beneficiario extends Authenticatable
+class Beneficiario extends Model
 {
-    use Notifiable;
-
     protected $table = 'Beneficiarios';
     protected $primaryKey = 'curp';
     public $incrementing = false;
     protected $keyType = 'string';
     public $timestamps = false;
 
-    protected $fillable = ['curp', 'nombre', 'apellido_paterno', 'apellido_materno', 'correo_electronico', 'pass_hash', 'activo'];
-    protected $hidden = ['pass_hash', 'remember_token'];
+    protected $fillable = [
+        'curp',
+        'fk_id_usuario',
+        'nombre',
+        'apellido_paterno',
+        'apellido_materno',
+        'telefono',
+        'fecha_nacimiento',
+        'genero',
+        'acepta_privacidad',
+    ];
 
-    public function getAuthPassword()
+    protected $casts = [
+        'fecha_nacimiento' => 'date',
+        'fecha_registro' => 'datetime',
+        'acepta_privacidad' => 'boolean',
+    ];
+
+    public function user(): BelongsTo
     {
-        return $this->pass_hash;
+        return $this->belongsTo(User::class, 'fk_id_usuario', 'id_usuario');
     }
 
-    public function getAuthIdentifierName()
+    public function getNombreCompletoAttribute(): string
     {
-        return 'curp';
-    }
-
-    public function getAuthIdentifier()
-    {
-        return $this->curp;
+        return trim(collect([
+            $this->nombre,
+            $this->apellido_paterno,
+            $this->apellido_materno,
+        ])->filter()->implode(' '));
     }
 }

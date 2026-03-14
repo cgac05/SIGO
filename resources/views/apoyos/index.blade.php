@@ -30,6 +30,7 @@
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-medium">Lista de Apoyos</h3>
                     <div class="flex items-center gap-2">
+<<<<<<< HEAD
                         {{--<x-primary-button id="btn-reload">Recargar</x-primary-button>--}}
                         <div id="apoyo-modal" x-data="{tipo:'Económico'}">
                             <x-primary-button @click.prevent="window.dispatchEvent(new CustomEvent('open-modal',{detail:'apoyoModal'}))">Nuevo Apoyo</x-primary-button>
@@ -159,6 +160,11 @@
                             </div>
                         </x-modal>
                     </div>
+=======
+                        <a href="{{ route('apoyos.create') }}">
+                            <x-primary-button>+ Nuevo Apoyo</x-primary-button>
+                        </a>
+>>>>>>> 6da04ff4c21ec2e3298b12384bdb1b9c1fb7472c
                     </div>
                 </div>
 
@@ -194,16 +200,9 @@
         </div>
     </div>
 
-    {{--
-        Script integrado para:
-        - Recargar la lista de apoyos vía AJAX (ruta `apoyos.list`).
-        - Interceptar el envío del formulario y hacerlo por Fetch a `apoyos.store`.
-
-        Notas importantes:
-        - Las respuestas JSON del servidor deben seguir la forma { success: boolean, message: string, apoyo?: object }
-        - En caso de éxito, el script cierra el modal mediante el evento `close-modal` y recarga la tabla.
-    --}}
+    @if(session('created'))
     <script>
+<<<<<<< HEAD
         (function(){
             const listUrl = '{{ route('apoyos.list') }}';
             const storeUrl = '{{ route('apoyos.store') }}';
@@ -289,58 +288,16 @@
                 });
             }
         })();
+=======
+        document.addEventListener('DOMContentLoaded', () => {
+            const msg = @json(session('created'));
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-6 right-6 z-50 bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium';
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        });
+>>>>>>> 6da04ff4c21ec2e3298b12384bdb1b9c1fb7472c
     </script>
+    @endif
 </x-app-layout>
-
-<!-- Modal de éxito global (Alpine) -->
-<div x-data="{ mostrarModal:false, mensaje:'' }" @open-success-modal.window="mensaje = $event.detail; mostrarModal = true">
-    <div x-show="mostrarModal" style="display: none;" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div x-show="mostrarModal" 
-                 x-transition:enter="ease-out duration-300" 
-                 x-transition:enter-start="opacity-0" 
-                 x-transition:enter-end="opacity-100" 
-                 x-transition:leave="ease-in duration-200" 
-                 x-transition:leave-start="opacity-100" 
-                 x-transition:leave-end="opacity-0" 
-                 class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity backdrop-blur-sm" 
-                 aria-hidden="true"></div>
-
-            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-            <div x-show="mostrarModal" 
-                 @click.away="mostrarModal = false"
-                 x-transition:enter="ease-out duration-300" 
-                 x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
-                 x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" 
-                 x-transition:leave="ease-in duration-200" 
-                 x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" 
-                 x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
-                 class="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md w-full">
-                
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 text-center">
-                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
-                        <svg class="h-10 w-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                        </svg>
-                    </div>
-                    
-                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-center">
-                        <h3 class="text-2xl leading-6 font-bold text-gray-900 mb-2" id="modal-title">
-                            ¡Éxito!
-                        </h3>
-                        <div class="mt-2">
-                            <p class="text-md text-gray-600" x-text="mensaje">
-                                <!-- mensaje dinámico -->
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                    <button @click="mostrarModal = false" type="button" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-white font-medium hover:bg-green-700 sm:ml-3 sm:w-auto sm:text-sm">Aceptar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>

@@ -11,14 +11,53 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
+        Schema::create('Cat_Roles', function (Blueprint $table) {
+            $table->unsignedInteger('id_rol')->primary();
+            $table->string('nombre_rol', 20)->unique();
+        });
+
+        Schema::create('Usuarios', function (Blueprint $table) {
+            $table->increments('id_usuario');
+            $table->string('email', 100)->unique();
+            $table->string('password_hash')->nullable();
+            $table->string('tipo_usuario', 20);
+            $table->string('google_id')->nullable()->unique();
+            $table->text('google_token')->nullable();
+            $table->text('google_refresh_token')->nullable();
+            $table->text('google_avatar')->nullable();
+            $table->boolean('activo')->default(true);
             $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
+            $table->dateTime('fecha_creacion')->useCurrent();
+            $table->dateTime('ultima_conexion')->nullable();
             $table->rememberToken();
-            $table->timestamps();
+        });
+
+        Schema::create('Personal', function (Blueprint $table) {
+            $table->string('numero_empleado', 15)->primary();
+            $table->unsignedInteger('fk_id_usuario')->unique();
+            $table->string('nombre', 150);
+            $table->string('apellido_paterno', 50);
+            $table->string('apellido_materno', 50);
+            $table->unsignedInteger('fk_rol')->nullable();
+            $table->string('puesto', 100)->nullable();
+
+            $table->foreign('fk_id_usuario')->references('id_usuario')->on('Usuarios')->cascadeOnDelete();
+            $table->foreign('fk_rol')->references('id_rol')->on('Cat_Roles')->nullOnDelete();
+        });
+
+        Schema::create('Beneficiarios', function (Blueprint $table) {
+            $table->char('curp', 18)->primary();
+            $table->unsignedInteger('fk_id_usuario')->unique();
+            $table->string('nombre', 150);
+            $table->string('apellido_paterno', 50);
+            $table->string('apellido_materno', 50);
+            $table->string('telefono', 15)->nullable();
+            $table->date('fecha_nacimiento');
+            $table->string('genero', 10)->nullable();
+            $table->dateTime('fecha_registro')->useCurrent();
+            $table->boolean('acepta_privacidad')->default(false);
+
+            $table->foreign('fk_id_usuario')->references('id_usuario')->on('Usuarios')->cascadeOnDelete();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
@@ -42,8 +81,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('Beneficiarios');
+        Schema::dropIfExists('Personal');
+        Schema::dropIfExists('Usuarios');
+        Schema::dropIfExists('Cat_Roles');
     }
 };

@@ -218,6 +218,45 @@
 
         <div class="max-w-7xl mx-auto">
 
+            {{-- Historial de solicitudes registradas --}}
+            <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 mb-8">
+                <div class="flex items-center justify-between gap-3 mb-4">
+                    <h3 class="text-base md:text-lg font-extrabold" style="color: var(--sigo-navy)">Mis solicitudes recientes</h3>
+                    <span class="text-xs text-gray-500">Ultimos 10 registros</span>
+                </div>
+
+                @if(isset($misSolicitudes) && count($misSolicitudes) > 0)
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-gray-500 border-b border-gray-200">
+                                    <th class="py-2 pr-4 font-semibold">Folio</th>
+                                    <th class="py-2 pr-4 font-semibold">Apoyo</th>
+                                    <th class="py-2 pr-4 font-semibold">Fecha</th>
+                                    <th class="py-2 pr-4 font-semibold">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($misSolicitudes as $solicitud)
+                                    <tr class="border-b border-gray-100 text-gray-700">
+                                        <td class="py-2 pr-4 font-semibold">{{ $solicitud->folio }}</td>
+                                        <td class="py-2 pr-4">{{ $solicitud->nombre_apoyo ?? 'Sin nombre' }}</td>
+                                        <td class="py-2 pr-4">{{ $solicitud->fecha_creacion ? \Illuminate\Support\Carbon::parse($solicitud->fecha_creacion)->format('d/m/Y H:i') : 'Sin fecha' }}</td>
+                                        <td class="py-2 pr-4">
+                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                                                {{ $solicitud->estado ?? 'Pendiente' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <p class="text-sm text-gray-500">Aun no tienes solicitudes registradas.</p>
+                @endif
+            </div>
+
             {{-- Sin apoyos vigentes --}}
             <template x-if="apoyos.length === 0">
                 <div class="empty-state">
@@ -339,6 +378,8 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
                                         </svg>
                                         <span x-text="req.nombre_documento"></span>
+                                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/70 uppercase"
+                                              x-text="tipoArchivoLabel(req)"></span>
                                     </span>
                                 </template>
                             </div>
@@ -350,6 +391,7 @@
                     <form action="{{ route('solicitud.guardar') }}" method="POST" enctype="multipart/form-data" id="formSolicitud">
                         @csrf
                         <input type="hidden" name="apoyo" :value="apoyoActual && apoyoActual.id_apoyo"/>
+                        <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response-solicitud">
 
                         <template x-if="apoyoActual && apoyoActual.requisitos && apoyoActual.requisitos.length > 0">
                             <div>
@@ -360,10 +402,11 @@
                                             <label>
                                                 <span x-text="req.nombre_documento"></span>
                                                 <span class="text-red-500 ml-1">*</span>
+                                                <span class="ml-2 text-[10px] font-bold text-gray-500 uppercase" x-text="tipoArchivoLabel(req)"></span>
                                             </label>
                                             <input type="file"
                                                    :name="'documento_' + req.fk_id_tipo_doc"
-                                                   :accept="req.fk_id_tipo_doc == 7 ? 'image/jpeg,image/png' : '.pdf'"
+                                                   :accept="getAcceptByTipo(req)"
                                                    required/>
                                         </div>
                                     </template>
@@ -446,7 +489,17 @@
                     this.confirmarAbierto = true;
                 },
                 enviarSolicitud() {
-                    document.getElementById('formSolicitud').submit();
+                    if (typeof grecaptcha === 'undefined') {
+                        document.getElementById('formSolicitud').submit();
+                        return;
+                    }
+                    grecaptcha.ready(() => {
+                        grecaptcha.execute('{{ config('services.recaptcha.site_key') }}', { action: 'solicitud' })
+                            .then(token => {
+                                document.getElementById('g-recaptcha-response-solicitud').value = token;
+                                document.getElementById('formSolicitud').submit();
+                            });
+                    });
                 },
                 formatFecha(fecha) {
                     if (!fecha) return '—';
@@ -454,9 +507,35 @@
                         const d = new Date(fecha);
                         return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
                     } catch(e) { return fecha; }
+                },
+                tipoArchivoLabel(req) {
+                    const tipo = (req && req.tipo_archivo_permitido ? req.tipo_archivo_permitido : 'pdf').toLowerCase();
+                    switch (tipo) {
+                        case 'image': return 'imagen';
+                        case 'word': return 'word';
+                        case 'excel': return 'excel/csv';
+                        case 'zip': return 'zip';
+                        case 'any': return 'libre';
+                        default: return 'pdf';
+                    }
+                },
+                getAcceptByTipo(req) {
+                    const validar = !req || req.validar_tipo_archivo === undefined || Number(req.validar_tipo_archivo) === 1;
+                    if (!validar) return '';
+
+                    const tipo = (req && req.tipo_archivo_permitido ? req.tipo_archivo_permitido : 'pdf').toLowerCase();
+                    switch (tipo) {
+                        case 'image': return 'image/jpeg,image/png,image/webp';
+                        case 'word': return '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                        case 'excel': return '.xls,.xlsx,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv';
+                        case 'zip': return '.zip,.rar,.7z,application/zip,application/x-rar-compressed,application/x-7z-compressed';
+                        case 'any': return '';
+                        default: return '.pdf,application/pdf';
+                    }
                 }
             }
         }
     </script>
 
+<script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.site_key') }}"></script>
 </x-app-layout>

@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Redirect;
-use Illuminate\Support\Facades\Storage;
+use App\Models\Apoyo;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Controller para administrar los apoyos.
@@ -29,6 +31,7 @@ class ApoyoController extends Controller
      */
     public function index()
     {
+<<<<<<< HEAD
         // Consulta principal: traemos todos los apoyos ordenados por id desc.
         // Importante: usamos Query Builder directamente (DB::table) para devolver
         // objetos stdClass ligeros que la vista itera; si se necesita lógica Eloquent
@@ -41,8 +44,213 @@ class ApoyoController extends Controller
             ->select('id_tipo_doc', 'nombre_documento')
             ->orderBy('nombre_documento')
             ->get();
+=======
+        $apoyos = DB::table('Apoyos')
+            ->select([
+                'id_apoyo',
+                'nombre_apoyo',
+                'tipo_apoyo',
+                'monto_maximo',
+                'activo',
+                'anio_fiscal',
+                'cupo_limite',
+                'fecha_inicio as fechaInicio',
+                'fecha_fin as fechafin',
+            ])
+            ->orderBy('id_apoyo', 'desc')
+            ->get();
+
+        $tiposDocumentos = DB::table('Cat_TiposDocumento')->select('id_tipo_doc', 'nombre_documento')->orderBy('nombre_documento')->get();
+>>>>>>> 6da04ff4c21ec2e3298b12384bdb1b9c1fb7472c
 
         return view('apoyos.index', compact('apoyos', 'tiposDocumentos'));
+    }
+
+    /**
+     * Muestra el formulario completo de creación de apoyo (página dedicada).
+     */
+    public function create()
+    {
+        $query = DB::table('Cat_TiposDocumento')
+            ->select('id_tipo_doc', 'nombre_documento')
+            ->orderBy('nombre_documento');
+
+        if (Schema::hasColumn('Cat_TiposDocumento', 'tipo_archivo_permitido')) {
+            $query->addSelect('tipo_archivo_permitido');
+        }
+
+        if (Schema::hasColumn('Cat_TiposDocumento', 'validar_tipo_archivo')) {
+            $query->addSelect('validar_tipo_archivo');
+        }
+
+        $tiposDocumentos = $query->get();
+
+        return view('apoyos.create', compact('tiposDocumentos'));
+    }
+
+    /**
+     * Crea un nuevo tipo de documento para usarlo inmediatamente
+     * en el checklist de documentos requeridos.
+     */
+    public function storeTipoDocumento(Request $request)
+    {
+        $data = $request->validate([
+            'nombre_documento' => 'required|string|max:120',
+            'tipo_archivo_permitido' => 'required|in:pdf,image,word,excel,zip,any',
+            'validar_tipo_archivo' => 'nullable|boolean',
+        ]);
+
+        $nombre = trim($data['nombre_documento']);
+
+        $exists = DB::table('Cat_TiposDocumento')
+            ->whereRaw('LOWER(nombre_documento) = ?', [mb_strtolower($nombre)])
+            ->first();
+
+        if ($exists) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ese tipo de documento ya existe.',
+                'documento' => [
+                    'id_tipo_doc' => $exists->id_tipo_doc,
+                    'nombre_documento' => $exists->nombre_documento,
+                    'tipo_archivo_permitido' => $exists->tipo_archivo_permitido ?? 'pdf',
+                    'validar_tipo_archivo' => (bool) ($exists->validar_tipo_archivo ?? 1),
+                ],
+            ], 422);
+        }
+
+        $insertData = [
+            'nombre_documento' => $nombre,
+        ];
+
+        if (Schema::hasColumn('Cat_TiposDocumento', 'tipo_archivo_permitido')) {
+            $insertData['tipo_archivo_permitido'] = $data['tipo_archivo_permitido'];
+        }
+
+        if (Schema::hasColumn('Cat_TiposDocumento', 'validar_tipo_archivo')) {
+            $insertData['validar_tipo_archivo'] = filter_var($request->input('validar_tipo_archivo', true), FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+        }
+
+        $id = DB::table('Cat_TiposDocumento')->insertGetId($insertData);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Documento agregado al catálogo.',
+            'documento' => [
+                'id_tipo_doc' => $id,
+                'nombre_documento' => $nombre,
+                'tipo_archivo_permitido' => $data['tipo_archivo_permitido'],
+                'validar_tipo_archivo' => filter_var($request->input('validar_tipo_archivo', true), FILTER_VALIDATE_BOOLEAN),
+            ],
+        ]);
+    }
+
+    /**
+     * Actualiza la configuración de tipo de archivo y validación manual
+     * de un tipo de documento existente.
+     */
+    public function updateTipoDocumento(Request $request, int $id)
+    {
+        $data = $request->validate([
+            'tipo_archivo_permitido' => 'required|in:pdf,image,word,excel,zip,any',
+            'validar_tipo_archivo' => 'nullable|boolean',
+        ]);
+
+        $doc = DB::table('Cat_TiposDocumento')->where('id_tipo_doc', $id)->first();
+        if (! $doc) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se encontró el tipo de documento.',
+            ], 404);
+        }
+
+        $payload = [];
+        if (Schema::hasColumn('Cat_TiposDocumento', 'tipo_archivo_permitido')) {
+            $payload['tipo_archivo_permitido'] = $data['tipo_archivo_permitido'];
+        }
+        if (Schema::hasColumn('Cat_TiposDocumento', 'validar_tipo_archivo')) {
+            $payload['validar_tipo_archivo'] = filter_var($request->input('validar_tipo_archivo', true), FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+        }
+
+        if (! empty($payload)) {
+            DB::table('Cat_TiposDocumento')->where('id_tipo_doc', $id)->update($payload);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Configuración del documento actualizada.',
+            'documento' => [
+                'id_tipo_doc' => $id,
+                'nombre_documento' => $doc->nombre_documento,
+                'tipo_archivo_permitido' => $data['tipo_archivo_permitido'],
+                'validar_tipo_archivo' => filter_var($request->input('validar_tipo_archivo', true), FILTER_VALIDATE_BOOLEAN),
+            ],
+        ]);
+    }
+
+    /**
+     * Verifica si el cupo_limite propuesto para un apoyo de tipo Especie
+     * es consistente con el stock disponible en BD_Inventario.
+     *
+     * POST /apoyos/check-inventario
+     * Body: { fk_id_apoyo?: int, stock_inicial: int, cupo_limite: int }
+     * Retorna: { ok: bool, stock_actual: int, deficit: int }
+     */
+    public function checkInventario(Request $request)
+    {
+        $request->validate([
+            'stock_inicial' => 'required|integer|min:0',
+            'cupo_limite'   => 'required|integer|min:1',
+        ]);
+
+        $stock    = (int) $request->stock_inicial;
+        $cupo     = (int) $request->cupo_limite;
+        $deficit  = max(0, $cupo - $stock);
+
+        return response()->json([
+            'ok'          => $deficit === 0,
+            'stock_actual' => $stock,
+            'cupo_limite'  => $cupo,
+            'deficit'      => $deficit,
+        ]);
+    }
+
+    /**
+     * Un directivo autenticado aumenta el stock_inicial propuesto para que
+     * cubra el cupo solicitado.  No persiste aún: sólo valida credenciales
+     * y devuelve el nuevo stock aprobado.
+     *
+     * POST /apoyos/aprobar-inventario
+     * Body: { email, password, stock_solicitado }
+     */
+    public function aprobarInventario(Request $request)
+    {
+        $request->validate([
+            'email'            => 'required|email',
+            'password'         => 'required|string',
+            'stock_solicitado' => 'required|integer|min:1',
+        ]);
+
+        $directivo = \App\Models\User::with('personal')
+            ->where('email', $request->email)
+            ->where('activo', 1)
+            ->first();
+
+        if (! $directivo || ! Hash::check($request->password, $directivo->password_hash)) {
+            return response()->json(['ok' => false, 'message' => 'Credenciales incorrectas.'], 401);
+        }
+
+        // Verificar que sea Personal con rol Directivo (id_rol = 2)
+        if (! $directivo->isPersonal() || optional($directivo->personal)->fk_rol !== 2) {
+            return response()->json(['ok' => false, 'message' => 'El usuario no tiene rol de Directivo.'], 403);
+        }
+
+        return response()->json([
+            'ok'               => true,
+            'stock_aprobado'   => (int) $request->stock_solicitado,
+            'aprobado_por'     => $directivo->display_name,
+            'message'          => 'Stock aprobado correctamente.',
+        ]);
     }
 
     /**
@@ -58,7 +266,17 @@ class ApoyoController extends Controller
         // y es consumida por AJAX (`reloadApoyos()` en la vista). Mantenerla
         // liviana evita tráfico innecesario.
         $apoyos = DB::table('Apoyos')
-            ->select('id_apoyo', 'nombre_apoyo', 'tipo_apoyo', 'monto_maximo', 'activo')
+            ->select([
+                'id_apoyo',
+                'nombre_apoyo',
+                'tipo_apoyo',
+                'monto_maximo',
+                'activo',
+                'anio_fiscal',
+                'cupo_limite',
+                'fecha_inicio as fechaInicio',
+                'fecha_fin as fechafin',
+            ])
             ->orderBy('id_apoyo', 'desc')
             ->get();
 
@@ -85,6 +303,7 @@ class ApoyoController extends Controller
      * - Si la petición es AJAX/JSON devuelve JSON con `success` y `message`.
      * - Si no, redirige a la lista con mensaje en sesión.
      */
+<<<<<<< HEAD
         public function store(Request $request)
         {
         // 1. VALIDACIÓN
@@ -141,17 +360,85 @@ class ApoyoController extends Controller
                 DB::table('BD_Finanzas')->insert([
                     'fk_id_apoyo' => $apoyo->id_apoyo,
                     'monto_asignado' => $data['monto_inicial_asignado'] ?? 0,
+=======
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'nombre_apoyo' => 'required|string|max:100',
+            'tipo_apoyo' => 'required|in:Económico,Especie',
+            'monto_maximo' => 'nullable|numeric',
+            'descripcion' => 'nullable|string',
+            'monto_inicial_asignado' => 'nullable|numeric|required_if:tipo_apoyo,Económico',
+            'stock_inicial' => 'nullable|integer|required_if:tipo_apoyo,Especie',
+            'cupo_limite' => 'nullable|integer|min:1',
+            'activo' => 'nullable|boolean',
+            'fechaInicio' => 'required|date',
+            'fechafin' => 'required|date|after_or_equal:fechaInicio',
+            'foto_ruta' => 'nullable|image|max:5120',
+            'documentos_requeridos' => 'nullable|array',
+            'documentos_requeridos.*' => 'integer|exists:Cat_TiposDocumento,id_tipo_doc',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            $fotoRuta = null;
+
+            if ($request->hasFile('foto_ruta')) {
+                $fotoRuta = 'storage/' . $request->file('foto_ruta')->store('apoyos', 'public');
+            }
+
+            $activoRaw = $request->input('activo');
+
+            if (is_array($activoRaw)) {
+                $activoRaw = end($activoRaw);
+            }
+
+            $payload = [
+                'nombre_apoyo' => $data['nombre_apoyo'],
+                'anio_fiscal' => (int) now()->format('Y'),
+                'tipo_apoyo' => $data['tipo_apoyo'],
+                'monto_maximo' => $data['monto_maximo'] ?? ($data['monto_inicial_asignado'] ?? 0),
+                'cupo_limite' => $data['cupo_limite'] ?? null,
+                'activo' => filter_var($activoRaw, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
+                'fecha_inicio' => Carbon::parse($data['fechaInicio']),
+                'fecha_fin' => Carbon::parse($data['fechafin']),
+            ];
+
+            if (Schema::hasColumn('Apoyos', 'foto_ruta')) {
+                $payload['foto_ruta'] = $fotoRuta;
+            }
+
+            if (Schema::hasColumn('Apoyos', 'descripcion')) {
+                $payload['descripcion'] = $data['descripcion'] ?? null;
+            }
+
+            $apoyo = Apoyo::create($payload);
+
+            if ($data['tipo_apoyo'] === 'Económico') {
+                DB::table('BD_Finanzas')->insert([
+                    'fk_id_apoyo' => $apoyo->id_apoyo,
+                    'monto_asignado' => $data['monto_inicial_asignado'],
+>>>>>>> 6da04ff4c21ec2e3298b12384bdb1b9c1fb7472c
                     'monto_ejercido' => 0,
                 ]);
             } else {
                 DB::table('BD_Inventario')->insert([
                     'fk_id_apoyo' => $apoyo->id_apoyo,
+<<<<<<< HEAD
                     'stock_actual' => $data['stock_inicial'] ?? 0,
                 ]);
             }
 
             // Requisitos/documentos: si el usuario marcó tipos de doc, asociarlos.
             if (!empty($data['documentos_requeridos'])) {
+=======
+                    'stock_actual' => $data['stock_inicial'],
+                ]);
+            }
+
+            if (! empty($data['documentos_requeridos'])) {
+>>>>>>> 6da04ff4c21ec2e3298b12384bdb1b9c1fb7472c
                 foreach ($data['documentos_requeridos'] as $docId) {
                     DB::table('Requisitos_Apoyo')->insert([
                         'fk_id_apoyo' => $apoyo->id_apoyo,
@@ -161,6 +448,7 @@ class ApoyoController extends Controller
                 }
             }
 
+<<<<<<< HEAD
             // Commit de la transacción sólo si todo lo anterior fue exitoso.
             DB::commit();
             return response()->json(['success' => true, 'message' => 'Apoyo registrado correctamente.']);
@@ -172,3 +460,15 @@ class ApoyoController extends Controller
         }
     }
     }
+=======
+            DB::commit();
+
+            return response()->json(['success' => true, 'message' => 'Apoyo registrado correctamente.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
+}
+>>>>>>> 6da04ff4c21ec2e3298b12384bdb1b9c1fb7472c

@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\Beneficiario;
 use App\Models\User;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
@@ -26,65 +26,39 @@ class AuthenticatedSessionController extends Controller
      * Handle an incoming authentication request.
      */
     public function store(LoginRequest $request): RedirectResponse
-{
-    try {
-        $resultado = DB::select('SET NOCOUNT ON; EXEC sp_LoginUniversal ?, ?', [
-            $request->email,
-            $request->password,
-        ]);
+    {
+        $request->ensureIsNotRateLimited();
 
-        if (empty($resultado)) {
-            return back()->withInput()
-                ->withErrors(['email' => 'Credenciales incorrectas.'])
-                ->with('auth_error', 'Credenciales incorrectas.');
+        $user = User::with(['personal', 'beneficiario'])
+            ->where('email', $request->string('email'))
+            ->first();
+
+        if (! $user || ! $user->activo || empty($user->password_hash) || ! Hash::check($request->string('password'), $user->password_hash)) {
+            RateLimiter::hit($request->throttleKey());
+
+            return back()->withInput($request->only('email', 'remember'))
+                ->withErrors(['email' => 'Las credenciales proporcionadas son incorrectas o el usuario se encuentra inactivo.'])
+                ->with('auth_error', 'Las credenciales proporcionadas son incorrectas o el usuario se encuentra inactivo.');
         }
 
-        $usuarioLogueado = $resultado[0];
+        RateLimiter::clear($request->throttleKey());
 
-    } catch (\Exception $e) {
-        return back()->withInput()
-            ->withErrors(['email' => 'Error en el sistema: ' . $e->getMessage()])
-            ->with('auth_error', 'Error en el sistema.');
-    }
+        $user->forceFill(['ultima_conexion' => now()])->save();
 
-    // ── Personal ───────────────────────────────────────────────────
-    if (in_array($usuarioLogueado->tipo, ['personal', 'administrativo'], true)) {
-
-        $user = User::where('correo_inst', $request->email)->first();
-
-        if (!$user) {
-            return back()->withInput()
-                ->withErrors(['email' => 'Usuario no encontrado.'])
-                ->with('auth_error', 'Usuario no encontrado.');
-        }
-
-        Auth::guard('web')->login($user);
+        Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard'));
+        return redirect()->intended($this->redirectPath($user));
     }
 
-    // ── Beneficiario ───────────────────────────────────────────────
-    if ($usuarioLogueado->tipo === 'beneficiario') {
-
-        $user = Beneficiario::where('correo', $request->email)->first();
-
-        if (!$user) {
-            return back()->withInput()
-                ->withErrors(['email' => 'Beneficiario no encontrado.'])
-                ->with('auth_error', 'Beneficiario no encontrado.');
+    protected function redirectPath(User $user): string
+    {
+        if ($user->isBeneficiario() && ! $user->hasCompleteBeneficiarioProfile()) {
+            return route('registro.completar-perfil.show');
         }
 
-        Auth::guard('beneficiario')->login($user);
-        $request->session()->regenerate();
-
-        return redirect()->intended(route('dashboard'));
+        return route('dashboard');
     }
-
-    return back()->withInput()
-        ->withErrors(['email' => 'Tipo de usuario no permitido.'])
-        ->with('auth_error', 'Tipo de usuario no permitido.');
-}
 
     /**
      * Destroy an authenticated session.
