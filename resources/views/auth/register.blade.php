@@ -43,7 +43,8 @@
          <div class="grid grid-cols-2 gap-4 mt-4">
             <div>
                 <x-input-label for="phone" :value="__('Número de telefono')" />
-                <x-text-input id="phone" class="block mt-1 w-full" type="text" name="phone" :value="old('phone')" required />
+                {{-- El campo se llama `telefono` para que coincida con la validación y el controlador --}}
+                <x-text-input id="phone" class="block mt-1 w-full" type="text" name="telefono" :value="old('telefono')" required />
             </div>
 
             <div ">
@@ -96,18 +97,21 @@
 <script>
     const inputTelefono = document.getElementById('phone');
 
+    // Máscara que produce el formato: (311) 123-4567
     inputTelefono.addEventListener('input', function (e) {
-        let x = e.target.value.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,2})(\d{0,2})/);
-        
-        
-        if (!x[2]) {
-            e.target.value = x[1] ? `(${x[1]}` : '';
-        } else if (!x[3]) {
-            e.target.value = `(${x[1]})-${x[2]}`;
-        } else if (!x[4]) {
-            e.target.value = `(${x[1]})-${x[2]}-${x[3]}`;
+        let nums = e.target.value.replace(/\D/g, '');
+        let parts = nums.match(/(\d{0,3})(\d{0,3})(\d{0,4})/);
+
+        if (!parts) return;
+
+        if (!parts[2]) {
+            e.target.value = parts[1] ? `(${parts[1]}` : '';
+        } else if (!parts[3]) {
+            // (XXX) YYY
+            e.target.value = `(${parts[1]}) ${parts[2]}`;
         } else {
-            e.target.value = `(${x[1]})-${x[2]}-${x[3]}-${x[4]}`;
+            // (XXX) YYY-ZZZZ
+            e.target.value = `(${parts[1]}) ${parts[2]}-${parts[3]}`;
         }
     });
 

@@ -25,16 +25,21 @@ class Apoyo extends Model
     protected $keyType = 'int';
     public $timestamps = false;
     
-    // En lugar de enviarlo con guiones, lo enviamos plano para que SQL no se confunda
+    // No usamos timestamps automáticos; las fechas se guardan manualmente.
+    // Formato personalizado para evitar problemas con el driver SQL Server/DB.
     protected $dateFormat = 'Ymd H:i:s';
+
+    // Campos permitidos para asignación masiva. Deben ser un array indexado
+    // de nombres de columna (no asociativo). Asegura que `Model::create()` incluya
+    // `fecha_Creacion`, `fechaInicio` y `fechafin` en el INSERT.
     protected $fillable = [
         'nombre_apoyo',
         'tipo_apoyo',
         'monto_maximo',
         'activo',
-        'fecha_Creacion' => 'datetime',
-        'fechaInicio'    => 'datetime',
-        'fechafin'       => 'datetime',
+        'fecha_Creacion',
+        'fechaInicio',
+        'fechafin',
         'foto_ruta',
         'descripcion',
     ];
