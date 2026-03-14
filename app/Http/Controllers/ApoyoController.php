@@ -303,12 +303,9 @@ class ApoyoController extends Controller
      * - Si la petición es AJAX/JSON devuelve JSON con `success` y `message`.
      * - Si no, redirige a la lista con mensaje en sesión.
      */
-<<<<<<< HEAD
         public function store(Request $request)
         {
-        // 1. VALIDACIÓN
-        // Validamos solo los campos que nos interesan y los tipos esperados.
-        // Las reglas están diseñadas para cubrir los dos flujos (Económico/Especie).
+    // 1. VALIDACIÓN (Ya no tiene el [...])
         $data = $request->validate([
         'nombre_apoyo' => 'required|string|max:100',
         'tipo_apoyo' => 'required|in:Económico,Especie',
@@ -323,122 +320,57 @@ class ApoyoController extends Controller
         'documentos_requeridos' => 'nullable|array',
         'documentos_requeridos.*' => 'integer|exists:Cat_TiposDocumento,id_tipo_doc',
     ]);
-        // 2. INICIO DE TRANSACCIÓN: garantizamos consistencia entre tablas
+
         DB::beginTransaction();
         try {
-            // Procesar imagen si viene en el request. Guardamos en disco y almacenamos ruta pública.
+        // Procesar imagen
             $fotoRuta = null;
             if ($request->hasFile('foto_ruta')) {
-                // `store('apoyos','public')` devuelve el path relativo dentro del disco `public`
                 $fotoRuta = 'storage/' . $request->file('foto_ruta')->store('apoyos', 'public');
             }
 
-            // Manejo robusto de checkbox `activo`: el formulario envía un hidden (0)
-            // y el checkbox (1) si está marcado; tomar el último valor recibido.
-            $activoRaw = $request->input('activo');
+        // 2. USO DEL MODELO (Para que funcione el $dateFormat y no truene la fecha)
+        // Determinar valor de 'activo' de forma robusta cuando el formulario
+        // envía tanto el hidden (0) como el checkbox (1) o sólo uno de ellos.
+        $activoRaw = $request->input('activo');
             if (is_array($activoRaw)) {
-                $activoRaw = end($activoRaw);
+            $activoRaw = end($activoRaw); // tomar el último valor enviado (checkbox sobrescribe hidden)
             }
             $activo = filter_var($activoRaw, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+
+        // ... dentro del try ...
 
         $apoyo = \App\Models\Apoyo::create([
             'nombre_apoyo'   => $data['nombre_apoyo'],
             'tipo_apoyo'     => $data['tipo_apoyo'],
             'monto_maximo'   => $data['monto_maximo'] ?? ($data['monto_inicial_asignado'] ?? 0),
             'activo'         => $activo,
-            'fecha_Creacion' => now(),
-            'fechaInicio'    => $data['fechaInicio'],
-            'fechafin'       => $data['fechafin'],
+    'fecha_Creacion' => now(), // Genera un objeto Carbon automáticamente
+    
+    // Convertimos el string a objeto Carbon para que el modelo aplique el $dateFormat
+    'fechaInicio'    => \Carbon\Carbon::parse($data['fechaInicio']),
+    'fechafin'       => \Carbon\Carbon::parse($data['fechafin']),
+    
             'foto_ruta'      => $fotoRuta,
             'descripcion'    => $data['descripcion'],
         ]);
 
-            // Inserciones auxiliares: según el tipo de apoyo, crear registro en la tabla
-            // financiera o en inventario. Usamos Query Builder directo porque no
-            // necesitamos lógica Eloquent adicional aquí.
-            if ($data['tipo_apoyo'] === 'Económico') {
-                DB::table('BD_Finanzas')->insert([
-                    'fk_id_apoyo' => $apoyo->id_apoyo,
-                    'monto_asignado' => $data['monto_inicial_asignado'] ?? 0,
-=======
-    public function store(Request $request)
-    {
-        $data = $request->validate([
-            'nombre_apoyo' => 'required|string|max:100',
-            'tipo_apoyo' => 'required|in:Económico,Especie',
-            'monto_maximo' => 'nullable|numeric',
-            'descripcion' => 'nullable|string',
-            'monto_inicial_asignado' => 'nullable|numeric|required_if:tipo_apoyo,Económico',
-            'stock_inicial' => 'nullable|integer|required_if:tipo_apoyo,Especie',
-            'cupo_limite' => 'nullable|integer|min:1',
-            'activo' => 'nullable|boolean',
-            'fechaInicio' => 'required|date',
-            'fechafin' => 'required|date|after_or_equal:fechaInicio',
-            'foto_ruta' => 'nullable|image|max:5120',
-            'documentos_requeridos' => 'nullable|array',
-            'documentos_requeridos.*' => 'integer|exists:Cat_TiposDocumento,id_tipo_doc',
-        ]);
-
-        DB::beginTransaction();
-
-        try {
-            $fotoRuta = null;
-
-            if ($request->hasFile('foto_ruta')) {
-                $fotoRuta = 'storage/' . $request->file('foto_ruta')->store('apoyos', 'public');
-            }
-
-            $activoRaw = $request->input('activo');
-
-            if (is_array($activoRaw)) {
-                $activoRaw = end($activoRaw);
-            }
-
-            $payload = [
-                'nombre_apoyo' => $data['nombre_apoyo'],
-                'anio_fiscal' => (int) now()->format('Y'),
-                'tipo_apoyo' => $data['tipo_apoyo'],
-                'monto_maximo' => $data['monto_maximo'] ?? ($data['monto_inicial_asignado'] ?? 0),
-                'cupo_limite' => $data['cupo_limite'] ?? null,
-                'activo' => filter_var($activoRaw, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
-                'fecha_inicio' => Carbon::parse($data['fechaInicio']),
-                'fecha_fin' => Carbon::parse($data['fechafin']),
-            ];
-
-            if (Schema::hasColumn('Apoyos', 'foto_ruta')) {
-                $payload['foto_ruta'] = $fotoRuta;
-            }
-
-            if (Schema::hasColumn('Apoyos', 'descripcion')) {
-                $payload['descripcion'] = $data['descripcion'] ?? null;
-            }
-
-            $apoyo = Apoyo::create($payload);
-
+        // 3. RELACIONES SECUNDARIAS
             if ($data['tipo_apoyo'] === 'Económico') {
                 DB::table('BD_Finanzas')->insert([
                     'fk_id_apoyo' => $apoyo->id_apoyo,
                     'monto_asignado' => $data['monto_inicial_asignado'],
->>>>>>> 6da04ff4c21ec2e3298b12384bdb1b9c1fb7472c
                     'monto_ejercido' => 0,
                 ]);
             } else {
                 DB::table('BD_Inventario')->insert([
                     'fk_id_apoyo' => $apoyo->id_apoyo,
-<<<<<<< HEAD
-                    'stock_actual' => $data['stock_inicial'] ?? 0,
-                ]);
-            }
-
-            // Requisitos/documentos: si el usuario marcó tipos de doc, asociarlos.
-            if (!empty($data['documentos_requeridos'])) {
-=======
                     'stock_actual' => $data['stock_inicial'],
                 ]);
             }
 
-            if (! empty($data['documentos_requeridos'])) {
->>>>>>> 6da04ff4c21ec2e3298b12384bdb1b9c1fb7472c
+        // Documentos
+        if (!empty($data['documentos_requeridos'])) {
                 foreach ($data['documentos_requeridos'] as $docId) {
                     DB::table('Requisitos_Apoyo')->insert([
                         'fk_id_apoyo' => $apoyo->id_apoyo,
@@ -448,27 +380,12 @@ class ApoyoController extends Controller
                 }
             }
 
-<<<<<<< HEAD
-            // Commit de la transacción sólo si todo lo anterior fue exitoso.
             DB::commit();
             return response()->json(['success' => true, 'message' => 'Apoyo registrado correctamente.']);
 
         } catch (\Exception $e) {
-            // Rollback para deshacer cualquier inserción parcial.
             DB::rollBack();
             return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
     }
     }
-=======
-            DB::commit();
-
-            return response()->json(['success' => true, 'message' => 'Apoyo registrado correctamente.']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
-        }
-    }
-}
->>>>>>> 6da04ff4c21ec2e3298b12384bdb1b9c1fb7472c
