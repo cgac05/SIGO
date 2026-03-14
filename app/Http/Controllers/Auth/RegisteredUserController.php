@@ -49,21 +49,6 @@ class RegisteredUserController extends Controller
         $curp = mb_strtoupper($data['curp']);
         $birthDate = CurpValida::extractBirthDate($curp);
 
-<<<<<<< HEAD
-        // 3. Evaluar el status_code (Lógica de Robustez)
-        if ($respuesta->status_code == 0) {
-            // ÉXITO: Buscamos al beneficiario por su CURP (PK en Beneficiarios)
-            $user = Beneficiario::find($respuesta->curp);
-
-            if (!$user) {
-                return back()->withErrors([
-                    'error' => 'Registro creado, pero no se pudo recuperar el beneficiario para iniciar sesion.',
-                ])->withInput();
-            }
-            
-            // Iniciamos sesión con el guard de beneficiarios
-            \Auth::guard('beneficiario')->login($user);
-=======
         $user = DB::transaction(function () use ($data, $curp, $birthDate) {
             $user = User::create([
                 'email' => $data['email'],
@@ -71,7 +56,6 @@ class RegisteredUserController extends Controller
                 'tipo_usuario' => 'Beneficiario',
                 'activo' => true,
             ]);
->>>>>>> 6da04ff4c21ec2e3298b12384bdb1b9c1fb7472c
 
             Beneficiario::create([
                 'curp' => $curp,
@@ -94,7 +78,3 @@ class RegisteredUserController extends Controller
         return redirect()->route('dashboard');
     }
 }
-<<<<<<< HEAD
-}
-=======
->>>>>>> 6da04ff4c21ec2e3298b12384bdb1b9c1fb7472c

@@ -31,37 +31,9 @@ class ApoyoController extends Controller
      */
     public function index()
     {
-<<<<<<< HEAD
-        // Consulta principal: traemos todos los apoyos ordenados por id desc.
-        // Importante: usamos Query Builder directamente (DB::table) para devolver
-        // objetos stdClass ligeros que la vista itera; si se necesita lógica Eloquent
-        // adicional, considerar usar el modelo `App\\Models\\Apoyo`.
         $apoyos = DB::table('Apoyos')->orderBy('id_apoyo', 'desc')->get();
-
-        // Catálogo de tipos de documento usado por el formulario de creación.
-        // Seleccionamos sólo los campos necesarios para mantener la carga ligera.
-        $tiposDocumentos = DB::table('Cat_TiposDocumento')
-            ->select('id_tipo_doc', 'nombre_documento')
-            ->orderBy('nombre_documento')
-            ->get();
-=======
-        $apoyos = DB::table('Apoyos')
-            ->select([
-                'id_apoyo',
-                'nombre_apoyo',
-                'tipo_apoyo',
-                'monto_maximo',
-                'activo',
-                'anio_fiscal',
-                'cupo_limite',
-                'fecha_inicio as fechaInicio',
-                'fecha_fin as fechafin',
-            ])
-            ->orderBy('id_apoyo', 'desc')
-            ->get();
-
+        // Cargar catálogos necesarios para el formulario
         $tiposDocumentos = DB::table('Cat_TiposDocumento')->select('id_tipo_doc', 'nombre_documento')->orderBy('nombre_documento')->get();
->>>>>>> 6da04ff4c21ec2e3298b12384bdb1b9c1fb7472c
 
         return view('apoyos.index', compact('apoyos', 'tiposDocumentos'));
     }
@@ -304,9 +276,9 @@ class ApoyoController extends Controller
      * - Si no, redirige a la lista con mensaje en sesión.
      */
         public function store(Request $request)
-        {
+{
     // 1. VALIDACIÓN (Ya no tiene el [...])
-        $data = $request->validate([
+    $data = $request->validate([
         'nombre_apoyo' => 'required|string|max:100',
         'tipo_apoyo' => 'required|in:Económico,Especie',
         'monto_maximo' => 'nullable|numeric',
@@ -321,71 +293,71 @@ class ApoyoController extends Controller
         'documentos_requeridos.*' => 'integer|exists:Cat_TiposDocumento,id_tipo_doc',
     ]);
 
-        DB::beginTransaction();
-        try {
+    DB::beginTransaction();
+    try {
         // Procesar imagen
-            $fotoRuta = null;
-            if ($request->hasFile('foto_ruta')) {
-                $fotoRuta = 'storage/' . $request->file('foto_ruta')->store('apoyos', 'public');
-            }
+        $fotoRuta = null;
+        if ($request->hasFile('foto_ruta')) {
+            $fotoRuta = 'storage/' . $request->file('foto_ruta')->store('apoyos', 'public');
+        }
 
         // 2. USO DEL MODELO (Para que funcione el $dateFormat y no truene la fecha)
         // Determinar valor de 'activo' de forma robusta cuando el formulario
         // envía tanto el hidden (0) como el checkbox (1) o sólo uno de ellos.
         $activoRaw = $request->input('activo');
-            if (is_array($activoRaw)) {
+        if (is_array($activoRaw)) {
             $activoRaw = end($activoRaw); // tomar el último valor enviado (checkbox sobrescribe hidden)
-            }
-            $activo = filter_var($activoRaw, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+        }
+        $activo = filter_var($activoRaw, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
 
         // ... dentro del try ...
 
-        $apoyo = \App\Models\Apoyo::create([
-            'nombre_apoyo'   => $data['nombre_apoyo'],
-            'tipo_apoyo'     => $data['tipo_apoyo'],
-            'monto_maximo'   => $data['monto_maximo'] ?? ($data['monto_inicial_asignado'] ?? 0),
-            'activo'         => $activo,
+$apoyo = \App\Models\Apoyo::create([
+    'nombre_apoyo'   => $data['nombre_apoyo'],
+    'tipo_apoyo'     => $data['tipo_apoyo'],
+    'monto_maximo'   => $data['monto_maximo'] ?? ($data['monto_inicial_asignado'] ?? 0),
+    'activo'         => $activo,
     'fecha_Creacion' => now(), // Genera un objeto Carbon automáticamente
     
     // Convertimos el string a objeto Carbon para que el modelo aplique el $dateFormat
     'fechaInicio'    => \Carbon\Carbon::parse($data['fechaInicio']),
     'fechafin'       => \Carbon\Carbon::parse($data['fechafin']),
     
-            'foto_ruta'      => $fotoRuta,
-            'descripcion'    => $data['descripcion'],
-        ]);
+    'foto_ruta'      => $fotoRuta,
+    'descripcion'    => $data['descripcion'],
+]);
 
         // 3. RELACIONES SECUNDARIAS
-            if ($data['tipo_apoyo'] === 'Económico') {
-                DB::table('BD_Finanzas')->insert([
-                    'fk_id_apoyo' => $apoyo->id_apoyo,
-                    'monto_asignado' => $data['monto_inicial_asignado'],
-                    'monto_ejercido' => 0,
-                ]);
-            } else {
-                DB::table('BD_Inventario')->insert([
-                    'fk_id_apoyo' => $apoyo->id_apoyo,
-                    'stock_actual' => $data['stock_inicial'],
-                ]);
-            }
+        if ($data['tipo_apoyo'] === 'Económico') {
+            DB::table('BD_Finanzas')->insert([
+                'fk_id_apoyo' => $apoyo->id_apoyo,
+                'monto_asignado' => $data['monto_inicial_asignado'],
+                'monto_ejercido' => 0,
+            ]);
+        } else {
+            DB::table('BD_Inventario')->insert([
+                'fk_id_apoyo' => $apoyo->id_apoyo,
+                'stock_actual' => $data['stock_inicial'],
+            ]);
+        }
 
         // Documentos
         if (!empty($data['documentos_requeridos'])) {
-                foreach ($data['documentos_requeridos'] as $docId) {
-                    DB::table('Requisitos_Apoyo')->insert([
-                        'fk_id_apoyo' => $apoyo->id_apoyo,
-                        'fk_id_tipo_doc' => $docId,
-                        'es_obligatorio' => 1,
-                    ]);
-                }
+            foreach ($data['documentos_requeridos'] as $docId) {
+                DB::table('Requisitos_Apoyo')->insert([
+                    'fk_id_apoyo' => $apoyo->id_apoyo,
+                    'fk_id_tipo_doc' => $docId,
+                    'es_obligatorio' => 1,
+                ]);
             }
-
-            DB::commit();
-            return response()->json(['success' => true, 'message' => 'Apoyo registrado correctamente.']);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
+
+        DB::commit();
+        return response()->json(['success' => true, 'message' => 'Apoyo registrado correctamente.']);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
     }
+}
     }

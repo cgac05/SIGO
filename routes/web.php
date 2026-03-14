@@ -62,9 +62,6 @@ Route::get('/Registrar-Solicitud', function () {
 
     $requisitos = DB::table('Requisitos_Apoyo')
         ->join('Cat_TiposDocumento', 'Requisitos_Apoyo.fk_id_tipo_doc', '=', 'Cat_TiposDocumento.id_tipo_doc')
-<<<<<<< HEAD
-        ->select('Requisitos_Apoyo.*', 'Cat_TiposDocumento.nombre_documento')
-=======
         ->select([
             'Requisitos_Apoyo.fk_id_apoyo',
             'Requisitos_Apoyo.fk_id_tipo_doc',
@@ -73,7 +70,6 @@ Route::get('/Registrar-Solicitud', function () {
             'Cat_TiposDocumento.tipo_archivo_permitido',
             'Cat_TiposDocumento.validar_tipo_archivo',
         ])
->>>>>>> 6da04ff4c21ec2e3298b12384bdb1b9c1fb7472c
         ->get();
 
     $apoyosData = $apoyos->map(function ($apoyo) use ($requisitos) {

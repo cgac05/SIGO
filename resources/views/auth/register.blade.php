@@ -46,15 +46,9 @@
 
         <div class="grid grid-cols-2 gap-4 mt-4">
             <div>
-<<<<<<< HEAD
-                <x-input-label for="phone" :value="__('Número de telefono')" />
-                {{-- El campo se llama `telefono` para que coincida con la validación y el controlador --}}
-                <x-text-input id="phone" class="block mt-1 w-full" type="text" name="telefono" :value="old('telefono')" required />
-=======
                 <x-input-label for="telefono" :value="__('Número de teléfono')" />
                 <x-text-input id="telefono" class="block mt-1 w-full" type="text" name="telefono" :value="old('telefono')" required />
                 <x-input-error :messages="$errors->get('telefono')" class="mt-2" />
->>>>>>> 6da04ff4c21ec2e3298b12384bdb1b9c1fb7472c
             </div>
 
             <div>
@@ -202,59 +196,3 @@
         });
     </script>
 </x-guest-layout>
-<<<<<<< HEAD
-<!-- Este script formatea el número de teléfono a medida que el usuario escribe, siguiendo el formato (311)-111-11-11 -->
-<script>
-    const inputTelefono = document.getElementById('phone');
-
-    // Máscara que produce el formato: (311) 123-4567
-    inputTelefono.addEventListener('input', function (e) {
-        let nums = e.target.value.replace(/\D/g, '');
-        let parts = nums.match(/(\d{0,3})(\d{0,3})(\d{0,4})/);
-
-        if (!parts) return;
-
-        if (!parts[2]) {
-            e.target.value = parts[1] ? `(${parts[1]}` : '';
-        } else if (!parts[3]) {
-            // (XXX) YYY
-            e.target.value = `(${parts[1]}) ${parts[2]}`;
-        } else {
-            // (XXX) YYY-ZZZZ
-            e.target.value = `(${parts[1]}) ${parts[2]}-${parts[3]}`;
-        }
-    });
-
-    // Evitar que borren el paréntesis inicial si hay números
-    inputTelefono.addEventListener('keydown', function(e) {
-        if (e.key === 'Backspace' && e.target.value.length === 1) {
-            e.target.value = '';
-        }
-    });
-    document.getElementById('curp').addEventListener('input', function (e) {
-    let curp = e.target.value.toUpperCase();
-    
-    if (curp.length >= 10) {
-        // Extraer año, mes y día
-        let anio = curp.substring(4, 6);
-        let mes  = curp.substring(6, 8);
-        let dia  = curp.substring(8, 10);
-
-        // Ajustar el siglo (Si el año es > 25, asumimos 1900, si no 2000)
-        let siglo = parseInt(anio) > 25 ? '19' : '20';
-        let fechaCompleta = `${siglo}${anio}-${mes}-${dia}`;
-
-        document.getElementById('fecha_nacimiento').value = fechaCompleta;
-    }
-    let generoChar = curp.substring(10, 11); // Posición 11 de la CURP
-        
-        // Guardamos 'H' o 'M' en el campo oculto
-        if (generoChar === 'H' || generoChar === 'M') {
-            document.getElementById('genero').value = generoChar;
-        } else {
-            document.getElementById('genero').value = '';
-        }
-});
-</script>
-=======
->>>>>>> 6da04ff4c21ec2e3298b12384bdb1b9c1fb7472c
