@@ -128,6 +128,7 @@ use Carbon\Carbon;
     <form id="formularioEditarApoyo" method="POST" action="{{ route('apoyos.update', $apoyo->id_apoyo) }}" enctype="multipart/form-data" novalidate>
         @csrf
         <input type="hidden" name="descripcion" id="descripcion-hidden">
+        <input type="hidden" name="documentos_requeridos_present" value="1">
 
         <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 xl:grid-cols-3 gap-6 pb-24">
 
@@ -197,20 +198,76 @@ use Carbon\Carbon;
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.5 0-3 .7-3 2s1.5 2 3 2 3 .7 3 2-1.5 2-3 2m0-8v1m0 8v1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
-                        <span id="panel-fin-title">Financiamiento</span>
+                        <span id="panel-fin-title">{{ old('tipo_apoyo', $apoyo->tipo_apoyo) === 'Económico' ? 'Financiamiento' : 'Inventario' }}</span>
                     </div>
                     <div class="panel-body grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label class="field-label" for="monto_maximo">
-                                Monto máximo por beneficiario <span class="req">*</span>
-                            </label>
+                            <label class="field-label" for="monto_maximo">Monto máximo por beneficiario <span class="req">*</span></label>
                             <div class="prefix-wrap">
                                 <span class="prefix">$</span>
-                                <input id="monto_maximo" name="monto_maximo" type="number"
-                                       class="field-input" step="0.01" min="0" placeholder="0.00"
-                                       value="{{ old('monto_maximo', $apoyo->monto_maximo) }}">
+                                <input id="monto_maximo" name="monto_maximo" type="number" class="field-input" step="0.01" min="0" placeholder="0.00" value="{{ old('monto_maximo', $apoyo->monto_maximo) }}">
                             </div>
                         </div>
+
+                        <div>
+                            <label class="field-label" for="cupo_limite">Cupo máximo de beneficiarios <span class="req">*</span></label>
+                            <input id="cupo_limite" name="cupo_limite" type="number" class="field-input" min="1" step="1" value="{{ old('cupo_limite', $apoyo->cupo_limite) }}">
+                        </div>
+
+                        <div id="grp-monto-inicial" class="sm:col-span-1">
+                            <label class="field-label" for="monto_inicial_asignado">Monto inicial asignado <span class="req">*</span></label>
+                            <div class="prefix-wrap">
+                                <span class="prefix">$</span>
+                                <input id="monto_inicial_asignado" name="monto_inicial_asignado" type="number" class="field-input" step="0.01" min="0" value="{{ old('monto_inicial_asignado', $montoInicialAsignado ?? null) }}">
+                            </div>
+                        </div>
+
+                        <div id="grp-stock-inicial" class="sm:col-span-1">
+                            <label class="field-label" for="stock_inicial">Stock inicial disponible <span class="req">*</span></label>
+                            <input id="stock_inicial" name="stock_inicial" type="number" class="field-input" min="1" step="1" value="{{ old('stock_inicial', $stockInicial ?? null) }}">
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Panel: Descripción --}}
+                <div class="panel">
+                    <div class="panel-title">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12"/>
+                        </svg>
+                        Descripción del apoyo
+                    </div>
+                    <div class="panel-body">
+                        <div id="editor-container">
+                            <div id="quill-editor">{!! old('descripcion', $apoyo->descripcion) !!}</div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">Esta descripción la verán los beneficiarios en la convocatoria.</p>
+                    </div>
+                </div>
+
+                {{-- Panel: Documentos requeridos --}}
+                <div class="panel">
+                    <div class="panel-title">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
+                        </svg>
+                        Documentación requerida
+                    </div>
+                    <div class="panel-body">
+                        @if(isset($tiposDocumentos) && $tiposDocumentos->count())
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                @foreach($tiposDocumentos as $td)
+                                    <label class="flex items-center gap-2 p-2 rounded-lg border border-gray-200 hover:border-blue-300 transition cursor-pointer">
+                                        <input type="checkbox" name="documentos_requeridos[]" value="{{ $td->id_tipo_doc }}" class="w-4 h-4 accent-blue-700"
+                                            {{ in_array($td->id_tipo_doc, old('documentos_requeridos', $requisitosActuales ?? []), false) ? 'checked' : '' }}>
+                                        <span class="text-sm text-gray-700">{{ $td->nombre_documento }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                            <p class="text-xs text-gray-400 mt-3">Puedes marcar o desmarcar documentos y guardar cambios.</p>
+                        @else
+                            <p class="text-sm text-gray-500">No hay tipos de documento disponibles en catálogo.</p>
+                        @endif
                     </div>
                 </div>
 
@@ -230,7 +287,7 @@ use Carbon\Carbon;
                     <div class="panel-body space-y-3">
                         <div id="img-preview-wrap" onclick="document.getElementById('foto_ruta').click()">
                             @if($apoyo->foto_ruta)
-                                <img id="img-preview" src="{{ asset($apoyo->foto_ruta) }}" alt="{{ $apoyo->nombre_apoyo }}" style="display:block">
+                                <img id="img-preview" src="{{ $apoyo->foto_url ?? asset($apoyo->foto_ruta) }}" alt="{{ $apoyo->nombre_apoyo }}" style="display:block">
                             @else
                                 <img id="img-preview" src="" alt="" style="display:none">
                             @endif
@@ -264,20 +321,59 @@ use Carbon\Carbon;
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 
     <script>
-        // Flatpickr
         flatpickr('.flatpickr', {
             dateFormat: 'd/m/Y',
             locale: 'es'
         });
 
-        // Manejo de imagen
+        const quill = new Quill('#quill-editor', {
+            theme: 'snow',
+            placeholder: 'Describe el apoyo y sus alcances...',
+            modules: {
+                toolbar: [
+                    [{ header: [2, 3, false] }],
+                    ['bold', 'italic', 'underline'],
+                    [{ list: 'ordered' }, { list: 'bullet' }],
+                    ['link'],
+                    ['clean']
+                ]
+            }
+        });
+
+        const form = document.getElementById('formularioEditarApoyo');
+        const descripcionHidden = document.getElementById('descripcion-hidden');
+
         const inputFile = document.getElementById('foto_ruta');
         const imgPreview = document.getElementById('img-preview');
         const imgPlacer = document.getElementById('img-placeholder');
         const imgName = document.getElementById('img-name');
         const btnRemove = document.getElementById('btn-remove-img');
+
+        const selectTipoApoyo = document.getElementById('tipo_apoyo');
+        const grpMontoInicial = document.getElementById('grp-monto-inicial');
+        const grpStockInicial = document.getElementById('grp-stock-inicial');
+        const panelTitle = document.getElementById('panel-fin-title');
+        const badge = document.getElementById('badge-tipo');
+
+        function syncTipoUI() {
+            const tipo = selectTipoApoyo.value;
+            const esEconomico = tipo === 'Económico';
+
+            panelTitle.textContent = esEconomico ? 'Financiamiento' : 'Inventario';
+            grpMontoInicial.style.display = esEconomico ? '' : 'none';
+            grpStockInicial.style.display = esEconomico ? 'none' : '';
+
+            badge.textContent = tipo;
+            badge.className = esEconomico
+                ? 'inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 ring-1 ring-amber-200'
+                : 'inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800 ring-1 ring-green-200';
+        }
+
+        syncTipoUI();
+        selectTipoApoyo.addEventListener('change', syncTipoUI);
 
         inputFile.addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -306,30 +402,36 @@ use Carbon\Carbon;
             btnRemove.classList.add('hidden');
         });
 
-        // Cambio de tipo de apoyo
-        const selectTipoApoyo = document.getElementById('tipo_apoyo');
-        selectTipoApoyo.addEventListener('change', (e) => {
-            const badge = document.getElementById('badge-tipo');
-            const panelTitle = document.getElementById('panel-fin-title');
-            badge.textContent = e.target.value;
-            badge.className = e.target.value === 'Económico'
-                ? 'inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 ring-1 ring-amber-200'
-                : 'inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800 ring-1 ring-green-200';
-            panelTitle.textContent = e.target.value === 'Económico' ? 'Financiamiento' : 'Inventario';
-        });
-
-        // Submit del formulario
-        document.getElementById('formularioEditarApoyo').addEventListener('submit', async (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const btn = e.target.querySelector('[type="submit"]');
+            descripcionHidden.value = quill.root.innerHTML === '<p><br></p>' ? '' : quill.root.innerHTML;
+
+            // Convert dates from d/m/Y to Y-m-d format
+            const fechaInicioInput = document.getElementById('fechaInicio');
+            const fechafinInput = document.getElementById('fechafin');
+            
+            const convertDate = (dateStr) => {
+                if (!dateStr) return '';
+                const parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                }
+                return dateStr;
+            };
+            
+            fechaInicioInput.value = convertDate(fechaInicioInput.value);
+            fechafinInput.value = convertDate(fechafinInput.value);
+
+            const btn = form.querySelector('[type="submit"]');
+            const originalText = btn.textContent;
             btn.disabled = true;
             btn.textContent = 'Guardando...';
 
-            const formData = new FormData(this);
+            const formData = new FormData(form);
 
             try {
-                const response = await fetch(this.action, {
+                const response = await fetch(form.action, {
                     method: 'POST',
                     body: formData,
                     headers: {
@@ -342,12 +444,12 @@ use Carbon\Carbon;
                 if (data.success) {
                     const toast = document.createElement('div');
                     toast.className = 'fixed bottom-6 right-6 z-50 bg-green-600 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium';
-                    toast.textContent = data.message;
+                    toast.textContent = data.message || 'Cambios guardados';
                     document.body.appendChild(toast);
                     setTimeout(() => {
                         toast.remove();
                         window.location.href = '{{ route("apoyos.index") }}';
-                    }, 2000);
+                    }, 1600);
                 } else {
                     alert('Error: ' + (data.message || 'No se pudo guardar'));
                 }
@@ -356,7 +458,7 @@ use Carbon\Carbon;
                 alert('Error al procesar la solicitud');
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Guardar cambios';
+                btn.textContent = originalText;
             }
         });
     </script>

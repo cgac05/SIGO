@@ -6,13 +6,20 @@ function apoyosApp(apoyosData, userRole = 'beneficiario', canEdit = false) {
     return {
         apoyos: apoyosData,
         apoyoActual: null,
+        mensajeUsuario: '',
         modalAbierto: false,
         modalEditarAbierto: false,
         confirmarEliminacionAbierto: false,
+        confirmarSolicitudAbierta: false,
         apoyoAEliminar: null,
         userRole: userRole,
         canEdit: canEdit,
         formEditandose: false,
+        chatInput: '',
+        chatMessages: [
+            { id: 1, author: 'Soporte SIGO', body: 'Bienvenido al chat de soporte. Aqui puedes dejar dudas sobre tu apoyo.', time: '09:00' },
+            { id: 2, author: 'Soporte SIGO', body: 'Su documento esta en revision.', time: '09:02' }
+        ],
 
         // ────────────────────────────────────────────
         // MODALES
@@ -27,8 +34,10 @@ function apoyosApp(apoyosData, userRole = 'beneficiario', canEdit = false) {
             this.modalAbierto = false;
             this.modalEditarAbierto = false;
             this.confirmarEliminacionAbierto = false;
+            this.confirmarSolicitudAbierta = false;
             document.body.style.overflow = '';
             this.apoyoAEliminar = null;
+            this.mensajeUsuario = '';
         },
 
         // ────────────────────────────────────────────
@@ -131,6 +140,59 @@ function apoyosApp(apoyosData, userRole = 'beneficiario', canEdit = false) {
                 });
         },
 
+        abrirConfirmacionSolicitud() {
+            this.confirmarSolicitudAbierta = true;
+        },
+
+        enviarSolicitud() {
+            const form = document.getElementById('formSolicitud');
+            if (!form) {
+                this.mostrarToast('No se encontro el formulario de solicitud', 'error');
+                return;
+            }
+
+            this.confirmarSolicitudAbierta = false;
+
+            if (typeof grecaptcha === 'undefined') {
+                form.submit();
+                return;
+            }
+
+            grecaptcha.ready(() => {
+                grecaptcha.execute(window.recaptchaSiteKey || '', { action: 'solicitud' })
+                    .then(token => {
+                        const tokenInput = document.getElementById('g-recaptcha-response-solicitud');
+                        if (tokenInput) {
+                            tokenInput.value = token;
+                        }
+                        form.submit();
+                    })
+                    .catch(() => {
+                        form.submit();
+                    });
+            });
+        },
+
+        enviarMensajeChat() {
+            const texto = (this.chatInput || '').trim();
+            if (!texto) {
+                return;
+            }
+
+            const ahora = new Date();
+            const hh = String(ahora.getHours()).padStart(2, '0');
+            const mm = String(ahora.getMinutes()).padStart(2, '0');
+
+            this.chatMessages.push({
+                id: Date.now(),
+                author: 'Tu',
+                body: texto,
+                time: `${hh}:${mm}`
+            });
+
+            this.chatInput = '';
+        },
+
         // ────────────────────────────────────────────
         // UTILIDADES
         // ────────────────────────────────────────────
@@ -209,6 +271,10 @@ function apoyosApp(apoyosData, userRole = 'beneficiario', canEdit = false) {
 
         esAdministrativo() {
             return this.userRole === 'administrativo' && this.canEdit;
+        },
+
+        esDirectivo() {
+            return this.userRole === 'directivo' && this.canEdit;
         }
     };
 }

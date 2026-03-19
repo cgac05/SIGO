@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Controller para administrar los apoyos.
@@ -24,6 +25,43 @@ use Illuminate\Support\Facades\Schema;
  */
 class ApoyoController extends Controller
 {
+    private function normalizeStorageRelativePath(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        $normalized = ltrim(str_replace('\\', '/', trim($path)), '/');
+
+        if (str_starts_with($normalized, 'storage/')) {
+            $normalized = substr($normalized, 8);
+        }
+
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    private function resolveApoyoImageUrl(?string $path): ?string
+    {
+        $relativePath = $this->normalizeStorageRelativePath($path);
+
+        if (! $relativePath) {
+            return null;
+        }
+
+        return route('apoyos.image', ['path' => $relativePath]);
+    }
+
+    private function ensureManagerAccess(): void
+    {
+        $user = Auth::user()?->loadMissing('personal');
+
+        $isManager = $user
+            && $user->personal
+            && in_array((int) $user->personal->fk_rol, [1, 2], true);
+
+        abort_unless($isManager, 403, 'No cuentas con permisos para gestionar apoyos.');
+    }
+
     /**
      * Mostrar la vista HTML con la tabla de Apoyos.
      *
@@ -31,9 +69,10 @@ class ApoyoController extends Controller
      */
     public function index()
     {
-        $user = Auth::user()->load('personal');
+        $user = Auth::user()->loadMissing(['personal', 'beneficiario']);
+        $isBeneficiario = $user->isBeneficiario();
 
-        $apoyos = DB::table('Apoyos')
+        $apoyosQuery = DB::table('Apoyos')
             ->select([
                 'id_apoyo',
                 'nombre_apoyo',
@@ -46,9 +85,53 @@ class ApoyoController extends Controller
                 'fecha_fin as fechafin',
                 'foto_ruta',
                 'descripcion',
-            ])
+            ]);
+
+        if ($isBeneficiario) {
+            $hoy = now()->toDateString();
+
+            $apoyosQuery
+                ->where('activo', 1)
+                ->where(function ($query) use ($hoy) {
+                    $query->whereNull('fecha_inicio')
+                        ->orWhereDate('fecha_inicio', '<=', $hoy);
+                })
+                ->where(function ($query) use ($hoy) {
+                    $query->whereNull('fecha_fin')
+                        ->orWhereDate('fecha_fin', '>=', $hoy);
+                });
+        }
+
+        $apoyos = $apoyosQuery
             ->orderBy('id_apoyo', 'desc')
             ->get();
+
+        $requisitos = DB::table('Requisitos_Apoyo')
+            ->join('Cat_TiposDocumento', 'Requisitos_Apoyo.fk_id_tipo_doc', '=', 'Cat_TiposDocumento.id_tipo_doc')
+            ->select([
+                'Requisitos_Apoyo.fk_id_apoyo',
+                'Requisitos_Apoyo.fk_id_tipo_doc',
+                'Requisitos_Apoyo.es_obligatorio',
+                'Cat_TiposDocumento.nombre_documento',
+                'Cat_TiposDocumento.tipo_archivo_permitido',
+                'Cat_TiposDocumento.validar_tipo_archivo',
+            ])
+            ->get();
+
+        $apoyos = $apoyos->map(function ($apoyo) use ($requisitos) {
+            if (! empty($apoyo->fechaInicio)) {
+                $apoyo->fechaInicio = Carbon::parse($apoyo->fechaInicio)->toDateString();
+            }
+
+            if (! empty($apoyo->fechafin)) {
+                $apoyo->fechafin = Carbon::parse($apoyo->fechafin)->toDateString();
+            }
+
+            $apoyo->requisitos = $requisitos->where('fk_id_apoyo', $apoyo->id_apoyo)->values();
+            $apoyo->foto_url = $this->resolveApoyoImageUrl($apoyo->foto_ruta);
+
+            return $apoyo;
+        });
 
         \Log::info('ApoyoController@index - Apoyos cargados', [
             'count' => $apoyos->count(),
@@ -57,7 +140,41 @@ class ApoyoController extends Controller
 
         $tiposDocumentos = DB::table('Cat_TiposDocumento')->select('id_tipo_doc', 'nombre_documento')->orderBy('nombre_documento')->get();
 
-        return view('apoyos.index', compact('apoyos', 'tiposDocumentos', 'user'));
+        $misSolicitudes = collect();
+        if ($isBeneficiario && $user->beneficiario?->curp) {
+            $misSolicitudes = DB::table('Solicitudes')
+                ->leftJoin('Apoyos', 'Solicitudes.fk_id_apoyo', '=', 'Apoyos.id_apoyo')
+                ->leftJoin('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
+                ->where('Solicitudes.fk_curp', $user->beneficiario->curp)
+                ->orderByDesc('Solicitudes.folio')
+                ->select([
+                    'Solicitudes.folio',
+                    'Cat_EstadosSolicitud.nombre_estado as estado',
+                    'Solicitudes.fecha_creacion',
+                    'Apoyos.nombre_apoyo',
+                ])
+                ->limit(10)
+                ->get();
+        }
+
+        $solicitudesRecientes = collect();
+        if ($user->personal && in_array((int) $user->personal->fk_rol, [1, 2], true)) {
+            $solicitudesRecientes = DB::table('Solicitudes')
+                ->leftJoin('Apoyos', 'Solicitudes.fk_id_apoyo', '=', 'Apoyos.id_apoyo')
+                ->leftJoin('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
+                ->orderByDesc('Solicitudes.folio')
+                ->select([
+                    'Solicitudes.folio',
+                    'Solicitudes.fk_curp',
+                    'Cat_EstadosSolicitud.nombre_estado as estado',
+                    'Solicitudes.fecha_creacion',
+                    'Apoyos.nombre_apoyo',
+                ])
+                ->limit(12)
+                ->get();
+        }
+
+        return view('apoyos.index', compact('apoyos', 'tiposDocumentos', 'user', 'misSolicitudes', 'solicitudesRecientes'));
     }
 
     /**
@@ -65,6 +182,8 @@ class ApoyoController extends Controller
      */
     public function create()
     {
+        $this->ensureManagerAccess();
+
         $query = DB::table('Cat_TiposDocumento')
             ->select('id_tipo_doc', 'nombre_documento')
             ->orderBy('nombre_documento');
@@ -88,6 +207,8 @@ class ApoyoController extends Controller
      */
     public function storeTipoDocumento(Request $request)
     {
+        $this->ensureManagerAccess();
+
         $data = $request->validate([
             'nombre_documento' => 'required|string|max:120',
             'tipo_archivo_permitido' => 'required|in:pdf,image,word,excel,zip,any',
@@ -145,6 +266,8 @@ class ApoyoController extends Controller
      */
     public function updateTipoDocumento(Request $request, int $id)
     {
+        $this->ensureManagerAccess();
+
         $data = $request->validate([
             'tipo_archivo_permitido' => 'required|in:pdf,image,word,excel,zip,any',
             'validar_tipo_archivo' => 'nullable|boolean',
@@ -192,6 +315,8 @@ class ApoyoController extends Controller
      */
     public function checkInventario(Request $request)
     {
+        $this->ensureManagerAccess();
+
         $request->validate([
             'stock_inicial' => 'required|integer|min:0',
             'cupo_limite'   => 'required|integer|min:1',
@@ -219,6 +344,8 @@ class ApoyoController extends Controller
      */
     public function aprobarInventario(Request $request)
     {
+        $this->ensureManagerAccess();
+
         $request->validate([
             'email'            => 'required|email',
             'password'         => 'required|string',
@@ -256,6 +383,8 @@ class ApoyoController extends Controller
      */
     public function list()
     {
+        $this->ensureManagerAccess();
+
         $apoyos = DB::table('Apoyos')
             ->select([
                 'id_apoyo',
@@ -298,6 +427,8 @@ class ApoyoController extends Controller
      */
     public function store(Request $request)
     {
+        $this->ensureManagerAccess();
+
         $data = $request->validate([
             'nombre_apoyo' => 'required|string|max:100',
             'tipo_apoyo' => 'required|in:Económico,Especie',
@@ -390,7 +521,10 @@ class ApoyoController extends Controller
      */
     public function edit($id)
     {
+        $this->ensureManagerAccess();
+
         $apoyo = Apoyo::findOrFail($id);
+        $apoyo->foto_url = $this->resolveApoyoImageUrl($apoyo->foto_ruta);
 
         $tiposDocumentos = DB::table('Cat_TiposDocumento')
             ->select('id_tipo_doc', 'nombre_documento', 'tipo_archivo_permitido', 'validar_tipo_archivo')
@@ -402,7 +536,15 @@ class ApoyoController extends Controller
             ->pluck('fk_id_tipo_doc')
             ->toArray();
 
-        return view('apoyos.edit', compact('apoyo', 'tiposDocumentos', 'requisitosActuales'));
+        $montoInicialAsignado = DB::table('BD_Finanzas')
+            ->where('fk_id_apoyo', $id)
+            ->value('monto_asignado');
+
+        $stockInicial = DB::table('BD_Inventario')
+            ->where('fk_id_apoyo', $id)
+            ->value('stock_actual');
+
+        return view('apoyos.edit', compact('apoyo', 'tiposDocumentos', 'requisitosActuales', 'montoInicialAsignado', 'stockInicial'));
     }
 
     /**
@@ -412,6 +554,8 @@ class ApoyoController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $this->ensureManagerAccess();
+
         $apoyo = Apoyo::findOrFail($id);
 
         $data = $request->validate([
@@ -423,11 +567,12 @@ class ApoyoController extends Controller
             'stock_inicial' => 'nullable|integer|required_if:tipo_apoyo,Especie',
             'cupo_limite' => 'nullable|integer|min:1',
             'activo' => 'nullable|boolean',
-            'fechaInicio' => 'required|date',
-            'fechafin' => 'required|date|after_or_equal:fechaInicio',
+            'fechaInicio' => 'required|date_format:Y-m-d',
+            'fechafin' => 'required|date_format:Y-m-d|after_or_equal:fechaInicio',
             'foto_ruta' => 'nullable|image|max:5120',
             'documentos_requeridos' => 'nullable|array',
             'documentos_requeridos.*' => 'integer|exists:Cat_TiposDocumento,id_tipo_doc',
+            'documentos_requeridos_present' => 'nullable|boolean',
         ]);
 
         DB::beginTransaction();
@@ -445,8 +590,9 @@ class ApoyoController extends Controller
 
             if ($request->hasFile('foto_ruta')) {
                 // Eliminar imagen anterior si existe
-                if ($apoyo->foto_ruta && file_exists(public_path($apoyo->foto_ruta))) {
-                    unlink(public_path($apoyo->foto_ruta));
+                $oldPath = $this->normalizeStorageRelativePath($apoyo->foto_ruta);
+                if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+                    Storage::disk('public')->delete($oldPath);
                 }
                 $payload['foto_ruta'] = 'storage/' . $request->file('foto_ruta')->store('apoyos', 'public');
             }
@@ -485,10 +631,10 @@ class ApoyoController extends Controller
                 }
             }
 
-            // Actualizar requisitos
-            if (! empty($data['documentos_requeridos'])) {
+            // Actualizar requisitos (permitir limpiar todos si no se marca ninguno)
+            if ($request->boolean('documentos_requeridos_present')) {
                 DB::table('Requisitos_Apoyo')->where('fk_id_apoyo', $id)->delete();
-                foreach ($data['documentos_requeridos'] as $docId) {
+                foreach ($data['documentos_requeridos'] ?? [] as $docId) {
                     DB::table('Requisitos_Apoyo')->insert([
                         'fk_id_apoyo' => $id,
                         'fk_id_tipo_doc' => $docId,
@@ -503,6 +649,10 @@ class ApoyoController extends Controller
             $apoyoActualizado = DB::table('Apoyos')
                 ->where('id_apoyo', $id)
                 ->first();
+
+            if ($apoyoActualizado) {
+                $apoyoActualizado->foto_url = $this->resolveApoyoImageUrl($apoyoActualizado->foto_ruta ?? null);
+            }
 
             return response()->json([
                 'success' => true,
@@ -526,14 +676,17 @@ class ApoyoController extends Controller
      */
     public function destroy($id)
     {
+        $this->ensureManagerAccess();
+
         DB::beginTransaction();
 
         try {
             $apoyo = Apoyo::findOrFail($id);
 
             // Eliminar imagen si existe
-            if ($apoyo->foto_ruta && file_exists(public_path($apoyo->foto_ruta))) {
-                unlink(public_path($apoyo->foto_ruta));
+            $oldPath = $this->normalizeStorageRelativePath($apoyo->foto_ruta);
+            if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+                Storage::disk('public')->delete($oldPath);
             }
 
             // Eliminar en cascada (BD_Finanzas, BD_Inventario, Requisitos_Apoyo)
@@ -553,5 +706,20 @@ class ApoyoController extends Controller
                 'message' => 'Error: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function image(string $path)
+    {
+        $relativePath = $this->normalizeStorageRelativePath($path);
+
+        if (! $relativePath || str_contains($relativePath, '..')) {
+            abort(404);
+        }
+
+        if (! Storage::disk('public')->exists($relativePath)) {
+            abort(404);
+        }
+
+        return response()->file(Storage::disk('public')->path($relativePath));
     }
 }
