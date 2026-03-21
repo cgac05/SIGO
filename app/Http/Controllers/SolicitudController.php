@@ -8,6 +8,52 @@ use Illuminate\Support\Facades\DB;
 
 class SolicitudController extends Controller
 {
+    public function create(Request $request, int $id)
+    {
+        $user = $request->user()->loadMissing('beneficiario');
+        $curpBeneficiario = $user->beneficiario?->curp;
+
+        if (! $user->isBeneficiario() || ! $curpBeneficiario) {
+            return redirect()->route('apoyos.index')->with('error', 'Debes iniciar sesión como beneficiario para registrar una solicitud.');
+        }
+
+        $apoyo = DB::table('Apoyos')
+            ->where('id_apoyo', $id)
+            ->first();
+
+        if (! $apoyo) {
+            return redirect()->route('apoyos.index')->with('error', 'El apoyo seleccionado no existe.');
+        }
+
+        $requisitos = DB::table('Requisitos_Apoyo')
+            ->join('Cat_TiposDocumento', 'Requisitos_Apoyo.fk_id_tipo_doc', '=', 'Cat_TiposDocumento.id_tipo_doc')
+            ->where('Requisitos_Apoyo.fk_id_apoyo', $id)
+            ->select([
+                'Requisitos_Apoyo.fk_id_tipo_doc',
+                'Requisitos_Apoyo.es_obligatorio',
+                'Cat_TiposDocumento.nombre_documento',
+                'Cat_TiposDocumento.tipo_archivo_permitido',
+                'Cat_TiposDocumento.validar_tipo_archivo',
+            ])
+            ->orderBy('Cat_TiposDocumento.nombre_documento')
+            ->get();
+
+        $solicitudActiva = DB::table('Solicitudes')
+            ->join('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
+            ->where('Solicitudes.fk_curp', $curpBeneficiario)
+            ->where('Solicitudes.fk_id_apoyo', $id)
+            ->whereNotIn('Cat_EstadosSolicitud.nombre_estado', ['Rechazada'])
+            ->orderByDesc('Solicitudes.fecha_creacion')
+            ->select([
+                'Solicitudes.folio',
+                'Cat_EstadosSolicitud.nombre_estado as estado',
+                'Solicitudes.fecha_creacion',
+            ])
+            ->first();
+
+        return view('solicitudes.create', compact('apoyo', 'requisitos', 'solicitudActiva'));
+    }
+
     public function guardar(Request $request)
     {
         $user = $request->user()->loadMissing('beneficiario');
@@ -24,6 +70,17 @@ class SolicitudController extends Controller
         ], [
             'g-recaptcha-response.required' => 'El token de seguridad es obligatorio.',
         ]);
+
+        $solicitudActiva = DB::table('Solicitudes')
+            ->join('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
+            ->where('Solicitudes.fk_curp', $curpBeneficiario)
+            ->where('Solicitudes.fk_id_apoyo', $request->apoyo)
+            ->whereNotIn('Cat_EstadosSolicitud.nombre_estado', ['Rechazada'])
+            ->exists();
+
+        if ($solicitudActiva) {
+            return redirect()->back()->with('error', 'Ya tienes una solicitud en proceso para este apoyo.');
+        }
 
         DB::beginTransaction();
 

@@ -25,6 +25,231 @@ use Illuminate\Support\Facades\Storage;
  */
 class ApoyoController extends Controller
 {
+    private function getBaseMilestonesTemplate(): array
+    {
+        return [
+            ['slug' => 'apertura_publicacion', 'titulo' => 'Apertura de la publicación'],
+            ['slug' => 'recepcion_documentos', 'titulo' => 'Inicio y fin de recepción de documentos'],
+            ['slug' => 'evaluacion_solicitudes', 'titulo' => 'Periodo de evaluación de solicitudes'],
+            ['slug' => 'entrega_resultados', 'titulo' => 'Entrega de resultados'],
+            ['slug' => 'cobro_apoyo', 'titulo' => 'Tiempo para cobrar el apoyo a los seleccionados'],
+            ['slug' => 'cierre_apoyo', 'titulo' => 'Cierre del apoyo'],
+        ];
+    }
+
+    private function sanitizeDescriptionHtml(?string $html): string
+    {
+        $raw = (string) ($html ?? '');
+        if (trim($raw) === '') {
+            return '';
+        }
+
+        $allowedTags = '<p><br><strong><b><em><i><u><ul><ol><li><a><h2><h3><blockquote>';
+        $clean = strip_tags($raw, $allowedTags);
+        $clean = preg_replace('/ on[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $clean) ?? '';
+        $clean = preg_replace('/javascript\s*:/i', '', $clean) ?? '';
+
+        return trim($clean);
+    }
+
+    private function syncApoyoMilestones(int $apoyoId, array $milestones): void
+    {
+        if (! Schema::hasTable('Hitos_Apoyo')) {
+            return;
+        }
+
+        DB::table('Hitos_Apoyo')->where('fk_id_apoyo', $apoyoId)->delete();
+
+        $baseTemplates = collect($this->getBaseMilestonesTemplate());
+        $inputBases = collect($milestones)
+            ->filter(function ($milestone) {
+                return ! empty($milestone['es_base']) && ! empty($milestone['slug']);
+            })
+            ->keyBy('slug');
+
+        $normalized = [];
+        foreach ($baseTemplates as $base) {
+            $incoming = $inputBases->get($base['slug'], []);
+            $include = array_key_exists('incluir', $incoming)
+                ? filter_var($incoming['incluir'], FILTER_VALIDATE_BOOLEAN)
+                : ! empty($incoming);
+
+            if (! $include) {
+                continue;
+            }
+
+            $normalized[] = [
+                'slug' => $base['slug'],
+                'titulo' => $incoming['titulo'] ?? $base['titulo'],
+                'fecha_inicio' => $incoming['fecha_inicio'] ?? null,
+                'fecha_fin' => $incoming['fecha_fin'] ?? null,
+                'es_base' => 1,
+            ];
+        }
+
+        foreach ($milestones as $milestone) {
+            if (! empty($milestone['es_base'])) {
+                continue;
+            }
+
+            $include = ! array_key_exists('incluir', $milestone)
+                || filter_var($milestone['incluir'], FILTER_VALIDATE_BOOLEAN);
+            if (! $include) {
+                continue;
+            }
+
+            $normalized[] = [
+                'slug' => $milestone['slug'] ?? null,
+                'titulo' => $milestone['titulo'] ?? null,
+                'fecha_inicio' => $milestone['fecha_inicio'] ?? null,
+                'fecha_fin' => $milestone['fecha_fin'] ?? null,
+                'es_base' => 0,
+            ];
+        }
+
+        $rows = [];
+        $order = 1;
+        foreach ($normalized as $milestone) {
+            $title = trim((string) ($milestone['titulo'] ?? ''));
+            if ($title === '') {
+                continue;
+            }
+
+            $start = ! empty($milestone['fecha_inicio']) ? Carbon::parse($milestone['fecha_inicio'])->toDateString() : null;
+            $end = ! empty($milestone['fecha_fin']) ? Carbon::parse($milestone['fecha_fin'])->toDateString() : null;
+
+            $rows[] = [
+                'fk_id_apoyo' => $apoyoId,
+                'slug_hito' => trim((string) ($milestone['slug'] ?? '')) ?: null,
+                'titulo_hito' => $title,
+                'fecha_inicio' => $start,
+                'fecha_fin' => $end,
+                'orden' => $order++,
+                'es_base' => ! empty($milestone['es_base']) ? 1 : 0,
+                'activo' => 1,
+                'fecha_creacion' => now(),
+                'fecha_actualizacion' => null,
+            ];
+        }
+
+        if (! empty($rows)) {
+            DB::table('Hitos_Apoyo')->insert($rows);
+        }
+    }
+
+    private function validateMilestonesDateRanges(array $milestones): void
+    {
+        $errors = [];
+
+        foreach ($milestones as $index => $milestone) {
+            $include = ! array_key_exists('incluir', $milestone)
+                || filter_var($milestone['incluir'], FILTER_VALIDATE_BOOLEAN);
+
+            if (! $include) {
+                continue;
+            }
+
+            if (empty($milestone['fecha_inicio']) || empty($milestone['fecha_fin'])) {
+                continue;
+            }
+
+            $start = Carbon::parse($milestone['fecha_inicio'])->toDateString();
+            $end = Carbon::parse($milestone['fecha_fin'])->toDateString();
+
+            if ($end < $start) {
+                $errors["hitos.$index.fecha_fin"] = 'La fecha de fin no puede ser anterior a la fecha de inicio.';
+            }
+        }
+
+        if (! empty($errors)) {
+            throw \Illuminate\Validation\ValidationException::withMessages($errors);
+        }
+    }
+
+    private function isManagerUser($user): bool
+    {
+        return (bool) ($user && $user->personal && in_array((int) $user->personal->fk_rol, [1, 2], true));
+    }
+
+    private function canManageComment($comment, $user): bool
+    {
+        if (! $comment || ! $user) {
+            return false;
+        }
+
+        return (int) $comment->fk_id_usuario === (int) $user->id_usuario || $this->isManagerUser($user);
+    }
+
+    private function getApoyoCommentsTree(int $apoyoId, $user): array
+    {
+        if (! Schema::hasTable('Comentarios_Apoyo') || ! Schema::hasTable('Reacciones_ComentarioApoyo')) {
+            return [];
+        }
+
+        $userId = (int) $user->id_usuario;
+
+        $rows = DB::table('Comentarios_Apoyo as c')
+            ->leftJoin('Usuarios as u', 'u.id_usuario', '=', 'c.fk_id_usuario')
+            ->leftJoin('Personal as p', 'p.fk_id_usuario', '=', 'u.id_usuario')
+            ->leftJoin('Beneficiarios as b', 'b.fk_id_usuario', '=', 'u.id_usuario')
+            ->where('c.fk_id_apoyo', $apoyoId)
+            ->orderBy('c.fecha_creacion', 'asc')
+            ->select([
+                'c.id_comentario',
+                'c.fk_id_apoyo',
+                'c.fk_id_usuario',
+                'c.fk_id_comentario_padre',
+                'c.contenido',
+                'c.editado',
+                'c.fecha_creacion',
+                'c.fecha_actualizacion',
+                'u.email as autor_email',
+                DB::raw("COALESCE(NULLIF(LTRIM(RTRIM(CONCAT(COALESCE(p.nombre,''), ' ', COALESCE(p.apellido_paterno,''), ' ', COALESCE(p.apellido_materno,'')))),''), NULLIF(LTRIM(RTRIM(CONCAT(COALESCE(b.nombre,''), ' ', COALESCE(b.apellido_paterno,''), ' ', COALESCE(b.apellido_materno,'')))),''), u.email) as autor_nombre"),
+                DB::raw('CASE WHEN p.fk_id_usuario IS NOT NULL THEN 1 ELSE 0 END as autor_verificado'),
+            ])
+            ->get();
+
+        $likesCount = DB::table('Reacciones_ComentarioApoyo')
+            ->where('tipo_reaccion', 'like')
+            ->whereIn('fk_id_comentario', $rows->pluck('id_comentario')->all())
+            ->select('fk_id_comentario', DB::raw('COUNT(*) as total'))
+            ->groupBy('fk_id_comentario')
+            ->pluck('total', 'fk_id_comentario');
+
+        $myLikeIds = DB::table('Reacciones_ComentarioApoyo')
+            ->where('tipo_reaccion', 'like')
+            ->where('fk_id_usuario', $userId)
+            ->whereIn('fk_id_comentario', $rows->pluck('id_comentario')->all())
+            ->pluck('fk_id_comentario')
+            ->all();
+
+        $myLikesMap = array_flip(array_map('intval', $myLikeIds));
+
+        $mapped = [];
+        foreach ($rows as $row) {
+            $row->likes_count = (int) ($likesCount[$row->id_comentario] ?? 0);
+            $row->liked_by_me = isset($myLikesMap[(int) $row->id_comentario]);
+            $row->can_manage = $this->canManageComment($row, $user);
+            $row->autor_verificado = (bool) $row->autor_verificado;
+            $row->editado = (bool) $row->editado;
+            $row->replies = [];
+            $mapped[(int) $row->id_comentario] = $row;
+        }
+
+        $tree = [];
+        foreach ($mapped as $comment) {
+            $parentId = $comment->fk_id_comentario_padre ? (int) $comment->fk_id_comentario_padre : null;
+
+            if ($parentId && isset($mapped[$parentId])) {
+                $mapped[$parentId]->replies[] = $comment;
+            } else {
+                $tree[] = $comment;
+            }
+        }
+
+        return array_values($tree);
+    }
+
     private function normalizeStorageRelativePath(?string $path): ?string
     {
         if (! $path) {
@@ -118,7 +343,37 @@ class ApoyoController extends Controller
             ])
             ->get();
 
-        $apoyos = $apoyos->map(function ($apoyo) use ($requisitos) {
+        $hitosByApoyo = collect();
+        if (Schema::hasTable('Hitos_Apoyo') && $apoyos->isNotEmpty()) {
+            $hitosByApoyo = DB::table('Hitos_Apoyo')
+                ->whereIn('fk_id_apoyo', $apoyos->pluck('id_apoyo')->all())
+                ->where('activo', 1)
+                ->orderBy('orden')
+                ->orderBy('id_hito')
+                ->get()
+                ->groupBy('fk_id_apoyo');
+        }
+
+        $solicitudesActivasByApoyo = collect();
+        if ($isBeneficiario && $user->beneficiario?->curp) {
+            $solicitudesActivasByApoyo = DB::table('Solicitudes')
+                ->join('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
+                ->where('Solicitudes.fk_curp', $user->beneficiario->curp)
+                ->select([
+                    'Solicitudes.fk_id_apoyo',
+                    'Solicitudes.folio',
+                    'Cat_EstadosSolicitud.nombre_estado as estado',
+                    'Solicitudes.fecha_creacion',
+                ])
+                ->orderByDesc('Solicitudes.fecha_creacion')
+                ->get()
+                ->groupBy('fk_id_apoyo')
+                ->map(function ($rows) {
+                    return $rows->first();
+                });
+        }
+
+        $apoyos = $apoyos->map(function ($apoyo) use ($requisitos, $hitosByApoyo, $solicitudesActivasByApoyo) {
             if (! empty($apoyo->fechaInicio)) {
                 $apoyo->fechaInicio = Carbon::parse($apoyo->fechaInicio)->toDateString();
             }
@@ -129,6 +384,9 @@ class ApoyoController extends Controller
 
             $apoyo->requisitos = $requisitos->where('fk_id_apoyo', $apoyo->id_apoyo)->values();
             $apoyo->foto_url = $this->resolveApoyoImageUrl($apoyo->foto_ruta);
+            $apoyo->descripcion_html = $this->sanitizeDescriptionHtml($apoyo->descripcion ?? '');
+            $apoyo->hitos = ($hitosByApoyo->get($apoyo->id_apoyo) ?? collect())->values();
+            $apoyo->solicitud_activa = $solicitudesActivasByApoyo->get($apoyo->id_apoyo);
 
             return $apoyo;
         });
@@ -197,8 +455,9 @@ class ApoyoController extends Controller
         }
 
         $tiposDocumentos = $query->get();
+        $milestonesBase = $this->getBaseMilestonesTemplate();
 
-        return view('apoyos.create', compact('tiposDocumentos'));
+        return view('apoyos.create', compact('tiposDocumentos', 'milestonesBase'));
     }
 
     /**
@@ -443,7 +702,16 @@ class ApoyoController extends Controller
             'foto_ruta' => 'nullable|image|max:5120',
             'documentos_requeridos' => 'nullable|array',
             'documentos_requeridos.*' => 'integer|exists:Cat_TiposDocumento,id_tipo_doc',
+            'hitos' => 'nullable|array',
+            'hitos.*.titulo' => 'nullable|string|max:150',
+            'hitos.*.fecha_inicio' => 'nullable|date',
+            'hitos.*.fecha_fin' => 'nullable|date',
+            'hitos.*.slug' => 'nullable|string|max:80',
+            'hitos.*.es_base' => 'nullable|boolean',
+            'hitos.*.incluir' => 'nullable|boolean',
         ]);
+
+        $this->validateMilestonesDateRanges($data['hitos'] ?? []);
 
         DB::beginTransaction();
 
@@ -476,7 +744,7 @@ class ApoyoController extends Controller
             }
 
             if (Schema::hasColumn('Apoyos', 'descripcion')) {
-                $payload['descripcion'] = $data['descripcion'] ?? null;
+                $payload['descripcion'] = $this->sanitizeDescriptionHtml($data['descripcion'] ?? null);
             }
 
             $apoyo = Apoyo::create($payload);
@@ -503,6 +771,8 @@ class ApoyoController extends Controller
                     ]);
                 }
             }
+
+            $this->syncApoyoMilestones((int) $apoyo->id_apoyo, $data['hitos'] ?? []);
 
             DB::commit();
 
@@ -544,7 +814,18 @@ class ApoyoController extends Controller
             ->where('fk_id_apoyo', $id)
             ->value('stock_actual');
 
-        return view('apoyos.edit', compact('apoyo', 'tiposDocumentos', 'requisitosActuales', 'montoInicialAsignado', 'stockInicial'));
+        $milestonesBase = $this->getBaseMilestonesTemplate();
+        $existingMilestones = collect();
+        if (Schema::hasTable('Hitos_Apoyo')) {
+            $existingMilestones = DB::table('Hitos_Apoyo')
+                ->where('fk_id_apoyo', $id)
+                ->where('activo', 1)
+                ->orderBy('orden')
+                ->orderBy('id_hito')
+                ->get();
+        }
+
+        return view('apoyos.edit', compact('apoyo', 'tiposDocumentos', 'requisitosActuales', 'montoInicialAsignado', 'stockInicial', 'milestonesBase', 'existingMilestones'));
     }
 
     /**
@@ -573,7 +854,16 @@ class ApoyoController extends Controller
             'documentos_requeridos' => 'nullable|array',
             'documentos_requeridos.*' => 'integer|exists:Cat_TiposDocumento,id_tipo_doc',
             'documentos_requeridos_present' => 'nullable|boolean',
+            'hitos' => 'nullable|array',
+            'hitos.*.titulo' => 'nullable|string|max:150',
+            'hitos.*.fecha_inicio' => 'nullable|date',
+            'hitos.*.fecha_fin' => 'nullable|date',
+            'hitos.*.slug' => 'nullable|string|max:80',
+            'hitos.*.es_base' => 'nullable|boolean',
+            'hitos.*.incluir' => 'nullable|boolean',
         ]);
+
+        $this->validateMilestonesDateRanges($data['hitos'] ?? []);
 
         DB::beginTransaction();
 
@@ -598,7 +888,7 @@ class ApoyoController extends Controller
             }
 
             if (Schema::hasColumn('Apoyos', 'descripcion')) {
-                $payload['descripcion'] = $data['descripcion'] ?? null;
+                $payload['descripcion'] = $this->sanitizeDescriptionHtml($data['descripcion'] ?? null);
             }
 
             $apoyo->update($payload);
@@ -642,6 +932,8 @@ class ApoyoController extends Controller
                     ]);
                 }
             }
+
+            $this->syncApoyoMilestones((int) $id, $data['hitos'] ?? []);
 
             DB::commit();
 
@@ -706,6 +998,238 @@ class ApoyoController extends Controller
                 'message' => 'Error: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function comments($id)
+    {
+        $user = Auth::user()->loadMissing(['personal', 'beneficiario']);
+        $apoyo = Apoyo::findOrFail($id);
+        $apoyo->foto_url = $this->resolveApoyoImageUrl($apoyo->foto_ruta);
+        $apoyo->descripcion_html = $this->sanitizeDescriptionHtml($apoyo->descripcion ?? '');
+
+        $requisitos = DB::table('Requisitos_Apoyo')
+            ->join('Cat_TiposDocumento', 'Requisitos_Apoyo.fk_id_tipo_doc', '=', 'Cat_TiposDocumento.id_tipo_doc')
+            ->where('Requisitos_Apoyo.fk_id_apoyo', $apoyo->id_apoyo)
+            ->select([
+                'Requisitos_Apoyo.fk_id_tipo_doc',
+                'Requisitos_Apoyo.es_obligatorio',
+                'Cat_TiposDocumento.nombre_documento',
+                'Cat_TiposDocumento.tipo_archivo_permitido',
+            ])
+            ->orderBy('Cat_TiposDocumento.nombre_documento')
+            ->get();
+
+        $hitos = collect();
+        if (Schema::hasTable('Hitos_Apoyo')) {
+            $hitos = DB::table('Hitos_Apoyo')
+                ->where('fk_id_apoyo', $apoyo->id_apoyo)
+                ->where('activo', 1)
+                ->orderBy('orden')
+                ->orderBy('id_hito')
+                ->get();
+        }
+
+        $solicitudActiva = null;
+        if ($user->isBeneficiario() && $user->beneficiario?->curp) {
+            $solicitudActiva = DB::table('Solicitudes')
+                ->join('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
+                ->where('Solicitudes.fk_curp', $user->beneficiario->curp)
+                ->where('Solicitudes.fk_id_apoyo', $apoyo->id_apoyo)
+                ->whereNotIn('Cat_EstadosSolicitud.nombre_estado', ['Rechazada'])
+                ->orderByDesc('Solicitudes.fecha_creacion')
+                ->select([
+                    'Solicitudes.folio',
+                    'Cat_EstadosSolicitud.nombre_estado as estado',
+                    'Solicitudes.fecha_creacion',
+                ])
+                ->first();
+        }
+
+        $comments = $this->getApoyoCommentsTree((int) $apoyo->id_apoyo, $user);
+
+        if (request()->expectsJson() || request()->ajax() || request()->boolean('json')) {
+            return response()->json([
+                'success' => true,
+                'apoyo' => $apoyo,
+                'comments' => $comments,
+            ]);
+        }
+
+        return view('apoyos.comments', compact('apoyo', 'user', 'comments', 'requisitos', 'hitos', 'solicitudActiva'));
+    }
+
+    public function storeComment(Request $request, $id)
+    {
+        if (! Schema::hasTable('Comentarios_Apoyo') || ! Schema::hasTable('Reacciones_ComentarioApoyo')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Las tablas de comentarios aun no estan creadas. Ejecuta la migracion pendiente.',
+            ], 503);
+        }
+
+        $user = Auth::user()->loadMissing('personal');
+        $apoyo = Apoyo::findOrFail($id);
+
+        $data = $request->validate([
+            'contenido' => 'required|string|max:1200',
+            'parent_id' => 'nullable|integer|exists:Comentarios_Apoyo,id_comentario',
+        ]);
+
+        $parentId = $data['parent_id'] ?? null;
+        if ($parentId) {
+            $parent = DB::table('Comentarios_Apoyo')
+                ->where('id_comentario', $parentId)
+                ->where('fk_id_apoyo', $apoyo->id_apoyo)
+                ->first();
+
+            if (! $parent) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El comentario padre no pertenece a este apoyo.',
+                ], 422);
+            }
+        }
+
+        DB::table('Comentarios_Apoyo')->insert([
+            'fk_id_apoyo' => $apoyo->id_apoyo,
+            'fk_id_usuario' => $user->id_usuario,
+            'fk_id_comentario_padre' => $parentId,
+            'contenido' => trim($data['contenido']),
+            'editado' => 0,
+            'fecha_creacion' => now(),
+            'fecha_actualizacion' => null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comentario publicado.',
+            'comments' => $this->getApoyoCommentsTree((int) $apoyo->id_apoyo, $user),
+        ]);
+    }
+
+    public function updateComment(Request $request, $id, $commentId)
+    {
+        if (! Schema::hasTable('Comentarios_Apoyo') || ! Schema::hasTable('Reacciones_ComentarioApoyo')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Las tablas de comentarios aun no estan creadas. Ejecuta la migracion pendiente.',
+            ], 503);
+        }
+
+        $user = Auth::user()->loadMissing('personal');
+        $apoyo = Apoyo::findOrFail($id);
+
+        $data = $request->validate([
+            'contenido' => 'required|string|max:1200',
+        ]);
+
+        $comment = DB::table('Comentarios_Apoyo')
+            ->where('id_comentario', $commentId)
+            ->where('fk_id_apoyo', $apoyo->id_apoyo)
+            ->first();
+
+        if (! $comment) {
+            return response()->json(['success' => false, 'message' => 'Comentario no encontrado.'], 404);
+        }
+
+        abort_unless($this->canManageComment($comment, $user), 403, 'No tienes permiso para editar este comentario.');
+
+        DB::table('Comentarios_Apoyo')
+            ->where('id_comentario', $commentId)
+            ->update([
+                'contenido' => trim($data['contenido']),
+                'editado' => 1,
+                'fecha_actualizacion' => now(),
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comentario actualizado.',
+            'comments' => $this->getApoyoCommentsTree((int) $apoyo->id_apoyo, $user),
+        ]);
+    }
+
+    public function destroyComment($id, $commentId)
+    {
+        if (! Schema::hasTable('Comentarios_Apoyo') || ! Schema::hasTable('Reacciones_ComentarioApoyo')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Las tablas de comentarios aun no estan creadas. Ejecuta la migracion pendiente.',
+            ], 503);
+        }
+
+        $user = Auth::user()->loadMissing('personal');
+        $apoyo = Apoyo::findOrFail($id);
+
+        $comment = DB::table('Comentarios_Apoyo')
+            ->where('id_comentario', $commentId)
+            ->where('fk_id_apoyo', $apoyo->id_apoyo)
+            ->first();
+
+        if (! $comment) {
+            return response()->json(['success' => false, 'message' => 'Comentario no encontrado.'], 404);
+        }
+
+        abort_unless($this->canManageComment($comment, $user), 403, 'No tienes permiso para eliminar este comentario.');
+
+        DB::table('Comentarios_Apoyo')
+            ->where('id_comentario', $commentId)
+            ->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comentario eliminado.',
+            'comments' => $this->getApoyoCommentsTree((int) $apoyo->id_apoyo, $user),
+        ]);
+    }
+
+    public function toggleCommentLike($id, $commentId)
+    {
+        if (! Schema::hasTable('Comentarios_Apoyo') || ! Schema::hasTable('Reacciones_ComentarioApoyo')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Las tablas de comentarios aun no estan creadas. Ejecuta la migracion pendiente.',
+            ], 503);
+        }
+
+        $user = Auth::user()->loadMissing('personal');
+        $apoyo = Apoyo::findOrFail($id);
+
+        $comment = DB::table('Comentarios_Apoyo')
+            ->where('id_comentario', $commentId)
+            ->where('fk_id_apoyo', $apoyo->id_apoyo)
+            ->first();
+
+        if (! $comment) {
+            return response()->json(['success' => false, 'message' => 'Comentario no encontrado.'], 404);
+        }
+
+        $likeExists = DB::table('Reacciones_ComentarioApoyo')
+            ->where('fk_id_comentario', $commentId)
+            ->where('fk_id_usuario', $user->id_usuario)
+            ->where('tipo_reaccion', 'like')
+            ->exists();
+
+        if ($likeExists) {
+            DB::table('Reacciones_ComentarioApoyo')
+                ->where('fk_id_comentario', $commentId)
+                ->where('fk_id_usuario', $user->id_usuario)
+                ->where('tipo_reaccion', 'like')
+                ->delete();
+        } else {
+            DB::table('Reacciones_ComentarioApoyo')->insert([
+                'fk_id_comentario' => $commentId,
+                'fk_id_usuario' => $user->id_usuario,
+                'tipo_reaccion' => 'like',
+                'fecha_creacion' => now(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $likeExists ? 'Like eliminado.' : 'Like agregado.',
+            'comments' => $this->getApoyoCommentsTree((int) $apoyo->id_apoyo, $user),
+        ]);
     }
 
     public function image(string $path)

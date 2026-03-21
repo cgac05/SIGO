@@ -382,6 +382,59 @@
                     </div>
                 </div>
 
+                {{-- Panel: Hitos importantes --}}
+                <div class="panel">
+                    <div class="panel-title">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z"/>
+                        </svg>
+                        Fechas importantes (hitos)
+                    </div>
+                    <div class="panel-body space-y-4">
+                        <p class="text-xs text-gray-500">Configura los hitos base del apoyo y agrega hitos adicionales si lo necesitas.</p>
+
+                        <div id="hitos-base-grid" class="space-y-3">
+                            @foreach(($milestonesBase ?? []) as $i => $hito)
+                                <div class="rounded-xl border border-slate-200 p-3 bg-slate-50 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <input type="hidden" name="hitos[{{ $i }}][slug]" value="{{ $hito['slug'] }}">
+                                    <input type="hidden" name="hitos[{{ $i }}][es_base]" value="1">
+                                    <input type="hidden" name="hitos[{{ $i }}][incluir]" value="0">
+                                    <div class="sm:col-span-3 flex items-center justify-between gap-2">
+                                        <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600">
+                                            <input type="checkbox" name="hitos[{{ $i }}][incluir]" value="1" class="hito-toggle-incluir w-4 h-4 accent-blue-700" {{ old('hitos.' . $i . '.incluir', '1') == '1' ? 'checked' : '' }}>
+                                            Incluir hito
+                                        </label>
+                                        <span class="text-xs text-slate-500 font-semibold">Base</span>
+                                    </div>
+                                    <div class="sm:col-span-3" data-hito-content="1">
+                                        <label class="field-label">Hito</label>
+                                        <input type="text" name="hitos[{{ $i }}][titulo]" class="field-input" value="{{ old('hitos.' . $i . '.titulo', $hito['titulo']) }}" required>
+                                    </div>
+                                    <div data-hito-content="1">
+                                        <label class="field-label">Inicio</label>
+                                        <input type="date" name="hitos[{{ $i }}][fecha_inicio]" class="field-input" value="{{ old('hitos.' . $i . '.fecha_inicio') }}">
+                                    </div>
+                                    <div data-hito-content="1">
+                                        <input type="hidden" name="hitos[{{ $i }}][tiene_fin]" value="0">
+                                        <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 mb-2">
+                                            <input type="checkbox" name="hitos[{{ $i }}][tiene_fin]" value="1" class="hito-toggle-fin w-4 h-4 accent-blue-700" {{ old('hitos.' . $i . '.fecha_fin') ? 'checked' : '' }}>
+                                            Tiene fecha fin
+                                        </label>
+                                        <label class="field-label">Fin</label>
+                                        <input type="date" name="hitos[{{ $i }}][fecha_fin]" class="field-input hito-fecha-fin" value="{{ old('hitos.' . $i . '.fecha_fin') }}">
+                                    </div>
+                                    <div class="flex items-end text-xs text-slate-500 font-semibold" data-hito-content="1">Editable</div>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <div class="pt-2 border-t border-dashed border-slate-200">
+                            <button type="button" id="btn-add-hito" class="btn-secondary !py-2 !text-xs">+ Agregar hito adicional</button>
+                        </div>
+                        <div id="hitos-custom-grid" class="space-y-3"></div>
+                    </div>
+                </div>
+
                 {{-- Panel: Documentos requeridos --}}
                 <div class="panel">
                     <div class="panel-title">
@@ -794,6 +847,139 @@
         let inventarioAprobado = false;
         let stockAprobadoFinal = 0;
         let deficitActual      = 0;
+        let hitoIndexCounter   = {{ count($milestonesBase ?? []) }};
+
+        const btnAddHito       = document.getElementById('btn-add-hito');
+        const hitosCustomGrid  = document.getElementById('hitos-custom-grid');
+
+        function addCustomMilestoneRow() {
+            if (!hitosCustomGrid) return;
+
+            const idx = hitoIndexCounter++;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'rounded-xl border border-slate-200 p-3 bg-white grid grid-cols-1 sm:grid-cols-3 gap-3';
+            wrapper.innerHTML = `
+                <input type="hidden" name="hitos[${idx}][incluir]" value="1">
+                <input type="hidden" name="hitos[${idx}][es_base]" value="0">
+                <div class="sm:col-span-3 flex items-center justify-between gap-2">
+                    <label class="field-label !mb-0">Hito adicional</label>
+                    <button type="button" class="text-xs font-bold text-red-600 hover:text-red-700" data-remove-hito="1">Eliminar</button>
+                </div>
+                <div class="sm:col-span-3">
+                    <input type="text" name="hitos[${idx}][titulo]" class="field-input" placeholder="Nombre del hito" required>
+                </div>
+                <div>
+                    <label class="field-label">Inicio</label>
+                    <input type="date" name="hitos[${idx}][fecha_inicio]" class="field-input hito-fecha-inicio">
+                </div>
+                <div>
+                    <input type="hidden" name="hitos[${idx}][tiene_fin]" value="0">
+                    <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 mb-2">
+                        <input type="checkbox" name="hitos[${idx}][tiene_fin]" value="1" class="hito-toggle-fin w-4 h-4 accent-blue-700">
+                        Tiene fecha fin
+                    </label>
+                    <label class="field-label">Fin</label>
+                    <input type="date" name="hitos[${idx}][fecha_fin]" class="field-input hito-fecha-fin" disabled>
+                </div>
+                <div class="flex items-end text-xs text-slate-500 font-semibold">Personalizado</div>
+            `;
+
+            hitosCustomGrid.appendChild(wrapper);
+            initHitoRow(wrapper);
+        }
+
+        function syncHitoDateRange(row) {
+            const startInput = row.querySelector('input[name*="[fecha_inicio]"]');
+            const endInput = row.querySelector('.hito-fecha-fin');
+            if (!startInput || !endInput) return;
+
+            endInput.min = startInput.value || '';
+            if (startInput.value && endInput.value && endInput.value < startInput.value) {
+                endInput.setCustomValidity('La fecha de fin no puede ser menor que la de inicio.');
+            } else {
+                endInput.setCustomValidity('');
+            }
+        }
+
+        function syncHitoFinToggle(row) {
+            const finToggle = row.querySelector('.hito-toggle-fin');
+            const endInput = row.querySelector('.hito-fecha-fin');
+            if (!finToggle || !endInput) return;
+
+            if (finToggle.checked) {
+                endInput.disabled = false;
+            } else {
+                endInput.value = '';
+                endInput.disabled = true;
+                endInput.setCustomValidity('');
+            }
+        }
+
+        function syncHitoIncludeToggle(row) {
+            const includeToggle = row.querySelector('.hito-toggle-incluir');
+            if (!includeToggle) return;
+
+            const content = row.querySelectorAll('[data-hito-content="1"] input, [data-hito-content="1"] select, [data-hito-content="1"] textarea, [data-hito-content="1"] .hito-fecha-fin');
+            row.classList.toggle('opacity-60', !includeToggle.checked);
+
+            content.forEach((input) => {
+                if (includeToggle.checked) {
+                    input.disabled = false;
+                } else {
+                    input.disabled = true;
+                    if (input.classList.contains('hito-fecha-fin')) {
+                        input.value = '';
+                    }
+                    input.setCustomValidity('');
+                }
+            });
+        }
+
+        function initHitoRow(row) {
+            const startInput = row.querySelector('input[name*="[fecha_inicio]"]');
+            const endInput = row.querySelector('.hito-fecha-fin');
+            const finToggle = row.querySelector('.hito-toggle-fin');
+            const includeToggle = row.querySelector('.hito-toggle-incluir');
+
+            if (startInput) {
+                startInput.classList.add('hito-fecha-inicio');
+                startInput.addEventListener('change', () => syncHitoDateRange(row));
+            }
+
+            if (endInput) {
+                endInput.addEventListener('change', () => syncHitoDateRange(row));
+            }
+
+            if (finToggle) {
+                finToggle.addEventListener('change', () => {
+                    syncHitoFinToggle(row);
+                    syncHitoDateRange(row);
+                });
+            }
+
+            if (includeToggle) {
+                includeToggle.addEventListener('change', () => syncHitoIncludeToggle(row));
+            }
+
+            syncHitoFinToggle(row);
+            syncHitoIncludeToggle(row);
+            syncHitoDateRange(row);
+        }
+
+        if (btnAddHito) {
+            btnAddHito.addEventListener('click', addCustomMilestoneRow);
+        }
+
+        if (hitosCustomGrid) {
+            hitosCustomGrid.addEventListener('click', function (event) {
+                const btn = event.target.closest('[data-remove-hito="1"]');
+                if (!btn) return;
+                const row = btn.closest('.rounded-xl');
+                if (row) row.remove();
+            });
+        }
+
+        document.querySelectorAll('#hitos-base-grid > .rounded-xl, #hitos-custom-grid > .rounded-xl').forEach(initHitoRow);
 
         /* ── HELPERS ──────────────────────────────────────── */
         function fmt(n) {

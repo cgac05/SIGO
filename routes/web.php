@@ -34,6 +34,10 @@ Route::post('/guardar-solicitud', [SolicitudController::class, 'guardar'])
     ->middleware(['auth', 'beneficiario.profile'])
     ->name('solicitud.guardar');
 
+Route::get('/apoyos/{id}/solicitud', [SolicitudController::class, 'create'])
+    ->middleware(['auth', 'beneficiario.profile'])
+    ->name('solicitud.create');
+
 Route::get('/debug-user', function () {
     $user = Auth::user();
     if (!$user) {
@@ -90,6 +94,11 @@ Route::get('/api/apoyos-debug', function () {
 Route::middleware('auth')->group(function () {
     Route::get('/apoyos',                  [ApoyoController::class, 'index'])->name('apoyos.index');
     Route::get('/apoyos/imagen/{path}',    [ApoyoController::class, 'image'])->where('path', '.*')->name('apoyos.image');
+    Route::get('/apoyos/{id}/comentarios', [ApoyoController::class, 'comments'])->name('apoyos.comments');
+    Route::post('/apoyos/{id}/comentarios', [ApoyoController::class, 'storeComment'])->name('apoyos.comments.store');
+    Route::put('/apoyos/{id}/comentarios/{commentId}', [ApoyoController::class, 'updateComment'])->name('apoyos.comments.update');
+    Route::delete('/apoyos/{id}/comentarios/{commentId}', [ApoyoController::class, 'destroyComment'])->name('apoyos.comments.destroy');
+    Route::post('/apoyos/{id}/comentarios/{commentId}/like', [ApoyoController::class, 'toggleCommentLike'])->name('apoyos.comments.like');
     Route::get('/apoyos/create',           [ApoyoController::class, 'create'])->name('apoyos.create');
     Route::post('/apoyos',                 [ApoyoController::class, 'store'])->name('apoyos.store');
     Route::get('/apoyos/list',             [ApoyoController::class, 'list'])->name('apoyos.list');
