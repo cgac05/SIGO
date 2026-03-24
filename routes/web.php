@@ -36,63 +36,9 @@ Route::post('/guardar-solicitud', [SolicitudController::class, 'guardar'])
     ->middleware(['auth', 'beneficiario.profile'])
     ->name('solicitud.guardar');
 
-<<<<<<< HEAD
 Route::get('/apoyos/{id}/solicitud', [SolicitudController::class, 'create'])
     ->middleware(['auth', 'beneficiario.profile'])
     ->name('solicitud.create');
-
-Route::get('/debug-user', function () {
-    $user = Auth::user();
-    if (!$user) {
-        return 'No hay usuario autenticado';
-    }
-
-    $data = [
-        'id_usuario' => $user->id,
-        'email' => $user->email,
-        'tipo_usuario' => $user->tipo_usuario,
-        'isPersonal()' => $user->isPersonal(),
-        'isBeneficiario()' => $user->isBeneficiario(),
-        'has_personal_relation' => $user->personal ? 'SI' : 'NO',
-    ];
-
-    if ($user->personal) {
-        $data['personal'] = [
-            'numero_empleado' => $user->personal->numero_empleado,
-            'nombre' => $user->personal->nombre,
-            'fk_rol' => $user->personal->fk_rol,
-        ];
-    }
-
-    return response()->json($data, 200, [], JSON_PRETTY_PRINT);
-});
-
-Route::get('/test-apoyos', function () {
-    \Log::info('Ruta /test-apoyos alcanzada', ['user_id' => Auth::id()]);
-    return 'Test alcanzado - Usuario: ' . Auth::user()->email;
-});
-
-Route::get('/api/apoyos-debug', function () {
-    $apoyos = DB::table('Apoyos')
-        ->select([
-            'id_apoyo',
-            'nombre_apoyo',
-            'tipo_apoyo',
-            'monto_maximo',
-            'activo',
-            'fecha_inicio as fechaInicio',
-            'fecha_fin as fechafin',
-            'foto_ruta',
-            'descripcion',
-        ])
-        ->orderBy('id_apoyo', 'desc')
-        ->get();
-
-    return response()->json([
-        'total' => $apoyos->count(),
-        'apoyos' => $apoyos,
-    ]);
-});
 
 Route::middleware('auth')->group(function () {
     Route::get('/apoyos',                  [ApoyoController::class, 'index'])->name('apoyos.index');
@@ -112,9 +58,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/apoyos/aprobar-inventario', [ApoyoController::class, 'aprobarInventario'])->name('apoyos.aprobar-inventario');
     Route::post('/apoyos/documentos',         [ApoyoController::class, 'storeTipoDocumento'])->name('apoyos.documentos.store');
     Route::put('/apoyos/documentos/{id}',     [ApoyoController::class, 'updateTipoDocumento'])->name('apoyos.documentos.update');
-});
-=======
-Route::middleware(['auth'])->group(function () {
+
+    // Flujo de cierre y validación de solicitudes
     Route::get('/solicitudes/proceso', [SolicitudProcesoController::class, 'index'])
         ->name('solicitudes.proceso.index');
     Route::get('/solicitudes/{folio}/timeline', [SolicitudProcesoController::class, 'timeline'])
@@ -129,6 +74,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/solicitudes/padron/export', [SolicitudProcesoController::class, 'exportPadron'])
         ->name('solicitudes.padron.export');
 
+    // Notificaciones 
     Route::get('/notificaciones', [NotificacionController::class, 'index'])
         ->name('notificaciones.index');
     Route::get('/notificaciones/unread-count', [NotificacionController::class, 'unreadCount'])
@@ -140,17 +86,8 @@ Route::middleware(['auth'])->group(function () {
         ->name('notificaciones.marcar-todas');
 });
 
+// Validación pública de solicitudes (sin autenticación)
 Route::match(['GET', 'POST'], '/validar', [SolicitudProcesoController::class, 'validarPublico'])
     ->name('solicitudes.publico.validar');
-
-Route::get('/apoyos',                  [ApoyoController::class, 'index'])->name('apoyos.index');
-Route::get('/apoyos/create',           [ApoyoController::class, 'create'])->name('apoyos.create');
-Route::post('/apoyos',                 [ApoyoController::class, 'store'])->name('apoyos.store');
-Route::get('/apoyos/list',             [ApoyoController::class, 'list'])->name('apoyos.list');
-Route::post('/apoyos/check-inventario',   [ApoyoController::class, 'checkInventario'])->name('apoyos.check-inventario');
-Route::post('/apoyos/aprobar-inventario', [ApoyoController::class, 'aprobarInventario'])->name('apoyos.aprobar-inventario');
-Route::post('/apoyos/documentos',         [ApoyoController::class, 'storeTipoDocumento'])->name('apoyos.documentos.store');
-Route::put('/apoyos/documentos/{id}',     [ApoyoController::class, 'updateTipoDocumento'])->name('apoyos.documentos.update');
->>>>>>> Pantalla-Home
 
 require __DIR__.'/auth.php';

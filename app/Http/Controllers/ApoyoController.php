@@ -14,23 +14,23 @@ use Illuminate\Support\Facades\Storage;
 /**
  * Controller para administrar los apoyos.
  *
- * Contiene métodos para listar los apoyos en HTML, devolver los apoyos en JSON
+ * Contiene mÃ©todos para listar los apoyos en HTML, devolver los apoyos en JSON
  * para recarga por AJAX y almacenar un nuevo apoyo junto con su registro
- * en `BD_Finanzas` o `BD_Inventario` según el tipo.
+ * en `BD_Finanzas` o `BD_Inventario` segÃºn el tipo.
  *
  * Importante:
- * - Las operaciones de creación usan transacción para asegurar que
- *   si falla la inserción secundaria (finanzas/inventario) se haga rollback
- *   también del registro principal en `Apoyos`.
+ * - Las operaciones de creaciÃ³n usan transacciÃ³n para asegurar que
+ *   si falla la inserciÃ³n secundaria (finanzas/inventario) se haga rollback
+ *   tambiÃ©n del registro principal en `Apoyos`.
  */
 class ApoyoController extends Controller
 {
     private function getBaseMilestonesTemplate(): array
     {
         return [
-            ['slug' => 'apertura_publicacion', 'titulo' => 'Apertura de la publicación'],
-            ['slug' => 'recepcion_documentos', 'titulo' => 'Inicio y fin de recepción de documentos'],
-            ['slug' => 'evaluacion_solicitudes', 'titulo' => 'Periodo de evaluación de solicitudes'],
+            ['slug' => 'apertura_publicacion', 'titulo' => 'Apertura de la publicaciÃ³n'],
+            ['slug' => 'recepcion_documentos', 'titulo' => 'Inicio y fin de recepciÃ³n de documentos'],
+            ['slug' => 'evaluacion_solicitudes', 'titulo' => 'Periodo de evaluaciÃ³n de solicitudes'],
             ['slug' => 'entrega_resultados', 'titulo' => 'Entrega de resultados'],
             ['slug' => 'cobro_apoyo', 'titulo' => 'Tiempo para cobrar el apoyo a los seleccionados'],
             ['slug' => 'cierre_apoyo', 'titulo' => 'Cierre del apoyo'],
@@ -287,14 +287,8 @@ class ApoyoController extends Controller
         abort_unless($isManager, 403, 'No cuentas con permisos para gestionar apoyos.');
     }
 
-    /**
-     * Mostrar la vista HTML con la tabla de Apoyos.
-     *
-     * Devuelve la vista `apoyos.index` con la colección de apoyos.
-     */
     public function index()
     {
-<<<<<<< HEAD
         $user = Auth::user()->loadMissing(['personal', 'beneficiario']);
         $isBeneficiario = $user->isBeneficiario();
 
@@ -397,11 +391,10 @@ class ApoyoController extends Controller
             'apoyos_ids' => $apoyos->pluck('id_apoyo')->toArray(),
         ]);
 
-=======
-        $apoyos = DB::table('Apoyos')->orderBy('id_apoyo', 'desc')->get();
-        // Cargar catálogos necesarios para el formulario
->>>>>>> Pantalla-Home
-        $tiposDocumentos = DB::table('Cat_TiposDocumento')->select('id_tipo_doc', 'nombre_documento')->orderBy('nombre_documento')->get();
+        $tiposDocumentos = DB::table('Cat_TiposDocumento')
+            ->select('id_tipo_doc', 'nombre_documento')
+            ->orderBy('nombre_documento')
+            ->get();
 
         $misSolicitudes = collect();
         if ($isBeneficiario && $user->beneficiario?->curp) {
@@ -441,7 +434,7 @@ class ApoyoController extends Controller
     }
 
     /**
-     * Muestra el formulario completo de creación de apoyo (página dedicada).
+     * Muestra el formulario completo de creaciÃ³n de apoyo (pÃ¡gina dedicada).
      */
     public function create()
     {
@@ -514,7 +507,7 @@ class ApoyoController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Documento agregado al catálogo.',
+            'message' => 'Documento agregado al catÃ¡logo.',
             'documento' => [
                 'id_tipo_doc' => $id,
                 'nombre_documento' => $nombre,
@@ -525,7 +518,7 @@ class ApoyoController extends Controller
     }
 
     /**
-     * Actualiza la configuración de tipo de archivo y validación manual
+     * Actualiza la configuraciÃ³n de tipo de archivo y validaciÃ³n manual
      * de un tipo de documento existente.
      */
     public function updateTipoDocumento(Request $request, int $id)
@@ -541,7 +534,7 @@ class ApoyoController extends Controller
         if (! $doc) {
             return response()->json([
                 'success' => false,
-                'message' => 'No se encontró el tipo de documento.',
+                'message' => 'No se encontrÃ³ el tipo de documento.',
             ], 404);
         }
 
@@ -559,7 +552,7 @@ class ApoyoController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Configuración del documento actualizada.',
+            'message' => 'ConfiguraciÃ³n del documento actualizada.',
             'documento' => [
                 'id_tipo_doc' => $id,
                 'nombre_documento' => $doc->nombre_documento,
@@ -600,7 +593,7 @@ class ApoyoController extends Controller
 
     /**
      * Un directivo autenticado aumenta el stock_inicial propuesto para que
-     * cubra el cupo solicitado.  No persiste aún: sólo valida credenciales
+     * cubra el cupo solicitado.  No persiste aÃºn: sÃ³lo valida credenciales
      * y devuelve el nuevo stock aprobado.
      *
      * POST /apoyos/aprobar-inventario
@@ -647,14 +640,7 @@ class ApoyoController extends Controller
      */
     public function list()
     {
-<<<<<<< HEAD
         $this->ensureManagerAccess();
-
-=======
-        // Esta ruta devuelve sólo los campos necesarios para la tabla en el cliente
-        // y es consumida por AJAX (`reloadApoyos()` en la vista). Mantenerla
-        // liviana evita tráfico innecesario.
->>>>>>> Pantalla-Home
         $apoyos = DB::table('Apoyos')
             ->select([
                 'id_apoyo',
@@ -680,20 +666,20 @@ class ApoyoController extends Controller
      *
      * Validaciones principales:
      * - `nombre_apoyo`: requerido, string, max 100
-     * - `tipo_apoyo`: requerido, valores permitidos: 'Económico' o 'Especie'
-     * - `monto_inicial_asignado`: requerido sólo si es 'Económico'
-     * - `stock_inicial`: requerido sólo si es 'Especie'
+     * - `tipo_apoyo`: requerido, valores permitidos: 'EconÃ³mico' o 'Especie'
+     * - `monto_inicial_asignado`: requerido sÃ³lo si es 'EconÃ³mico'
+     * - `stock_inicial`: requerido sÃ³lo si es 'Especie'
      *
      * Flujo:
      * 1. Validar entrada.
-     * 2. Ejecutar una transacción DB:
+     * 2. Ejecutar una transacciÃ³n DB:
      *    - Insertar en `Apoyos` y obtener `id_apoyo`.
-     *    - Insertar en `BD_Finanzas` o `BD_Inventario` según `tipo_apoyo`.
+     *    - Insertar en `BD_Finanzas` o `BD_Inventario` segÃºn `tipo_apoyo`.
      * 3. Si todo OK, commit; si falla, rollback y devolver error.
      *
      * Respuesta:
-     * - Si la petición es AJAX/JSON devuelve JSON con `success` y `message`.
-     * - Si no, redirige a la lista con mensaje en sesión.
+     * - Si la peticiÃ³n es AJAX/JSON devuelve JSON con `success` y `message`.
+     * - Si no, redirige a la lista con mensaje en sesiÃ³n.
      */
     public function store(Request $request)
     {
@@ -712,7 +698,6 @@ class ApoyoController extends Controller
             'foto_ruta' => 'nullable|image|max:5120',
             'documentos_requeridos' => 'nullable|array',
             'documentos_requeridos.*' => 'integer|exists:Cat_TiposDocumento,id_tipo_doc',
-<<<<<<< HEAD
             'hitos' => 'nullable|array',
             'hitos.*.titulo' => 'nullable|string|max:150',
             'hitos.*.fecha_inicio' => 'nullable|date',
@@ -720,10 +705,6 @@ class ApoyoController extends Controller
             'hitos.*.slug' => 'nullable|string|max:80',
             'hitos.*.es_base' => 'nullable|boolean',
             'hitos.*.incluir' => 'nullable|boolean',
-=======
-        ], [
-            'fechafin.after_or_equal' => 'La fecha final debe ser mayor o igual a la fecha inicial.',
->>>>>>> Pantalla-Home
         ]);
 
         $this->validateMilestonesDateRanges($data['hitos'] ?? []);
@@ -740,21 +721,19 @@ class ApoyoController extends Controller
             if (is_array($activoRaw)) {
                 $activoRaw = end($activoRaw);
             }
-            $activo = filter_var($activoRaw, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
 
             $fechaInicio = Carbon::parse($data['fechaInicio']);
             $fechaFin = Carbon::parse($data['fechafin']);
 
-            $apoyo = Apoyo::create([
+            $payload = [
                 'nombre_apoyo' => $data['nombre_apoyo'],
                 'anio_fiscal' => (int) $fechaInicio->format('Y'),
                 'tipo_apoyo' => $data['tipo_apoyo'],
                 'monto_maximo' => $data['monto_maximo'] ?? ($data['monto_inicial_asignado'] ?? 0),
-<<<<<<< HEAD
                 'cupo_limite' => $data['cupo_limite'] ?? null,
                 'activo' => filter_var($activoRaw, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
-                'fecha_inicio' => Carbon::parse($data['fechaInicio']),
-                'fecha_fin' => Carbon::parse($data['fechafin']),
+                'fecha_inicio' => $fechaInicio,
+                'fecha_fin' => $fechaFin,
             ];
 
             if (Schema::hasColumn('Apoyos', 'foto_ruta')) {
@@ -766,15 +745,6 @@ class ApoyoController extends Controller
             }
 
             $apoyo = Apoyo::create($payload);
-=======
-                'cupo_limite' => $data['tipo_apoyo'] === 'Especie' ? ($data['stock_inicial'] ?? null) : null,
-                'activo' => $activo,
-                'fecha_inicio' => $fechaInicio,
-                'fecha_fin' => $fechaFin,
-                'foto_ruta' => $fotoRuta,
-                'descripcion' => $data['descripcion'],
-            ]);
->>>>>>> Pantalla-Home
 
             if ($data['tipo_apoyo'] === 'Económico') {
                 DB::table('BD_Finanzas')->insert([
@@ -799,27 +769,7 @@ class ApoyoController extends Controller
                 }
             }
 
-<<<<<<< HEAD
             $this->syncApoyoMilestones((int) $apoyo->id_apoyo, $data['hitos'] ?? []);
-=======
-            // Crear hitos base del apoyo para habilitar el workflow institucional.
-            if (Schema::hasTable('Hitos_Apoyo')) {
-                $hitosBase = ['PUBLICACION', 'RECEPCION', 'ANALISIS_ADMIN', 'RESULTADOS', 'CIERRE'];
-                foreach ($hitosBase as $index => $clave) {
-                    DB::table('Hitos_Apoyo')->insert([
-                        'fk_id_apoyo' => $apoyo->id_apoyo,
-                        'clave_hito' => $clave,
-                        'nombre_hito' => str_replace('_', ' ', $clave),
-                        'orden_hito' => $index + 1,
-                        'fecha_inicio' => $fechaInicio,
-                        'fecha_fin' => $fechaFin,
-                        'activo' => 1,
-                        'fecha_creacion' => now(),
-                        'fecha_actualizacion' => now(),
-                    ]);
-                }
-            }
->>>>>>> Pantalla-Home
 
             DB::commit();
 
@@ -830,7 +780,6 @@ class ApoyoController extends Controller
             return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
     }
-<<<<<<< HEAD
 
     /**
      * Mostrar el formulario de edición de un apoyo.
@@ -1295,6 +1244,3 @@ class ApoyoController extends Controller
         return response()->file(Storage::disk('public')->path($relativePath));
     }
 }
-=======
-    }
->>>>>>> Pantalla-Home

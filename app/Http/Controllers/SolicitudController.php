@@ -73,7 +73,13 @@ class SolicitudController extends Controller
             'g-recaptcha-response.required' => 'El token de seguridad es obligatorio.',
         ]);
 
-<<<<<<< HEAD
+        // Validar que el apoyo exista y esté activo
+        $apoyo = DB::table('Apoyos')->where('id_apoyo', $request->apoyo)->first();
+        if (! $apoyo || (int) ($apoyo->activo ?? 0) !== 1) {
+            return redirect()->back()->with('error', 'El apoyo seleccionado no se encuentra disponible.');
+        }
+
+        // Validar que no haya solicitud activa previa para este apoyo
         $solicitudActiva = DB::table('Solicitudes')
             ->join('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
             ->where('Solicitudes.fk_curp', $curpBeneficiario)
@@ -83,12 +89,9 @@ class SolicitudController extends Controller
 
         if ($solicitudActiva) {
             return redirect()->back()->with('error', 'Ya tienes una solicitud en proceso para este apoyo.');
-=======
-        $apoyo = DB::table('Apoyos')->where('id_apoyo', $request->apoyo)->first();
-        if (! $apoyo || (int) ($apoyo->activo ?? 0) !== 1) {
-            return redirect()->back()->with('error', 'El apoyo seleccionado no se encuentra disponible.');
         }
 
+        // Validar fechas de inicio y fin del apoyo
         $hoy = now();
         if (! empty($apoyo->fecha_inicio) && $hoy->lt(Carbon::parse($apoyo->fecha_inicio))) {
             return redirect()->back()->with('error', 'El periodo de recepcion aun no inicia para este apoyo.');
@@ -98,6 +101,7 @@ class SolicitudController extends Controller
             return redirect()->back()->with('error', 'El periodo de recepcion ya finalizo para este apoyo.');
         }
 
+        // Validar que estemos en el hito de recepción
         if (Schema::hasTable('Hitos_Apoyo')) {
             $hitos = DB::table('Hitos_Apoyo')
                 ->where('fk_id_apoyo', $request->apoyo)
@@ -120,7 +124,6 @@ class SolicitudController extends Controller
                     return redirect()->back()->with('error', 'No se pueden registrar solicitudes fuera del hito de recepcion.');
                 }
             }
->>>>>>> Pantalla-Home
         }
 
         DB::beginTransaction();
