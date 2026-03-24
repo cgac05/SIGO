@@ -4,6 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: http://localhost:5173 http://127.0.0.1:5173 https://www.gstatic.com https://apis.google.com https://accounts.google.com https://www.google.com; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' blob: data: http://localhost:5173 http://127.0.0.1:5173 https://www.gstatic.com https://apis.google.com https://accounts.google.com https://www.google.com; style-src 'self' 'unsafe-inline' http://localhost:5173 http://127.0.0.1:5173 https://fonts.bunny.net; style-src-elem 'self' 'unsafe-inline' http://localhost:5173 http://127.0.0.1:5173 https://fonts.bunny.net; font-src 'self' data: https://fonts.bunny.net; img-src 'self' data: blob: https:; connect-src 'self' ws://localhost:5173 ws://127.0.0.1:5173 http://localhost:5173 http://127.0.0.1:5173 https://www.googleapis.com https://apis.google.com https://accounts.google.com https://www.google.com; frame-src 'self' https://accounts.google.com https://www.google.com https://docs.google.com https://drive.google.com https://apis.google.com;">
 
         <title>{{ config('app.name', 'Laravel') }}</title>
 

@@ -106,50 +106,75 @@ class SolicitudController extends Controller
 
             foreach ($requisitos as $req) {
                 $nombreInput = 'documento_' . $req->fk_id_tipo_doc;
+                $gdriveIdInput = 'gdrive_' . $req->fk_id_tipo_doc . '_id';
+                $gdriveNameInput = 'gdrive_' . $req->fk_id_tipo_doc . '_name';
 
                 $archivo = $request->file($nombreInput);
+                $gdriveFileId = $request->input($gdriveIdInput);
+                $gdriveFileName = $request->input($gdriveNameInput);
 
-                if (! $archivo) {
+                // Determinar si se adjuntó desde local o Google Drive
+                $tieneArchivoLocal = ! ! $archivo;
+                $tieneGdrive = ! ! $gdriveFileId;
+
+                if (! $tieneArchivoLocal && ! $tieneGdrive) {
                     if ((int) $req->es_obligatorio === 1) {
                         throw new \RuntimeException('Falta adjuntar el documento obligatorio: ' . $req->nombre_documento . '.');
                     }
                     continue;
                 }
 
-                $debeValidarTipo = ! isset($req->validar_tipo_archivo) || (bool) $req->validar_tipo_archivo;
-                if ($debeValidarTipo) {
-                    $tipo = $req->tipo_archivo_permitido ?? 'pdf';
-                    $mimes = match ($tipo) {
-                        'image' => 'jpg,jpeg,png,webp',
-                        'word' => 'doc,docx',
-                        'excel' => 'xls,xlsx,csv',
-                        'zip' => 'zip,rar,7z',
-                        'any' => null,
-                        default => 'pdf',
-                    };
+                // Validar tipo de archivo si viene desde local
+                if ($tieneArchivoLocal) {
+                    $debeValidarTipo = ! isset($req->validar_tipo_archivo) || (bool) $req->validar_tipo_archivo;
+                    if ($debeValidarTipo) {
+                        $tipo = $req->tipo_archivo_permitido ?? 'pdf';
+                        $mimes = match ($tipo) {
+                            'image' => 'jpg,jpeg,png,webp',
+                            'word' => 'doc,docx',
+                            'excel' => 'xls,xlsx,csv',
+                            'zip' => 'zip,rar,7z',
+                            'any' => null,
+                            default => 'pdf',
+                        };
 
-                    if ($mimes) {
-                        validator([
-                            $nombreInput => $archivo,
-                        ], [
-                            $nombreInput => 'file|mimes:' . $mimes . '|max:10240',
-                        ], [
-                            $nombreInput . '.mimes' => 'El archivo para "' . $req->nombre_documento . '" no coincide con el tipo permitido (' . strtoupper($tipo) . ').',
-                            $nombreInput . '.max' => 'El archivo para "' . $req->nombre_documento . '" excede el tamaño máximo permitido (10 MB).',
-                        ])->validate();
+                        if ($mimes) {
+                            validator([
+                                $nombreInput => $archivo,
+                            ], [
+                                $nombreInput => 'file|mimes:' . $mimes . '|max:10240',
+                            ], [
+                                $nombreInput . '.mimes' => 'El archivo para "' . $req->nombre_documento . '" no coincide con el tipo permitido (' . strtoupper($tipo) . ').',
+                                $nombreInput . '.max' => 'El archivo para "' . $req->nombre_documento . '" excede el tamaño máximo permitido (10 MB).',
+                            ])->validate();
+                        }
                     }
+
+                    $rutaArchivo = $archivo->store('solicitudes', 'public');
+
+                    DB::table('Documentos_Expediente')->insert([
+                        'fk_folio' => $folio,
+                        'fk_id_tipo_doc' => $req->fk_id_tipo_doc,
+                        'ruta_archivo' => $rutaArchivo,
+                        'origen_archivo' => 'local',
+                        'estado_validacion' => 'Pendiente',
+                        'version' => 1,
+                        'fecha_carga' => now()
+                    ]);
+                } else {
+                    // Guardar referencia de Google Drive
+                    DB::table('Documentos_Expediente')->insert([
+                        'fk_folio' => $folio,
+                        'fk_id_tipo_doc' => $req->fk_id_tipo_doc,
+                        'ruta_archivo' => null,
+                        'origen_archivo' => 'google_drive',
+                        'google_file_id' => $gdriveFileId,
+                        'google_file_name' => $gdriveFileName,
+                        'estado_validacion' => 'Pendiente',
+                        'version' => 1,
+                        'fecha_carga' => now()
+                    ]);
                 }
-
-                $rutaArchivo = $archivo->store('solicitudes', 'public');
-
-                DB::table('Documentos_Expediente')->insert([
-                    'fk_folio' => $folio,
-                    'fk_id_tipo_doc' => $req->fk_id_tipo_doc,
-                    'ruta_archivo' => $rutaArchivo,
-                    'estado_validacion' => 'Pendiente',
-                    'version' => 1,
-                    'fecha_carga' => now()
-                ]);
             }
 
             DB::commit();
