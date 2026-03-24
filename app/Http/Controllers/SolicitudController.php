@@ -8,6 +8,52 @@ use Illuminate\Support\Facades\DB;
 
 class SolicitudController extends Controller
 {
+    public function create(Request $request, int $id)
+    {
+        $user = $request->user()->loadMissing('beneficiario');
+        $curpBeneficiario = $user->beneficiario?->curp;
+
+        if (! $user->isBeneficiario() || ! $curpBeneficiario) {
+            return redirect()->route('apoyos.index')->with('error', 'Debes iniciar sesión como beneficiario para registrar una solicitud.');
+        }
+
+        $apoyo = DB::table('Apoyos')
+            ->where('id_apoyo', $id)
+            ->first();
+
+        if (! $apoyo) {
+            return redirect()->route('apoyos.index')->with('error', 'El apoyo seleccionado no existe.');
+        }
+
+        $requisitos = DB::table('Requisitos_Apoyo')
+            ->join('Cat_TiposDocumento', 'Requisitos_Apoyo.fk_id_tipo_doc', '=', 'Cat_TiposDocumento.id_tipo_doc')
+            ->where('Requisitos_Apoyo.fk_id_apoyo', $id)
+            ->select([
+                'Requisitos_Apoyo.fk_id_tipo_doc',
+                'Requisitos_Apoyo.es_obligatorio',
+                'Cat_TiposDocumento.nombre_documento',
+                'Cat_TiposDocumento.tipo_archivo_permitido',
+                'Cat_TiposDocumento.validar_tipo_archivo',
+            ])
+            ->orderBy('Cat_TiposDocumento.nombre_documento')
+            ->get();
+
+        $solicitudActiva = DB::table('Solicitudes')
+            ->join('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
+            ->where('Solicitudes.fk_curp', $curpBeneficiario)
+            ->where('Solicitudes.fk_id_apoyo', $id)
+            ->whereNotIn('Cat_EstadosSolicitud.nombre_estado', ['Rechazada'])
+            ->orderByDesc('Solicitudes.fecha_creacion')
+            ->select([
+                'Solicitudes.folio',
+                'Cat_EstadosSolicitud.nombre_estado as estado',
+                'Solicitudes.fecha_creacion',
+            ])
+            ->first();
+
+        return view('solicitudes.create', compact('apoyo', 'requisitos', 'solicitudActiva'));
+    }
+
     public function guardar(Request $request)
     {
         $user = $request->user()->loadMissing('beneficiario');
@@ -24,6 +70,17 @@ class SolicitudController extends Controller
         ], [
             'g-recaptcha-response.required' => 'El token de seguridad es obligatorio.',
         ]);
+
+        $solicitudActiva = DB::table('Solicitudes')
+            ->join('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
+            ->where('Solicitudes.fk_curp', $curpBeneficiario)
+            ->where('Solicitudes.fk_id_apoyo', $request->apoyo)
+            ->whereNotIn('Cat_EstadosSolicitud.nombre_estado', ['Rechazada'])
+            ->exists();
+
+        if ($solicitudActiva) {
+            return redirect()->back()->with('error', 'Ya tienes una solicitud en proceso para este apoyo.');
+        }
 
         DB::beginTransaction();
 
@@ -49,50 +106,75 @@ class SolicitudController extends Controller
 
             foreach ($requisitos as $req) {
                 $nombreInput = 'documento_' . $req->fk_id_tipo_doc;
+                $gdriveIdInput = 'gdrive_' . $req->fk_id_tipo_doc . '_id';
+                $gdriveNameInput = 'gdrive_' . $req->fk_id_tipo_doc . '_name';
 
                 $archivo = $request->file($nombreInput);
+                $gdriveFileId = $request->input($gdriveIdInput);
+                $gdriveFileName = $request->input($gdriveNameInput);
 
-                if (! $archivo) {
+                // Determinar si se adjuntó desde local o Google Drive
+                $tieneArchivoLocal = ! ! $archivo;
+                $tieneGdrive = ! ! $gdriveFileId;
+
+                if (! $tieneArchivoLocal && ! $tieneGdrive) {
                     if ((int) $req->es_obligatorio === 1) {
                         throw new \RuntimeException('Falta adjuntar el documento obligatorio: ' . $req->nombre_documento . '.');
                     }
                     continue;
                 }
 
-                $debeValidarTipo = ! isset($req->validar_tipo_archivo) || (bool) $req->validar_tipo_archivo;
-                if ($debeValidarTipo) {
-                    $tipo = $req->tipo_archivo_permitido ?? 'pdf';
-                    $mimes = match ($tipo) {
-                        'image' => 'jpg,jpeg,png,webp',
-                        'word' => 'doc,docx',
-                        'excel' => 'xls,xlsx,csv',
-                        'zip' => 'zip,rar,7z',
-                        'any' => null,
-                        default => 'pdf',
-                    };
+                // Validar tipo de archivo si viene desde local
+                if ($tieneArchivoLocal) {
+                    $debeValidarTipo = ! isset($req->validar_tipo_archivo) || (bool) $req->validar_tipo_archivo;
+                    if ($debeValidarTipo) {
+                        $tipo = $req->tipo_archivo_permitido ?? 'pdf';
+                        $mimes = match ($tipo) {
+                            'image' => 'jpg,jpeg,png,webp',
+                            'word' => 'doc,docx',
+                            'excel' => 'xls,xlsx,csv',
+                            'zip' => 'zip,rar,7z',
+                            'any' => null,
+                            default => 'pdf',
+                        };
 
-                    if ($mimes) {
-                        validator([
-                            $nombreInput => $archivo,
-                        ], [
-                            $nombreInput => 'file|mimes:' . $mimes . '|max:10240',
-                        ], [
-                            $nombreInput . '.mimes' => 'El archivo para "' . $req->nombre_documento . '" no coincide con el tipo permitido (' . strtoupper($tipo) . ').',
-                            $nombreInput . '.max' => 'El archivo para "' . $req->nombre_documento . '" excede el tamaño máximo permitido (10 MB).',
-                        ])->validate();
+                        if ($mimes) {
+                            validator([
+                                $nombreInput => $archivo,
+                            ], [
+                                $nombreInput => 'file|mimes:' . $mimes . '|max:10240',
+                            ], [
+                                $nombreInput . '.mimes' => 'El archivo para "' . $req->nombre_documento . '" no coincide con el tipo permitido (' . strtoupper($tipo) . ').',
+                                $nombreInput . '.max' => 'El archivo para "' . $req->nombre_documento . '" excede el tamaño máximo permitido (10 MB).',
+                            ])->validate();
+                        }
                     }
+
+                    $rutaArchivo = $archivo->store('solicitudes', 'public');
+
+                    DB::table('Documentos_Expediente')->insert([
+                        'fk_folio' => $folio,
+                        'fk_id_tipo_doc' => $req->fk_id_tipo_doc,
+                        'ruta_archivo' => $rutaArchivo,
+                        'origen_archivo' => 'local',
+                        'estado_validacion' => 'Pendiente',
+                        'version' => 1,
+                        'fecha_carga' => now()
+                    ]);
+                } else {
+                    // Guardar referencia de Google Drive
+                    DB::table('Documentos_Expediente')->insert([
+                        'fk_folio' => $folio,
+                        'fk_id_tipo_doc' => $req->fk_id_tipo_doc,
+                        'ruta_archivo' => null,
+                        'origen_archivo' => 'google_drive',
+                        'google_file_id' => $gdriveFileId,
+                        'google_file_name' => $gdriveFileName,
+                        'estado_validacion' => 'Pendiente',
+                        'version' => 1,
+                        'fecha_carga' => now()
+                    ]);
                 }
-
-                $rutaArchivo = $archivo->store('solicitudes', 'public');
-
-                DB::table('Documentos_Expediente')->insert([
-                    'fk_folio' => $folio,
-                    'fk_id_tipo_doc' => $req->fk_id_tipo_doc,
-                    'ruta_archivo' => $rutaArchivo,
-                    'estado_validacion' => 'Pendiente',
-                    'version' => 1,
-                    'fecha_carga' => now()
-                ]);
             }
 
             DB::commit();

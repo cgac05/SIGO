@@ -5,6 +5,8 @@
         </h2>
     </x-slot>
 
+    @vite('resources/js/apoyos-app.js')
+
     <link href="https://fonts.bunny.net/css?family=sora:400,600,700,800&display=swap" rel="stylesheet"/>
 
     <style>
@@ -190,7 +192,7 @@
 
     {{-- CONTENIDO PRINCIPAL --}}
     <div class="py-10 px-4 md:px-8 bg-gray-50 min-h-screen"
-         x-data="solicitudesApp({{ isset($apoyosJson) ? $apoyosJson : '[]' }})">
+         x-data="apoyosApp(@json(isset($apoyosJson) ? json_decode($apoyosJson) : []), 'beneficiario', false)">
 
         {{-- Alerta éxito --}}
         @if(session('exito'))
@@ -280,7 +282,16 @@
 
                                 <div class="card-img-wrap">
                                     <template x-if="apoyo.foto_ruta">
-                                        <img :src="'/' + apoyo.foto_ruta" :alt="apoyo.nombre_apoyo"/>
+                                        <img :src="'/' + apoyo.foto_ruta" 
+                                             :alt="apoyo.nombre_apoyo"
+                                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"
+                                             style="width: 100%; height: 100%; object-fit: cover;"/>
+                                        <div class="card-img-placeholder" style="display:none;">
+                                            <svg class="w-12 h-12 mb-2 opacity-50" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 21h18M3.75 3h16.5M4.5 3v18m15-18v18"/>
+                                            </svg>
+                                            <span class="text-xs font-semibold opacity-60">Imagen no disponible</span>
+                                        </div>
                                     </template>
                                     <template x-if="!apoyo.foto_ruta">
                                         <div class="card-img-placeholder">
@@ -428,7 +439,7 @@
         {{-- ═══════════════════════════════════════
              MODAL DE CONFIRMACIÓN
         ═══════════════════════════════════════ --}}
-        <div class="confirm-modal-overlay" :class="{ open: confirmarAbierto }">
+        <div class="confirm-modal-overlay" :class="{ open: confirmarEliminacionAbierto }">
             <div class="confirm-box">
                 <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background: #fef3c7">
                     <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -444,13 +455,13 @@
                 <div class="flex gap-3">
                     <button type="button"
                             class="flex-1 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition"
-                            @click="confirmarAbierto = false">
+                            @click="confirmarEliminacionAbierto = false">
                         Cancelar
                     </button>
                     <button type="button"
                             class="flex-1 py-2.5 rounded-xl text-white font-bold text-sm transition"
                             style="background: var(--sigo-navy)"
-                            @click="enviarSolicitud()">
+                            @click="enviarSolicitudHandler()">
                         Sí, enviar
                     </button>
                 </div>
@@ -460,82 +471,24 @@
     </div>{{-- /x-data --}}
 
     <script>
-        function solicitudesApp(apoyosData) {
-            return {
-                apoyos: apoyosData,
-                apoyoActual: null,
-                modalAbierto: false,
-                confirmarAbierto: false,
-
-                abrirModal(apoyo) {
-                    this.apoyoActual = apoyo;
-                    this.modalAbierto = true;
-                    document.body.style.overflow = 'hidden';
-                },
-                cerrarModal() {
-                    this.modalAbierto = false;
-                    this.confirmarAbierto = false;
-                    document.body.style.overflow = '';
-                },
-                abrirConfirmacion() {
-                    const form = document.getElementById('formSolicitud');
-                    const inputs = form.querySelectorAll('input[type=file][required]');
-                    let valido = true;
-                    inputs.forEach(i => { if (!i.files || i.files.length === 0) valido = false; });
-                    if (!valido) {
-                        alert('Por favor adjunta todos los documentos requeridos antes de continuar.');
-                        return;
-                    }
-                    this.confirmarAbierto = true;
-                },
-                enviarSolicitud() {
-                    if (typeof grecaptcha === 'undefined') {
-                        document.getElementById('formSolicitud').submit();
-                        return;
-                    }
-                    grecaptcha.ready(() => {
-                        grecaptcha.execute('{{ config('services.recaptcha.site_key') }}', { action: 'solicitud' })
-                            .then(token => {
-                                document.getElementById('g-recaptcha-response-solicitud').value = token;
-                                document.getElementById('formSolicitud').submit();
-                            });
-                    });
-                },
-                formatFecha(fecha) {
-                    if (!fecha) return '—';
-                    try {
-                        const d = new Date(fecha);
-                        return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
-                    } catch(e) { return fecha; }
-                },
-                tipoArchivoLabel(req) {
-                    const tipo = (req && req.tipo_archivo_permitido ? req.tipo_archivo_permitido : 'pdf').toLowerCase();
-                    switch (tipo) {
-                        case 'image': return 'imagen';
-                        case 'word': return 'word';
-                        case 'excel': return 'excel/csv';
-                        case 'zip': return 'zip';
-                        case 'any': return 'libre';
-                        default: return 'pdf';
-                    }
-                },
-                getAcceptByTipo(req) {
-                    const validar = !req || req.validar_tipo_archivo === undefined || Number(req.validar_tipo_archivo) === 1;
-                    if (!validar) return '';
-
-                    const tipo = (req && req.tipo_archivo_permitido ? req.tipo_archivo_permitido : 'pdf').toLowerCase();
-                    switch (tipo) {
-                        case 'image': return 'image/jpeg,image/png,image/webp';
-                        case 'word': return '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-                        case 'excel': return '.xls,.xlsx,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv';
-                        case 'zip': return '.zip,.rar,.7z,application/zip,application/x-rar-compressed,application/x-7z-compressed';
-                        case 'any': return '';
-                        default: return '.pdf,application/pdf';
-                    }
+        // Extender apoyosApp para agregar método enviarSolicitud
+        document.addEventListener('DOMContentLoaded', () => {
+            // Inyectar método enviarSolicitud en el contexto de Alpine
+            window.enviarSolicitudHandler = function() {
+                if (typeof grecaptcha === 'undefined') {
+                    document.getElementById('formSolicitud').submit();
+                    return;
                 }
-            }
-        }
+                grecaptcha.ready(() => {
+                    grecaptcha.execute('{{ config('services.recaptcha.site_key') }}', { action: 'solicitud' })
+                        .then(token => {
+                            document.getElementById('g-recaptcha-response-solicitud').value = token;
+                            document.getElementById('formSolicitud').submit();
+                        });
+                });
+            };
+        });
     </script>
 
-<script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.site_key') }}"></script>
+    <script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.site_key') }}"></script>
 </x-app-layout>

@@ -6,7 +6,6 @@ use App\Http\Controllers\ApoyoController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Carbon;
 
 Route::get('/', function () {
     return view('welcome');
@@ -28,99 +27,88 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/Registrar-Solicitud', function () {
-    $user = Auth::user()->loadMissing('beneficiario');
-
-    if (! $user->isBeneficiario()) {
-        return redirect()->route('dashboard')->with('error', 'Solo los beneficiarios pueden registrar solicitudes de apoyo.');
-    }
-
-    $curpBeneficiario = $user->beneficiario?->curp;
-    $hoy = now()->toDateString();
-
-    $apoyos = DB::table('Apoyos')
-        ->where('activo', 1)
-        ->where(function ($query) use ($hoy) {
-            $query->whereNull('fecha_inicio')
-                ->orWhereDate('fecha_inicio', '<=', $hoy);
-        })
-        ->where(function ($query) use ($hoy) {
-            $query->whereNull('fecha_fin')
-                ->orWhereDate('fecha_fin', '>=', $hoy);
-        })
-        ->select([
-            'id_apoyo',
-            'nombre_apoyo',
-            'tipo_apoyo',
-            'monto_maximo',
-            'anio_fiscal',
-            'cupo_limite',
-            'fecha_inicio as fechaInicio',
-            'fecha_fin as fechafin',
-        ])
-        ->orderBy('id_apoyo', 'desc')
-        ->get();
-
-    $requisitos = DB::table('Requisitos_Apoyo')
-        ->join('Cat_TiposDocumento', 'Requisitos_Apoyo.fk_id_tipo_doc', '=', 'Cat_TiposDocumento.id_tipo_doc')
-        ->select([
-            'Requisitos_Apoyo.fk_id_apoyo',
-            'Requisitos_Apoyo.fk_id_tipo_doc',
-            'Requisitos_Apoyo.es_obligatorio',
-            'Cat_TiposDocumento.nombre_documento',
-            'Cat_TiposDocumento.tipo_archivo_permitido',
-            'Cat_TiposDocumento.validar_tipo_archivo',
-        ])
-        ->get();
-
-    $apoyosData = $apoyos->map(function ($apoyo) use ($requisitos) {
-        if (! empty($apoyo->fechaInicio)) {
-            $apoyo->fechaInicio = Carbon::parse($apoyo->fechaInicio)->toDateString();
-        }
-
-        if (! empty($apoyo->fechafin)) {
-            $apoyo->fechafin = Carbon::parse($apoyo->fechafin)->toDateString();
-        }
-
-        $apoyo->requisitos = $requisitos->where('fk_id_apoyo', $apoyo->id_apoyo)->values();
-
-        return $apoyo;
-    });
-
-    $misSolicitudes = collect();
-
-    if ($curpBeneficiario) {
-        $misSolicitudes = DB::table('Solicitudes')
-            ->leftJoin('Apoyos', 'Solicitudes.fk_id_apoyo', '=', 'Apoyos.id_apoyo')
-            ->leftJoin('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
-            ->where('Solicitudes.fk_curp', $curpBeneficiario)
-            ->orderByDesc('Solicitudes.folio')
-            ->select([
-                'Solicitudes.folio',
-                'Cat_EstadosSolicitud.nombre_estado as estado',
-                'Solicitudes.fecha_creacion',
-                'Apoyos.nombre_apoyo',
-            ])
-            ->limit(10)
-            ->get();
-    }
-
-    return view('solicitudes.registrar', [
-        'apoyosJson' => $apoyosData->toJson(),
-        'misSolicitudes' => $misSolicitudes,
-    ]);
+    return redirect()->route('apoyos.index');
 })->middleware(['auth', 'beneficiario.profile'])->name('solicitudes.registrar');
 
 Route::post('/guardar-solicitud', [SolicitudController::class, 'guardar'])
     ->middleware(['auth', 'beneficiario.profile'])
     ->name('solicitud.guardar');
 
-Route::get('/apoyos',                  [ApoyoController::class, 'index'])->name('apoyos.index');
-Route::get('/apoyos/create',           [ApoyoController::class, 'create'])->name('apoyos.create');
-Route::post('/apoyos',                 [ApoyoController::class, 'store'])->name('apoyos.store');
-Route::get('/apoyos/list',             [ApoyoController::class, 'list'])->name('apoyos.list');
-Route::post('/apoyos/check-inventario',   [ApoyoController::class, 'checkInventario'])->name('apoyos.check-inventario');
-Route::post('/apoyos/aprobar-inventario', [ApoyoController::class, 'aprobarInventario'])->name('apoyos.aprobar-inventario');
-Route::post('/apoyos/documentos',         [ApoyoController::class, 'storeTipoDocumento'])->name('apoyos.documentos.store');
-Route::put('/apoyos/documentos/{id}',     [ApoyoController::class, 'updateTipoDocumento'])->name('apoyos.documentos.update');
+Route::get('/apoyos/{id}/solicitud', [SolicitudController::class, 'create'])
+    ->middleware(['auth', 'beneficiario.profile'])
+    ->name('solicitud.create');
+
+Route::get('/debug-user', function () {
+    $user = Auth::user();
+    if (!$user) {
+        return 'No hay usuario autenticado';
+    }
+
+    $data = [
+        'id_usuario' => $user->id,
+        'email' => $user->email,
+        'tipo_usuario' => $user->tipo_usuario,
+        'isPersonal()' => $user->isPersonal(),
+        'isBeneficiario()' => $user->isBeneficiario(),
+        'has_personal_relation' => $user->personal ? 'SI' : 'NO',
+    ];
+
+    if ($user->personal) {
+        $data['personal'] = [
+            'numero_empleado' => $user->personal->numero_empleado,
+            'nombre' => $user->personal->nombre,
+            'fk_rol' => $user->personal->fk_rol,
+        ];
+    }
+
+    return response()->json($data, 200, [], JSON_PRETTY_PRINT);
+});
+
+Route::get('/test-apoyos', function () {
+    \Log::info('Ruta /test-apoyos alcanzada', ['user_id' => Auth::id()]);
+    return 'Test alcanzado - Usuario: ' . Auth::user()->email;
+});
+
+Route::get('/api/apoyos-debug', function () {
+    $apoyos = DB::table('Apoyos')
+        ->select([
+            'id_apoyo',
+            'nombre_apoyo',
+            'tipo_apoyo',
+            'monto_maximo',
+            'activo',
+            'fecha_inicio as fechaInicio',
+            'fecha_fin as fechafin',
+            'foto_ruta',
+            'descripcion',
+        ])
+        ->orderBy('id_apoyo', 'desc')
+        ->get();
+
+    return response()->json([
+        'total' => $apoyos->count(),
+        'apoyos' => $apoyos,
+    ]);
+});
+
+Route::middleware('auth')->group(function () {
+    Route::get('/apoyos',                  [ApoyoController::class, 'index'])->name('apoyos.index');
+    Route::get('/apoyos/imagen/{path}',    [ApoyoController::class, 'image'])->where('path', '.*')->name('apoyos.image');
+    Route::get('/apoyos/{id}/comentarios', [ApoyoController::class, 'comments'])->name('apoyos.comments');
+    Route::post('/apoyos/{id}/comentarios', [ApoyoController::class, 'storeComment'])->name('apoyos.comments.store');
+    Route::put('/apoyos/{id}/comentarios/{commentId}', [ApoyoController::class, 'updateComment'])->name('apoyos.comments.update');
+    Route::delete('/apoyos/{id}/comentarios/{commentId}', [ApoyoController::class, 'destroyComment'])->name('apoyos.comments.destroy');
+    Route::post('/apoyos/{id}/comentarios/{commentId}/like', [ApoyoController::class, 'toggleCommentLike'])->name('apoyos.comments.like');
+    Route::get('/apoyos/create',           [ApoyoController::class, 'create'])->name('apoyos.create');
+    Route::post('/apoyos',                 [ApoyoController::class, 'store'])->name('apoyos.store');
+    Route::get('/apoyos/list',             [ApoyoController::class, 'list'])->name('apoyos.list');
+    Route::get('/apoyos/{id}/edit',        [ApoyoController::class, 'edit'])->name('apoyos.edit');
+    Route::post('/apoyos/{id}',            [ApoyoController::class, 'update'])->name('apoyos.update');
+    Route::delete('/apoyos/{id}',          [ApoyoController::class, 'destroy'])->name('apoyos.destroy');
+    Route::post('/apoyos/check-inventario',   [ApoyoController::class, 'checkInventario'])->name('apoyos.check-inventario');
+    Route::post('/apoyos/aprobar-inventario', [ApoyoController::class, 'aprobarInventario'])->name('apoyos.aprobar-inventario');
+    Route::post('/apoyos/documentos',         [ApoyoController::class, 'storeTipoDocumento'])->name('apoyos.documentos.store');
+    Route::put('/apoyos/documentos/{id}',     [ApoyoController::class, 'updateTipoDocumento'])->name('apoyos.documentos.update');
+});
 
 require __DIR__.'/auth.php';

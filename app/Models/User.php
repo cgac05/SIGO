@@ -68,7 +68,17 @@ class User extends Authenticatable implements MustVerifyEmailContract
 
     public function isPersonal(): bool
     {
-        return strcasecmp((string) $this->tipo_usuario, 'Personal') === 0;
+        $tipo = mb_strtolower((string) $this->tipo_usuario);
+
+        if (in_array($tipo, ['personal', 'administrativo', 'directivo'], true)) {
+            return true;
+        }
+
+        if ($this->relationLoaded('personal')) {
+            return $this->personal !== null;
+        }
+
+        return $this->personal()->exists();
     }
 
     public function hasCompleteBeneficiarioProfile(): bool
