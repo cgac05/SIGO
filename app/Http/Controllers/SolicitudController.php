@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Rules\Recaptcha;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class SolicitudController extends Controller
 {
@@ -25,15 +27,59 @@ class SolicitudController extends Controller
             'g-recaptcha-response.required' => 'El token de seguridad es obligatorio.',
         ]);
 
+        $apoyo = DB::table('Apoyos')->where('id_apoyo', $request->apoyo)->first();
+        if (! $apoyo || (int) ($apoyo->activo ?? 0) !== 1) {
+            return redirect()->back()->with('error', 'El apoyo seleccionado no se encuentra disponible.');
+        }
+
+        $hoy = now();
+        if (! empty($apoyo->fecha_inicio) && $hoy->lt(Carbon::parse($apoyo->fecha_inicio))) {
+            return redirect()->back()->with('error', 'El periodo de recepcion aun no inicia para este apoyo.');
+        }
+
+        if (! empty($apoyo->fecha_fin) && $hoy->gt(Carbon::parse($apoyo->fecha_fin))) {
+            return redirect()->back()->with('error', 'El periodo de recepcion ya finalizo para este apoyo.');
+        }
+
+        if (Schema::hasTable('Hitos_Apoyo')) {
+            $hitos = DB::table('Hitos_Apoyo')
+                ->where('fk_id_apoyo', $request->apoyo)
+                ->where('activo', 1)
+                ->orderBy('orden_hito')
+                ->get();
+
+            if ($hitos->isNotEmpty()) {
+                $hitoActual = $hitos->first();
+                foreach ($hitos as $hito) {
+                    $inicio = $hito->fecha_inicio ? Carbon::parse($hito->fecha_inicio) : null;
+                    $fin = $hito->fecha_fin ? Carbon::parse($hito->fecha_fin) : null;
+                    if ($inicio && $fin && $hoy->betweenIncluded($inicio, $fin)) {
+                        $hitoActual = $hito;
+                        break;
+                    }
+                }
+
+                if (strtoupper((string) $hitoActual->clave_hito) !== 'RECEPCION') {
+                    return redirect()->back()->with('error', 'No se pueden registrar solicitudes fuera del hito de recepcion.');
+                }
+            }
+        }
+
         DB::beginTransaction();
 
         try {
-            $folio = DB::table('Solicitudes')->insertGetId([
+            $payloadSolicitud = [
                 'fk_curp' => $curpBeneficiario,
                 'fk_id_apoyo' => $request->apoyo,
                 'fk_id_estado' => 1,
                 'fecha_creacion' => now(),
-            ], 'folio');
+            ];
+
+            if (Schema::hasColumn('Solicitudes', 'permite_correcciones')) {
+                $payloadSolicitud['permite_correcciones'] = 1;
+            }
+
+            $folio = DB::table('Solicitudes')->insertGetId($payloadSolicitud, 'folio');
 
             $requisitos = DB::table('Requisitos_Apoyo')
                 ->join('Cat_TiposDocumento', 'Requisitos_Apoyo.fk_id_tipo_doc', '=', 'Cat_TiposDocumento.id_tipo_doc')
@@ -92,6 +138,15 @@ class SolicitudController extends Controller
                     'estado_validacion' => 'Pendiente',
                     'version' => 1,
                     'fecha_carga' => now()
+                ]);
+            }
+
+            if (Schema::hasTable('Seguimiento_Solicitud')) {
+                DB::table('Seguimiento_Solicitud')->insert([
+                    'fk_folio' => $folio,
+                    'estado_proceso' => 'EN_PROCESO',
+                    'fecha_creacion' => now(),
+                    'fecha_actualizacion' => now(),
                 ]);
             }
 

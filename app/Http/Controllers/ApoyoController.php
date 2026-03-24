@@ -275,89 +275,103 @@ class ApoyoController extends Controller
      * - Si la petición es AJAX/JSON devuelve JSON con `success` y `message`.
      * - Si no, redirige a la lista con mensaje en sesión.
      */
-        public function store(Request $request)
-{
-    // 1. VALIDACIÓN (Ya no tiene el [...])
-    $data = $request->validate([
-        'nombre_apoyo' => 'required|string|max:100',
-        'tipo_apoyo' => 'required|in:Económico,Especie',
-        'monto_maximo' => 'nullable|numeric',
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'nombre_apoyo' => 'required|string|max:100',
+            'tipo_apoyo' => 'required|in:Económico,Especie',
+            'monto_maximo' => 'nullable|numeric|min:0',
             'descripcion' => 'required|string',
-        'monto_inicial_asignado' => 'nullable|numeric',
-        'stock_inicial' => 'nullable|integer',
-        'activo' => 'nullable|boolean',
-        'fechaInicio' => 'required|date',
-        'fechafin' => 'required|date',
-        'foto_ruta' => 'nullable|image|max:5120', 
-        'documentos_requeridos' => 'nullable|array',
-        'documentos_requeridos.*' => 'integer|exists:Cat_TiposDocumento,id_tipo_doc',
-    ]);
+            'monto_inicial_asignado' => 'nullable|required_if:tipo_apoyo,Económico|numeric|min:0',
+            'stock_inicial' => 'nullable|required_if:tipo_apoyo,Especie|integer|min:0',
+            'activo' => 'nullable|boolean',
+            'fechaInicio' => 'required|date',
+            'fechafin' => 'required|date|after_or_equal:fechaInicio',
+            'foto_ruta' => 'nullable|image|max:5120',
+            'documentos_requeridos' => 'nullable|array',
+            'documentos_requeridos.*' => 'integer|exists:Cat_TiposDocumento,id_tipo_doc',
+        ], [
+            'fechafin.after_or_equal' => 'La fecha final debe ser mayor o igual a la fecha inicial.',
+        ]);
 
-    DB::beginTransaction();
-    try {
-        // Procesar imagen
-        $fotoRuta = null;
-        if ($request->hasFile('foto_ruta')) {
-            $fotoRuta = 'storage/' . $request->file('foto_ruta')->store('apoyos', 'public');
-        }
+        DB::beginTransaction();
 
-        // 2. USO DEL MODELO (Para que funcione el $dateFormat y no truene la fecha)
-        // Determinar valor de 'activo' de forma robusta cuando el formulario
-        // envía tanto el hidden (0) como el checkbox (1) o sólo uno de ellos.
-        $activoRaw = $request->input('activo');
-        if (is_array($activoRaw)) {
-            $activoRaw = end($activoRaw); // tomar el último valor enviado (checkbox sobrescribe hidden)
-        }
-        $activo = filter_var($activoRaw, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+        try {
+            $fotoRuta = null;
+            if ($request->hasFile('foto_ruta')) {
+                $fotoRuta = 'storage/' . $request->file('foto_ruta')->store('apoyos', 'public');
+            }
 
-        // ... dentro del try ...
+            $activoRaw = $request->input('activo', true);
+            if (is_array($activoRaw)) {
+                $activoRaw = end($activoRaw);
+            }
+            $activo = filter_var($activoRaw, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
 
-$apoyo = \App\Models\Apoyo::create([
-    'nombre_apoyo'   => $data['nombre_apoyo'],
-    'tipo_apoyo'     => $data['tipo_apoyo'],
-    'monto_maximo'   => $data['monto_maximo'] ?? ($data['monto_inicial_asignado'] ?? 0),
-    'activo'         => $activo,
-    'fecha_Creacion' => now(), // Genera un objeto Carbon automáticamente
-    
-    // Convertimos el string a objeto Carbon para que el modelo aplique el $dateFormat
-    'fechaInicio'    => \Carbon\Carbon::parse($data['fechaInicio']),
-    'fechafin'       => \Carbon\Carbon::parse($data['fechafin']),
-    
-    'foto_ruta'      => $fotoRuta,
-    'descripcion'    => $data['descripcion'],
-]);
+            $fechaInicio = Carbon::parse($data['fechaInicio']);
+            $fechaFin = Carbon::parse($data['fechafin']);
 
-        // 3. RELACIONES SECUNDARIAS
-        if ($data['tipo_apoyo'] === 'Económico') {
-            DB::table('BD_Finanzas')->insert([
-                'fk_id_apoyo' => $apoyo->id_apoyo,
-                'monto_asignado' => $data['monto_inicial_asignado'],
-                'monto_ejercido' => 0,
+            $apoyo = Apoyo::create([
+                'nombre_apoyo' => $data['nombre_apoyo'],
+                'anio_fiscal' => (int) $fechaInicio->format('Y'),
+                'tipo_apoyo' => $data['tipo_apoyo'],
+                'monto_maximo' => $data['monto_maximo'] ?? ($data['monto_inicial_asignado'] ?? 0),
+                'cupo_limite' => $data['tipo_apoyo'] === 'Especie' ? ($data['stock_inicial'] ?? null) : null,
+                'activo' => $activo,
+                'fecha_inicio' => $fechaInicio,
+                'fecha_fin' => $fechaFin,
+                'foto_ruta' => $fotoRuta,
+                'descripcion' => $data['descripcion'],
             ]);
-        } else {
-            DB::table('BD_Inventario')->insert([
-                'fk_id_apoyo' => $apoyo->id_apoyo,
-                'stock_actual' => $data['stock_inicial'],
-            ]);
-        }
 
-        // Documentos
-        if (!empty($data['documentos_requeridos'])) {
-            foreach ($data['documentos_requeridos'] as $docId) {
-                DB::table('Requisitos_Apoyo')->insert([
+            if ($data['tipo_apoyo'] === 'Económico') {
+                DB::table('BD_Finanzas')->insert([
                     'fk_id_apoyo' => $apoyo->id_apoyo,
-                    'fk_id_tipo_doc' => $docId,
-                    'es_obligatorio' => 1,
+                    'monto_asignado' => $data['monto_inicial_asignado'] ?? 0,
+                    'monto_ejercido' => 0,
+                ]);
+            } else {
+                DB::table('BD_Inventario')->insert([
+                    'fk_id_apoyo' => $apoyo->id_apoyo,
+                    'stock_actual' => $data['stock_inicial'] ?? 0,
                 ]);
             }
+
+            if (! empty($data['documentos_requeridos'])) {
+                foreach ($data['documentos_requeridos'] as $docId) {
+                    DB::table('Requisitos_Apoyo')->insert([
+                        'fk_id_apoyo' => $apoyo->id_apoyo,
+                        'fk_id_tipo_doc' => $docId,
+                        'es_obligatorio' => 1,
+                    ]);
+                }
+            }
+
+            // Crear hitos base del apoyo para habilitar el workflow institucional.
+            if (Schema::hasTable('Hitos_Apoyo')) {
+                $hitosBase = ['PUBLICACION', 'RECEPCION', 'ANALISIS_ADMIN', 'RESULTADOS', 'CIERRE'];
+                foreach ($hitosBase as $index => $clave) {
+                    DB::table('Hitos_Apoyo')->insert([
+                        'fk_id_apoyo' => $apoyo->id_apoyo,
+                        'clave_hito' => $clave,
+                        'nombre_hito' => str_replace('_', ' ', $clave),
+                        'orden_hito' => $index + 1,
+                        'fecha_inicio' => $fechaInicio,
+                        'fecha_fin' => $fechaFin,
+                        'activo' => 1,
+                        'fecha_creacion' => now(),
+                        'fecha_actualizacion' => now(),
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json(['success' => true, 'message' => 'Apoyo registrado correctamente.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
-
-        DB::commit();
-        return response()->json(['success' => true, 'message' => 'Apoyo registrado correctamente.']);
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
     }
-}
     }

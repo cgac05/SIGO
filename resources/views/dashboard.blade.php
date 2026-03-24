@@ -27,6 +27,24 @@
                         <p class="mt-2 text-sm text-gray-500">Tipo de usuario: {{ $tipo }}</p>
                     </div>
 
+                    <div class="flex flex-wrap gap-2">
+                        @if ($user->isBeneficiario())
+                            <a href="{{ route('solicitudes.registrar') }}" class="inline-flex items-center rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                                Registrar solicitud
+                            </a>
+                        @endif
+
+                        @if ($user->isPersonal())
+                            <a href="{{ route('solicitudes.proceso.index') }}" class="inline-flex items-center rounded-md bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-600">
+                                Proceso de cierre y validacion
+                            </a>
+                        @endif
+
+                        <a href="{{ route('solicitudes.publico.validar') }}" class="inline-flex items-center rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                            Portal publico CUV
+                        </a>
+                    </div>
+
                     @if ($user->isBeneficiario() && ! $user->hasCompleteBeneficiarioProfile())
                         <div class="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                             Debes completar tu perfil antes de registrar solicitudes de apoyo.

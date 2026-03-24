@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\SolicitudController;
+use App\Http\Controllers\SolicitudProcesoController;
+use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ApoyoController;
 use Illuminate\Support\Facades\Route;
@@ -113,6 +115,35 @@ Route::get('/Registrar-Solicitud', function () {
 Route::post('/guardar-solicitud', [SolicitudController::class, 'guardar'])
     ->middleware(['auth', 'beneficiario.profile'])
     ->name('solicitud.guardar');
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/solicitudes/proceso', [SolicitudProcesoController::class, 'index'])
+        ->name('solicitudes.proceso.index');
+    Route::get('/solicitudes/{folio}/timeline', [SolicitudProcesoController::class, 'timeline'])
+        ->whereNumber('folio')
+        ->name('solicitudes.proceso.timeline');
+    Route::post('/solicitudes/proceso/revisar-documento', [SolicitudProcesoController::class, 'revisarDocumento'])
+        ->name('solicitudes.proceso.revisar-documento');
+    Route::post('/solicitudes/proceso/firma-directiva', [SolicitudProcesoController::class, 'firmaDirectiva'])
+        ->name('solicitudes.proceso.firma-directiva');
+    Route::post('/solicitudes/proceso/cierre-financiero', [SolicitudProcesoController::class, 'cierreFinanciero'])
+        ->name('solicitudes.proceso.cierre-financiero');
+    Route::get('/solicitudes/padron/export', [SolicitudProcesoController::class, 'exportPadron'])
+        ->name('solicitudes.padron.export');
+
+    Route::get('/notificaciones', [NotificacionController::class, 'index'])
+        ->name('notificaciones.index');
+    Route::get('/notificaciones/unread-count', [NotificacionController::class, 'unreadCount'])
+        ->name('notificaciones.unread-count');
+    Route::post('/notificaciones/{id}/leer', [NotificacionController::class, 'marcarLeida'])
+        ->whereNumber('id')
+        ->name('notificaciones.marcar-leida');
+    Route::post('/notificaciones/marcar-todas', [NotificacionController::class, 'marcarTodasLeidas'])
+        ->name('notificaciones.marcar-todas');
+});
+
+Route::match(['GET', 'POST'], '/validar', [SolicitudProcesoController::class, 'validarPublico'])
+    ->name('solicitudes.publico.validar');
 
 Route::get('/apoyos',                  [ApoyoController::class, 'index'])->name('apoyos.index');
 Route::get('/apoyos/create',           [ApoyoController::class, 'create'])->name('apoyos.create');
