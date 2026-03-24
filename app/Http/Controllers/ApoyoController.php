@@ -25,6 +25,28 @@ use Illuminate\Support\Facades\Storage;
  */
 class ApoyoController extends Controller
 {
+    private function getHitosOrderColumn(): string
+    {
+        if (Schema::hasColumn('Hitos_Apoyo', 'orden')) {
+            return 'orden';
+        }
+
+        if (Schema::hasColumn('Hitos_Apoyo', 'orden_hito')) {
+            return 'orden_hito';
+        }
+
+        return 'id_hito';
+    }
+
+    private function applyHitosOrder($query)
+    {
+        $orderColumn = $this->getHitosOrderColumn();
+
+        return $query
+            ->orderBy($orderColumn)
+            ->orderBy('id_hito');
+    }
+
     private function getBaseMilestonesTemplate(): array
     {
         return [
@@ -118,18 +140,40 @@ class ApoyoController extends Controller
             $start = ! empty($milestone['fecha_inicio']) ? Carbon::parse($milestone['fecha_inicio'])->toDateString() : null;
             $end = ! empty($milestone['fecha_fin']) ? Carbon::parse($milestone['fecha_fin'])->toDateString() : null;
 
-            $rows[] = [
+            $row = [
                 'fk_id_apoyo' => $apoyoId,
-                'slug_hito' => trim((string) ($milestone['slug'] ?? '')) ?: null,
-                'titulo_hito' => $title,
                 'fecha_inicio' => $start,
                 'fecha_fin' => $end,
-                'orden' => $order++,
                 'es_base' => ! empty($milestone['es_base']) ? 1 : 0,
                 'activo' => 1,
                 'fecha_creacion' => now(),
                 'fecha_actualizacion' => null,
             ];
+
+            $slug = trim((string) ($milestone['slug'] ?? '')) ?: null;
+            if (Schema::hasColumn('Hitos_Apoyo', 'slug_hito')) {
+                $row['slug_hito'] = $slug;
+            }
+            if (Schema::hasColumn('Hitos_Apoyo', 'clave_hito')) {
+                $row['clave_hito'] = $slug ? strtoupper($slug) : null;
+            }
+
+            if (Schema::hasColumn('Hitos_Apoyo', 'titulo_hito')) {
+                $row['titulo_hito'] = $title;
+            }
+            if (Schema::hasColumn('Hitos_Apoyo', 'nombre_hito')) {
+                $row['nombre_hito'] = $title;
+            }
+
+            $currentOrder = $order++;
+            if (Schema::hasColumn('Hitos_Apoyo', 'orden')) {
+                $row['orden'] = $currentOrder;
+            }
+            if (Schema::hasColumn('Hitos_Apoyo', 'orden_hito')) {
+                $row['orden_hito'] = $currentOrder;
+            }
+
+            $rows[] = $row;
         }
 
         if (! empty($rows)) {
@@ -340,11 +384,9 @@ class ApoyoController extends Controller
 
         $hitosByApoyo = collect();
         if (Schema::hasTable('Hitos_Apoyo') && $apoyos->isNotEmpty()) {
-            $hitosByApoyo = DB::table('Hitos_Apoyo')
+            $hitosByApoyo = $this->applyHitosOrder(DB::table('Hitos_Apoyo'))
                 ->whereIn('fk_id_apoyo', $apoyos->pluck('id_apoyo')->all())
                 ->where('activo', 1)
-                ->orderBy('orden')
-                ->orderBy('id_hito')
                 ->get()
                 ->groupBy('fk_id_apoyo');
         }
@@ -814,11 +856,9 @@ class ApoyoController extends Controller
         $milestonesBase = $this->getBaseMilestonesTemplate();
         $existingMilestones = collect();
         if (Schema::hasTable('Hitos_Apoyo')) {
-            $existingMilestones = DB::table('Hitos_Apoyo')
+            $existingMilestones = $this->applyHitosOrder(DB::table('Hitos_Apoyo'))
                 ->where('fk_id_apoyo', $id)
                 ->where('activo', 1)
-                ->orderBy('orden')
-                ->orderBy('id_hito')
                 ->get();
         }
 
@@ -1018,11 +1058,9 @@ class ApoyoController extends Controller
 
         $hitos = collect();
         if (Schema::hasTable('Hitos_Apoyo')) {
-            $hitos = DB::table('Hitos_Apoyo')
+            $hitos = $this->applyHitosOrder(DB::table('Hitos_Apoyo'))
                 ->where('fk_id_apoyo', $apoyo->id_apoyo)
                 ->where('activo', 1)
-                ->orderBy('orden')
-                ->orderBy('id_hito')
                 ->get();
         }
 

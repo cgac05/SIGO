@@ -85,7 +85,9 @@
                                         <li class="flex items-start gap-2">
                                             <span class="mt-1 h-2.5 w-2.5 rounded-full bg-slate-400"></span>
                                             <div>
-                                                <p class="text-sm font-semibold text-slate-800">{{ $hito->titulo_hito }}</p>
+                                                <p class="text-sm font-semibold text-slate-800">
+                                                    {{ $hito->titulo_hito ?? $hito->nombre_hito ?? $hito->clave_hito ?? $hito->slug_hito ?? 'Hito' }}
+                                                </p>
                                                 <p class="text-xs text-slate-500">
                                                     {{ $hito->fecha_inicio ?? '-' }}
                                                     @if(!empty($hito->fecha_fin))
