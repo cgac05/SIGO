@@ -25,4 +25,11 @@ class BDInventario extends Model
         'fk_id_apoyo',
         'stock_actual',
     ];
+
+    /**
+     * Nota: las inserciones en `BD_Inventario` se realizan desde
+     * `ApoyoController::store()` cuando `tipo_apoyo === 'Especie'`.
+     * Se puede agregar un método `adjustStock($delta)` si se necesita
+     * actualizar stock desde otras partes de la aplicación.
+     */
 }

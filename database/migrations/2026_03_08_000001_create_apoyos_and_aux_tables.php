@@ -21,6 +21,10 @@ return new class extends Migration
     public function up(): void
     {
         // Tabla principal: Apoyos
+        // Tabla principal: Apoyos
+        // Comentarios:
+        // - `id_apoyo` es la PK autoincremental usada en toda la lógica del módulo.
+        // - `monto_maximo` se guarda como decimal(19,4) para compatibilidad con SQL Server.
         Schema::create('Apoyos', function (Blueprint $table) {
             $table->increments('id_apoyo');
             $table->string('nombre_apoyo', 100);
@@ -31,6 +35,8 @@ return new class extends Migration
         });
 
         // Tabla auxiliar para apoyos económicos
+        // Tabla auxiliar para apoyos económicos: BD_Finanzas
+        // - `fk_id_apoyo` referencia a `Apoyos.id_apoyo` y se elimina en cascada.
         Schema::create('BD_Finanzas', function (Blueprint $table) {
             $table->increments('id_finanza');
             $table->unsignedInteger('fk_id_apoyo');
@@ -40,6 +46,7 @@ return new class extends Migration
         });
 
         // Tabla auxiliar para apoyos en especie
+        // Tabla auxiliar para apoyos en especie: BD_Inventario
         Schema::create('BD_Inventario', function (Blueprint $table) {
             $table->increments('id_inventario');
             $table->unsignedInteger('fk_id_apoyo');

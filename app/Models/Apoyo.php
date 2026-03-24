@@ -24,7 +24,6 @@ class Apoyo extends Model
     public $incrementing = true;
     protected $keyType = 'int';
     public $timestamps = false;
-
     protected $fillable = [
         'nombre_apoyo',
         'anio_fiscal',
