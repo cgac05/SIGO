@@ -30,6 +30,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'activo',
         'ultima_conexion',
         'remember_token',
+        'debe_cambiar_password',
     ];
 
     protected $hidden = [
@@ -45,6 +46,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'fecha_creacion' => 'datetime',
         'ultima_conexion' => 'datetime',
     ];
+
 
     public function getAuthPassword(): string
     {
