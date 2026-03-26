@@ -120,7 +120,7 @@ class SolicitudController extends Controller
                     }
                 }
 
-                if (strtoupper((string) $hitoActual->clave_hito) !== 'RECEPCION') {
+                if (!str_contains(strtoupper((string) $hitoActual->clave_hito), 'RECEPCION')) {
                     return redirect()->back()->with('error', 'No se pueden registrar solicitudes fuera del hito de recepcion.');
                 }
             }
@@ -209,20 +209,20 @@ class SolicitudController extends Controller
                         'origen_archivo' => 'local',
                         'estado_validacion' => 'Pendiente',
                         'version' => 1,
-                        'fecha_carga' => now()
+                        'fecha_carga' => DB::raw('GETDATE()')
                     ]);
                 } else {
                     // Guardar referencia de Google Drive
                     DB::table('Documentos_Expediente')->insert([
                         'fk_folio' => $folio,
                         'fk_id_tipo_doc' => $req->fk_id_tipo_doc,
-                        'ruta_archivo' => null,
+                        'ruta_archivo' => "google_drive/{$gdriveFileId}",
                         'origen_archivo' => 'google_drive',
                         'google_file_id' => $gdriveFileId,
                         'google_file_name' => $gdriveFileName,
                         'estado_validacion' => 'Pendiente',
                         'version' => 1,
-                        'fecha_carga' => now()
+                        'fecha_carga' => DB::raw('GETDATE()')
                     ]);
                 }
             }
@@ -231,8 +231,8 @@ class SolicitudController extends Controller
                 DB::table('Seguimiento_Solicitud')->insert([
                     'fk_folio' => $folio,
                     'estado_proceso' => 'EN_PROCESO',
-                    'fecha_creacion' => now(),
-                    'fecha_actualizacion' => now(),
+                    'fecha_creacion' => DB::raw('GETDATE()'),
+                    'fecha_actualizacion' => DB::raw('GETDATE()'),
                 ]);
             }
 
