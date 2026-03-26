@@ -11,12 +11,12 @@ return new class extends Migration
         if (! Schema::hasTable('Hitos_Apoyo')) {
             Schema::create('Hitos_Apoyo', function (Blueprint $table) {
                 $table->increments('id_hito');
-                $table->unsignedInteger('fk_id_apoyo');
+                $table->integer('fk_id_apoyo');
                 $table->string('slug_hito', 80)->nullable();
                 $table->string('titulo_hito', 150);
                 $table->date('fecha_inicio')->nullable();
                 $table->date('fecha_fin')->nullable();
-                $table->unsignedSmallInteger('orden')->default(0);
+                $table->smallInteger('orden')->default(0);
                 $table->boolean('es_base')->default(false);
                 $table->boolean('activo')->default(true);
                 $table->dateTime('fecha_creacion')->useCurrent();

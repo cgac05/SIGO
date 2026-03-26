@@ -26,6 +26,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'google_id',
         'google_token',
         'google_refresh_token',
+        'google_token_expires_at',
         'google_avatar',
         'activo',
         'ultima_conexion',
@@ -44,6 +45,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'email_verified_at' => 'datetime',
         'fecha_creacion' => 'datetime',
         'ultima_conexion' => 'datetime',
+        'google_token_expires_at' => 'datetime',
     ];
 
     public function getAuthPassword(): string
@@ -114,5 +116,50 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function getPasswordAttribute(): string
     {
         return (string) ($this->password_hash ?? '');
+    }
+
+    /**
+     * Verificar si el token de Google ha expirado
+     */
+    public function isGoogleTokenExpired(): bool
+    {
+        return $this->google_token_expires_at?->isPast() ?? true;
+    }
+
+    /**
+     * Obtener cliente Google autenticado
+     */
+    public function getGoogleClient(): \Google_Client
+    {
+        $client = new \Google_Client();
+        $client->setClientId(config('services.google.client_id'));
+        $client->setClientSecret(config('services.google.client_secret'));
+        
+        if ($this->google_token) {
+            $client->setAccessToken(json_decode($this->google_token, true) ?: $this->google_token);
+            
+            if ($this->isGoogleTokenExpired() && $this->google_refresh_token) {
+                try {
+                    $client->fetchAccessTokenWithRefreshToken($this->google_refresh_token);
+                    $newToken = $client->getAccessToken();
+                    $this->update([
+                        'google_token' => json_encode($newToken),
+                        'google_token_expires_at' => now()->addSeconds($newToken['expires_in'] ?? 3600),
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::warning('Error al refrescar token de Google: ' . $e->getMessage());
+                }
+            }
+        }
+        
+        return $client;
+    }
+
+    /**
+     * Relación hasMany con Google Drive Files
+     */
+    public function googleDriveFiles()
+    {
+        return $this->hasMany(GoogleDriveFile::class, 'user_id', 'id_usuario');
     }
 }

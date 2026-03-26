@@ -9,11 +9,11 @@ use Illuminate\Validation\ValidationException;
 class SolicitudWorkflowService
 {
     public const HITOS_BASE = [
-        'PUBLICACION',
-        'RECEPCION',
-        'ANALISIS_ADMIN',
-        'RESULTADOS',
-        'CIERRE',
+        'INICIO_PUBLICACION',
+        'RECEPCION_DOCUMENTOS',
+        'EVALUACION_SOLICITUDES',
+        'PLAZO_DESCARGA_ADMINISTRATIVA',
+        'PROCESO_CERRADO',
     ];
 
     public function getTimelineByFolio(int $folio): array

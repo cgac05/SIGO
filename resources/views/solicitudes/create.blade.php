@@ -78,7 +78,7 @@
                                             <p class="text-sm font-semibold text-slate-700">Haz clic o arrastra para cargar</p>
                                             <p class="text-xs text-slate-500 mt-1">Máximo 10 MB</p>
                                         </div>
-                                        <input type="file" id="file-{{ $req->fk_id_tipo_doc }}" name="documento_{{ $req->fk_id_tipo_doc }}" class="hidden" data-doc-type="{{ $req->fk_id_tipo_doc }}" @if((int) $req->es_obligatorio === 1) required @endif onchange="updateFileDisplay(this)">
+                                        <input type="file" id="file-{{ $req->fk_id_tipo_doc }}" name="documento_{{ $req->fk_id_tipo_doc }}" class="hidden" data-doc-type="{{ $req->fk_id_tipo_doc }}" data-required="{{ (int) $req->es_obligatorio }}" onchange="updateFileDisplay(this)">
                                         <p class="text-xs text-slate-600 mt-2 file-name-{{ $req->fk_id_tipo_doc }}"></p>
                                     </div>
 
@@ -244,11 +244,19 @@
             }
         }
 
-        // Event listeners para recaptcha
+        // Event listeners para recaptcha y validación de documentos
         const formSolicitudFormal = document.getElementById('formSolicitudFormal');
         if (formSolicitudFormal && !formSolicitudFormal.querySelector('button[type="submit"]').disabled) {
             formSolicitudFormal.addEventListener('submit', function (event) {
                 if (typeof grecaptcha === 'undefined') {
+                    return;
+                }
+
+                // Validar que todos los documentos obligatorios estén cargados
+                const validationErrors = validateRequiredDocuments();
+                if (validationErrors.length > 0) {
+                    event.preventDefault();
+                    showValidationErrors(validationErrors);
                     return;
                 }
 
@@ -267,6 +275,54 @@
                         });
                 });
             });
+        }
+
+        /**
+         * Validar que todos los documentos obligatorios estén cargados
+         */
+        function validateRequiredDocuments() {
+            const errors = [];
+            const fileInputs = formSolicitudFormal.querySelectorAll('input[type="file"][data-required="1"]');
+
+            fileInputs.forEach(input => {
+                const docType = input.dataset.docType;
+                const localFile = input.files && input.files[0];
+                const gdriveId = document.querySelector(`.gdrive-id-${docType}`);
+                const gdriveValue = gdriveId ? gdriveId.value : '';
+
+                // Validar que tenga al menos uno: archivo local O Google Drive
+                if (!localFile && !gdriveValue) {
+                    const docName = input.closest('.rounded-xl').querySelector('label').textContent;
+                    errors.push(`${docName.trim()} es obligatorio`);
+                }
+            });
+
+            return errors;
+        }
+
+        /**
+         * Mostrar errores de validación
+         */
+        function showValidationErrors(errors) {
+            // Crear contenedor de errores si no existe
+            let errorContainer = document.getElementById('validation-errors');
+            if (!errorContainer) {
+                errorContainer = document.createElement('div');
+                errorContainer.id = 'validation-errors';
+                formSolicitudFormal.parentElement.insertBefore(errorContainer, formSolicitudFormal);
+            }
+
+            errorContainer.innerHTML = `
+                <div class="rounded-lg border border-red-200 bg-red-50 p-4 mb-4">
+                    <p class="text-sm font-bold text-red-800 mb-2">Por favor completa los siguientes campos:</p>
+                    <ul class="text-sm text-red-700 list-disc list-inside space-y-1">
+                        ${errors.map(error => `<li>${error}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+
+            // Hacer scroll al error
+            errorContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         // Inicializar Google API cuando la página carga

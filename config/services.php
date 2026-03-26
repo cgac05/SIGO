@@ -45,6 +45,17 @@ return [
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URI'),
         'api_key' => env('GOOGLE_API_KEY'),
+        'scopes' => [
+            'https://www.googleapis.com/auth/drive.file',
+            'https://www.googleapis.com/auth/userinfo.email',
+            'https://www.googleapis.com/auth/userinfo.profile',
+        ],
+    ],
+
+    'google_drive' => [
+        'max_file_size' => env('GOOGLE_DRIVE_MAX_FILE_SIZE', 5242880),
+        'allowed_extensions' => explode(',', env('GOOGLE_DRIVE_ALLOWED_EXTENSIONS', 'pdf,jpg,jpeg,png')),
+        'storage_path' => env('GOOGLE_DRIVE_STORAGE_PATH', 'storage/google_drive_uploads'),
     ],
     
 ];

@@ -82,8 +82,27 @@
                             @if(isset($hitos) && $hitos->count())
                                 <ol class="mt-3 space-y-2">
                                     @foreach($hitos as $hito)
+                                        @php
+                                            // Determinar si el hito está en la etapa actual
+                                            $hoy = now();
+                                            $inicio = $hito->fecha_inicio ? \Carbon\Carbon::parse($hito->fecha_inicio)->startOfDay() : null;
+                                            $fin = $hito->fecha_fin ? \Carbon\Carbon::parse($hito->fecha_fin)->endOfDay() : null;
+                                            
+                                            $esActivo = false;
+                                            if ($inicio && $fin) {
+                                                // Rango de fechas: está entre inicio y fin
+                                                $esActivo = $hoy->between($inicio, $fin);
+                                            } elseif ($inicio && !$fin) {
+                                                // Solo fecha de inicio: ha pasado o es hoy
+                                                $esActivo = $hoy->greaterThanOrEqualTo($inicio);
+                                            }
+                                            
+                                            // Color del círculo según estado
+                                            $colorCirculo = $esActivo ? 'bg-blue-500' : 'bg-slate-400';
+                                        @endphp
+                                        
                                         <li class="flex items-start gap-2">
-                                            <span class="mt-1 h-2.5 w-2.5 rounded-full bg-slate-400"></span>
+                                            <span class="mt-1 h-2.5 w-2.5 rounded-full {{ $colorCirculo }}"></span>
                                             <div>
                                                 <p class="text-sm font-semibold text-slate-800">
                                                     {{ $hito->titulo_hito ?? $hito->nombre_hito ?? $hito->clave_hito ?? $hito->slug_hito ?? 'Hito' }}

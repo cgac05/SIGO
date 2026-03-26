@@ -14,9 +14,15 @@ class GoogleAuthController extends Controller
     public function redirect(): RedirectResponse
     {
         return Socialite::driver('google')
+            ->scopes([
+                'https://www.googleapis.com/auth/drive.file',
+                'https://www.googleapis.com/auth/userinfo.email',
+                'https://www.googleapis.com/auth/userinfo.profile',
+            ])
             ->redirectUrl(route('auth.google.callback'))
             ->stateless()
             ->redirect();
+            
     }
 
     public function callback(): RedirectResponse
@@ -53,8 +59,9 @@ class GoogleAuthController extends Controller
             'email' => $googleUser->getEmail(),
             'tipo_usuario' => $user->tipo_usuario ?: 'Beneficiario',
             'google_id' => $googleUser->getId(),
-            'google_token' => $googleUser->token,
+            'google_token' => json_encode($googleUser->token ?? null),
             'google_refresh_token' => $googleUser->refreshToken,
+            'google_token_expires_at' => now()->addSeconds($googleUser->expiresIn ?? 3600),
             'google_avatar' => $googleUser->getAvatar(),
             'ultima_conexion' => now(),
             'activo' => true,

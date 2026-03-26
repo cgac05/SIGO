@@ -50,12 +50,11 @@ class ApoyoController extends Controller
     private function getBaseMilestonesTemplate(): array
     {
         return [
-            ['slug' => 'apertura_publicacion', 'titulo' => 'Apertura de la publicaciÃ³n'],
-            ['slug' => 'recepcion_documentos', 'titulo' => 'Inicio y fin de recepciÃ³n de documentos'],
-            ['slug' => 'evaluacion_solicitudes', 'titulo' => 'Periodo de evaluaciÃ³n de solicitudes'],
-            ['slug' => 'entrega_resultados', 'titulo' => 'Entrega de resultados'],
-            ['slug' => 'cobro_apoyo', 'titulo' => 'Tiempo para cobrar el apoyo a los seleccionados'],
-            ['slug' => 'cierre_apoyo', 'titulo' => 'Cierre del apoyo'],
+            ['slug' => 'inicio_publicacion', 'titulo' => 'Inicio de publicación', 'tiene_periodo' => false],
+            ['slug' => 'recepcion_documentos', 'titulo' => 'Recepción de documentos', 'tiene_periodo' => true],
+            ['slug' => 'evaluacion_solicitudes', 'titulo' => 'Evaluación de solicitudes', 'tiene_periodo' => true],
+            ['slug' => 'plazo_descarga_administrativa', 'titulo' => 'Plazo de descarga administrativa', 'tiene_periodo' => true],
+            ['slug' => 'proceso_cerrado', 'titulo' => 'Proceso cerrado', 'tiene_periodo' => false],
         ];
     }
 
@@ -147,30 +146,32 @@ class ApoyoController extends Controller
                 'es_base' => ! empty($milestone['es_base']) ? 1 : 0,
                 'activo' => 1,
                 'fecha_creacion' => now(),
-                'fecha_actualizacion' => null,
+                // ✅ NO incluir fecha_actualizacion (SQL Server maneja NULL por default)
             ];
 
             $slug = trim((string) ($milestone['slug'] ?? '')) ?: null;
-            if (Schema::hasColumn('Hitos_Apoyo', 'slug_hito')) {
-                $row['slug_hito'] = $slug;
-            }
-            if (Schema::hasColumn('Hitos_Apoyo', 'clave_hito')) {
-                $row['clave_hito'] = $slug ? strtoupper($slug) : null;
-            }
-
-            if (Schema::hasColumn('Hitos_Apoyo', 'titulo_hito')) {
-                $row['titulo_hito'] = $title;
-            }
+            
+            // Mapeo: Priorizar nombres reales de BD
+            // PRIMERO: campos que realmente existen en la BD (nombres antiguos)
+            // LUEGO: campos nuevos si existen
+            
             if (Schema::hasColumn('Hitos_Apoyo', 'nombre_hito')) {
                 $row['nombre_hito'] = $title;
+            } elseif (Schema::hasColumn('Hitos_Apoyo', 'titulo_hito')) {
+                $row['titulo_hito'] = $title;
+            }
+
+            if (Schema::hasColumn('Hitos_Apoyo', 'clave_hito')) {
+                $row['clave_hito'] = $slug ? strtoupper($slug) : null;
+            } elseif (Schema::hasColumn('Hitos_Apoyo', 'slug_hito')) {
+                $row['slug_hito'] = $slug;
             }
 
             $currentOrder = $order++;
-            if (Schema::hasColumn('Hitos_Apoyo', 'orden')) {
-                $row['orden'] = $currentOrder;
-            }
             if (Schema::hasColumn('Hitos_Apoyo', 'orden_hito')) {
                 $row['orden_hito'] = $currentOrder;
+            } elseif (Schema::hasColumn('Hitos_Apoyo', 'orden')) {
+                $row['orden'] = $currentOrder;
             }
 
             $rows[] = $row;
@@ -184,6 +185,7 @@ class ApoyoController extends Controller
     private function validateMilestonesDateRanges(array $milestones): void
     {
         $errors = [];
+        $baseTemplates = collect($this->getBaseMilestonesTemplate())->keyBy('slug');
 
         foreach ($milestones as $index => $milestone) {
             $include = ! array_key_exists('incluir', $milestone)
@@ -193,15 +195,32 @@ class ApoyoController extends Controller
                 continue;
             }
 
-            if (empty($milestone['fecha_inicio']) || empty($milestone['fecha_fin'])) {
-                continue;
+            $slug = trim((string) ($milestone['slug'] ?? ''));
+            $baseTemplate = $baseTemplates->get($slug);
+            $tienePeriodo = $baseTemplate && ! empty($baseTemplate['tiene_periodo']) && $baseTemplate['tiene_periodo'] === true;
+
+            // Validar que hitos con período tengan AMBAS fechas
+            if ($tienePeriodo) {
+                if (empty($milestone['fecha_inicio'])) {
+                    $errors["hitos.$index.fecha_inicio"] = 'La fecha de inicio es obligatoria para este hito.';
+                }
+                if (empty($milestone['fecha_fin'])) {
+                    $errors["hitos.$index.fecha_fin"] = 'La fecha de fin es obligatoria para este hito.';
+                }
             }
 
-            $start = Carbon::parse($milestone['fecha_inicio'])->toDateString();
-            $end = Carbon::parse($milestone['fecha_fin'])->toDateString();
+            // Validar rango de fechas (solo si ambas existen)
+            if (! empty($milestone['fecha_inicio']) && ! empty($milestone['fecha_fin'])) {
+                try {
+                    $start = Carbon::parse($milestone['fecha_inicio'])->toDateString();
+                    $end = Carbon::parse($milestone['fecha_fin'])->toDateString();
 
-            if ($end < $start) {
-                $errors["hitos.$index.fecha_fin"] = 'La fecha de fin no puede ser anterior a la fecha de inicio.';
+                    if ($end < $start) {
+                        $errors["hitos.$index.fecha_fin"] = 'La fecha de fin no puede ser anterior a la fecha de inicio.';
+                    }
+                } catch (\Exception $e) {
+                    $errors["hitos.$index.fecha_inicio"] = 'Formato de fecha inválido.';
+                }
             }
         }
 
@@ -742,13 +761,14 @@ class ApoyoController extends Controller
             'documentos_requeridos.*' => 'integer|exists:Cat_TiposDocumento,id_tipo_doc',
             'hitos' => 'nullable|array',
             'hitos.*.titulo' => 'nullable|string|max:150',
-            'hitos.*.fecha_inicio' => 'nullable|date',
-            'hitos.*.fecha_fin' => 'nullable|date',
+            'hitos.*.fecha_inicio' => 'nullable|date_format:Y-m-d',
+            'hitos.*.fecha_fin' => 'nullable|date_format:Y-m-d',
             'hitos.*.slug' => 'nullable|string|max:80',
             'hitos.*.es_base' => 'nullable|boolean',
             'hitos.*.incluir' => 'nullable|boolean',
         ]);
 
+        // Validar reglas específicas de hitos (períodos obligatorios, rangos, etc.)
         $this->validateMilestonesDateRanges($data['hitos'] ?? []);
 
         DB::beginTransaction();
@@ -893,12 +913,15 @@ class ApoyoController extends Controller
             'documentos_requeridos_present' => 'nullable|boolean',
             'hitos' => 'nullable|array',
             'hitos.*.titulo' => 'nullable|string|max:150',
-            'hitos.*.fecha_inicio' => 'nullable|date',
-            'hitos.*.fecha_fin' => 'nullable|date',
+            'hitos.*.fecha_inicio' => 'nullable|date_format:Y-m-d',
+            'hitos.*.fecha_fin' => 'nullable|date_format:Y-m-d',
             'hitos.*.slug' => 'nullable|string|max:80',
             'hitos.*.es_base' => 'nullable|boolean',
             'hitos.*.incluir' => 'nullable|boolean',
         ]);
+
+        // Validar reglas específicas de hitos (períodos obligatorios, rangos, etc.)
+        $this->validateMilestonesDateRanges($data['hitos'] ?? []);
 
         $this->validateMilestonesDateRanges($data['hitos'] ?? []);
 
@@ -1061,7 +1084,16 @@ class ApoyoController extends Controller
             $hitos = $this->applyHitosOrder(DB::table('Hitos_Apoyo'))
                 ->where('fk_id_apoyo', $apoyo->id_apoyo)
                 ->where('activo', 1)
-                ->get();
+                ->get()
+                ->map(function ($h) {
+                    if (!empty($h->fecha_inicio)) {
+                        $h->fecha_inicio = Carbon::parse($h->fecha_inicio)->format('Y-m-d H:i');
+                    }
+                    if (!empty($h->fecha_fin)) {
+                        $h->fecha_fin = Carbon::parse($h->fecha_fin)->format('Y-m-d H:i');
+                    }
+                    return $h;
+                });
         }
 
         $solicitudActiva = null;
@@ -1087,6 +1119,8 @@ class ApoyoController extends Controller
                 'success' => true,
                 'apoyo' => $apoyo,
                 'comments' => $comments,
+                'hitos' => $hitos,
+                'requisitos' => $requisitos,
             ]);
         }
 

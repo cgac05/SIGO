@@ -3,8 +3,20 @@ use Carbon\Carbon;
 
 $existingMilestonesCollection = collect($existingMilestones ?? []);
 $baseMilestonesCollection = collect($milestonesBase ?? []);
-$baseMilestonesBySlug = $existingMilestonesCollection->where('es_base', 1)->keyBy('slug_hito');
-$customMilestones = $existingMilestonesCollection->where('es_base', 0)->values();
+$normalizedMilestones = $existingMilestonesCollection->map(function ($hito) {
+    $slug = $hito->slug_hito ?? null;
+    if (empty($slug) && !empty($hito->clave_hito)) {
+        $slug = strtolower((string) $hito->clave_hito);
+    }
+
+    $hito->__slug_normalizado = $slug;
+    $hito->__titulo_normalizado = $hito->titulo_hito ?? $hito->nombre_hito ?? $hito->clave_hito ?? $hito->slug_hito ?? 'Hito';
+
+    return $hito;
+});
+
+$baseMilestonesBySlug = $normalizedMilestones->where('es_base', 1)->keyBy('__slug_normalizado');
+$customMilestones = $normalizedMilestones->where('es_base', 0)->values();
 @endphp
 
 <x-app-layout>
@@ -148,44 +160,60 @@ $customMilestones = $existingMilestonesCollection->where('es_base', 0)->values()
                         </svg>
                         Identificación del programa
                     </div>
-                    <div class="panel-body grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div class="sm:col-span-2">
-                            <label class="field-label" for="nombre_apoyo">Nombre del apoyo <span class="req">*</span></label>
-                            <input id="nombre_apoyo" name="nombre_apoyo" type="text"
-                                   class="field-input" placeholder="Ej. Beca de emprendimiento juvenil"
-                                   required maxlength="100" value="{{ old('nombre_apoyo', $apoyo->nombre_apoyo) }}">
+                    <div class="panel-body space-y-6">
+                        {{-- Sección 1: Información básica --}}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="sm:col-span-2">
+                                <label class="field-label" for="nombre_apoyo">Nombre del apoyo <span class="req">*</span></label>
+                                <input id="nombre_apoyo" name="nombre_apoyo" type="text"
+                                       class="field-input" placeholder="Ej. Beca de emprendimiento juvenil"
+                                       required maxlength="100" value="{{ old('nombre_apoyo', $apoyo->nombre_apoyo) }}">
+                            </div>
+
+                            <div>
+                                <label class="field-label" for="tipo_apoyo">Tipo de apoyo <span class="req">*</span></label>
+                                <select id="tipo_apoyo" name="tipo_apoyo" class="field-input" required>
+                                    <option value="Económico" {{ old('tipo_apoyo', $apoyo->tipo_apoyo) === 'Económico' ? 'selected' : '' }}>💰 Económico</option>
+                                    <option value="Especie" {{ old('tipo_apoyo', $apoyo->tipo_apoyo) === 'Especie' ? 'selected' : '' }}>📦 Especie (material)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="field-label" for="anio_fiscal">Año fiscal</label>
+                                <input id="anio_fiscal" name="anio_fiscal" type="number" class="field-input" disabled
+                                       value="{{ $apoyo->anio_fiscal ?? date('Y') }}" min="2020" max="2099">
+                                <small class="text-gray-500">No se puede cambiar</small>
+                            </div>
                         </div>
 
+                        {{-- Separador visual --}}
+                        <div class="border-t border-dashed border-gray-200"></div>
+
+                        {{-- Sección 2: Período de vigencia --}}
                         <div>
-                            <label class="field-label" for="tipo_apoyo">Tipo de apoyo <span class="req">*</span></label>
-                            <select id="tipo_apoyo" name="tipo_apoyo" class="field-input" required>
-                                <option value="Económico" {{ old('tipo_apoyo', $apoyo->tipo_apoyo) === 'Económico' ? 'selected' : '' }}>💰 Económico</option>
-                                <option value="Especie" {{ old('tipo_apoyo', $apoyo->tipo_apoyo) === 'Especie' ? 'selected' : '' }}>📦 Especie (material)</option>
-                            </select>
+                            <p class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">Período de vigencia</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="field-label" for="fechaInicio">Fecha de inicio <span class="req">*</span></label>
+                                    <input id="fechaInicio" name="fechaInicio" type="text" class="field-input flatpickr"
+                                           placeholder="dd/mm/aaaa" required
+                                           value="{{ old('fechaInicio', $apoyo->fecha_inicio ? Carbon::parse($apoyo->fecha_inicio)->format('d/m/Y') : '') }}">
+                                </div>
+
+                                <div>
+                                    <label class="field-label" for="fechafin">Fecha de cierre <span class="req">*</span></label>
+                                    <input id="fechafin" name="fechafin" type="text" class="field-input flatpickr"
+                                           placeholder="dd/mm/aaaa" required
+                                           value="{{ old('fechafin', $apoyo->fecha_fin ? Carbon::parse($apoyo->fecha_fin)->format('d/m/Y') : '') }}">
+                                </div>
+                            </div>
                         </div>
 
-                        <div>
-                            <label class="field-label" for="anio_fiscal">Año fiscal</label>
-                            <input id="anio_fiscal" name="anio_fiscal" type="number" class="field-input" disabled
-                                   value="{{ $apoyo->anio_fiscal ?? date('Y') }}" min="2020" max="2099">
-                            <small class="text-gray-500">No se puede cambiar</small>
-                        </div>
+                        {{-- Separador visual --}}
+                        <div class="border-t border-dashed border-gray-200"></div>
 
-                        <div>
-                            <label class="field-label" for="fechaInicio">Fecha de inicio <span class="req">*</span></label>
-                            <input id="fechaInicio" name="fechaInicio" type="text" class="field-input flatpickr"
-                                   placeholder="dd/mm/aaaa" required
-                                   value="{{ old('fechaInicio', $apoyo->fecha_inicio ? Carbon::parse($apoyo->fecha_inicio)->format('d/m/Y') : '') }}">
-                        </div>
-
-                        <div>
-                            <label class="field-label" for="fechafin">Fecha de cierre <span class="req">*</span></label>
-                            <input id="fechafin" name="fechafin" type="text" class="field-input flatpickr"
-                                   placeholder="dd/mm/aaaa" required
-                                   value="{{ old('fechafin', $apoyo->fecha_fin ? Carbon::parse($apoyo->fecha_fin)->format('d/m/Y') : '') }}">
-                        </div>
-
-                        <div class="sm:col-span-2 flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                        {{-- Sección 3: Estado --}}
+                        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
                             <input type="hidden" name="activo" value="0">
                             <input id="activo" name="activo" value="1" type="checkbox"
                                    class="w-4 h-4 accent-blue-700 cursor-pointer"
@@ -205,31 +233,45 @@ $customMilestones = $existingMilestonesCollection->where('es_base', 0)->values()
                         </svg>
                         <span id="panel-fin-title">{{ old('tipo_apoyo', $apoyo->tipo_apoyo) === 'Económico' ? 'Financiamiento' : 'Inventario' }}</span>
                     </div>
-                    <div class="panel-body grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="panel-body space-y-6">
+                        {{-- Sección 1: Alcance (común a todos los tipos) --}}
                         <div>
-                            <label class="field-label" for="monto_maximo">Monto máximo por beneficiario <span class="req">*</span></label>
-                            <div class="prefix-wrap">
-                                <span class="prefix">$</span>
-                                <input id="monto_maximo" name="monto_maximo" type="number" class="field-input" step="0.01" min="0" placeholder="0.00" value="{{ old('monto_maximo', $apoyo->monto_maximo) }}">
+                            <p class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">Alcance y capacidad</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="field-label" for="monto_maximo">Monto máximo por beneficiario <span class="req">*</span></label>
+                                    <div class="prefix-wrap">
+                                        <span class="prefix">$</span>
+                                        <input id="monto_maximo" name="monto_maximo" type="number" class="field-input" step="0.01" min="0" placeholder="0.00" value="{{ old('monto_maximo', $apoyo->monto_maximo) }}">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="field-label" for="cupo_limite">Cupo máximo de beneficiarios <span class="req">*</span></label>
+                                    <input id="cupo_limite" name="cupo_limite" type="number" class="field-input" min="1" step="1" value="{{ old('cupo_limite', $apoyo->cupo_limite) }}">
+                                </div>
                             </div>
                         </div>
 
+                        {{-- Separador visual --}}
+                        <div class="border-t border-dashed border-gray-200"></div>
+
+                        {{-- Sección 2: Presupuesto (condicional por tipo) --}}
                         <div>
-                            <label class="field-label" for="cupo_limite">Cupo máximo de beneficiarios <span class="req">*</span></label>
-                            <input id="cupo_limite" name="cupo_limite" type="number" class="field-input" min="1" step="1" value="{{ old('cupo_limite', $apoyo->cupo_limite) }}">
-                        </div>
-
-                        <div id="grp-monto-inicial" class="sm:col-span-1">
-                            <label class="field-label" for="monto_inicial_asignado">Monto inicial asignado <span class="req">*</span></label>
-                            <div class="prefix-wrap">
-                                <span class="prefix">$</span>
-                                <input id="monto_inicial_asignado" name="monto_inicial_asignado" type="number" class="field-input" step="0.01" min="0" value="{{ old('monto_inicial_asignado', $montoInicialAsignado ?? null) }}">
+                            <p class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3" id="lbl-presupuesto-seccion">Presupuesto</p>
+                            
+                            <div id="grp-monto-inicial">
+                                <label class="field-label" for="monto_inicial_asignado">Monto inicial asignado <span class="req">*</span></label>
+                                <div class="prefix-wrap">
+                                    <span class="prefix">$</span>
+                                    <input id="monto_inicial_asignado" name="monto_inicial_asignado" type="number" class="field-input" step="0.01" min="0" value="{{ old('monto_inicial_asignado', $montoInicialAsignado ?? null) }}">
+                                </div>
                             </div>
-                        </div>
 
-                        <div id="grp-stock-inicial" class="sm:col-span-1">
-                            <label class="field-label" for="stock_inicial">Stock inicial disponible <span class="req">*</span></label>
-                            <input id="stock_inicial" name="stock_inicial" type="number" class="field-input" min="1" step="1" value="{{ old('stock_inicial', $stockInicial ?? null) }}">
+                            <div id="grp-stock-inicial">
+                                <label class="field-label" for="stock_inicial">Stock inicial disponible <span class="req">*</span></label>
+                                <input id="stock_inicial" name="stock_inicial" type="number" class="field-input" min="1" step="1" value="{{ old('stock_inicial', $stockInicial ?? null) }}">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -264,35 +306,53 @@ $customMilestones = $existingMilestonesCollection->where('es_base', 0)->values()
                         <div id="hitos-base-grid" class="space-y-3">
                             @foreach($baseMilestonesCollection as $i => $base)
                                 @php($saved = $baseMilestonesBySlug->get($base['slug']))
-                                <div class="rounded-xl border border-slate-200 p-3 bg-slate-50 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                @php($isMandatoryBase = in_array($base['slug'], ['inicio_publicacion', 'proceso_cerrado'], true))
+                                @php($tienePeriodo = !empty($base['tiene_periodo']) && $base['tiene_periodo'] === true)
+                                <div class="rounded-xl border border-slate-200 p-3 bg-slate-50 grid grid-cols-1 sm:grid-cols-2 gap-3" data-mandatory-base="{{ $isMandatoryBase ? '1' : '0' }}">
                                     <input type="hidden" name="hitos[{{ $i }}][slug]" value="{{ $base['slug'] }}">
                                     <input type="hidden" name="hitos[{{ $i }}][es_base]" value="1">
-                                    <input type="hidden" name="hitos[{{ $i }}][incluir]" value="0">
-                                    <div class="sm:col-span-3 flex items-center justify-between gap-2">
-                                        <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600">
-                                            <input type="checkbox" name="hitos[{{ $i }}][incluir]" value="1" class="hito-toggle-incluir w-4 h-4 accent-blue-700" {{ old('hitos.' . $i . '.incluir', !empty($saved) ? '1' : '0') == '1' ? 'checked' : '' }}>
-                                            Incluir hito
-                                        </label>
-                                        <span class="text-xs text-slate-500 font-semibold">Base</span>
+                                    @if($isMandatoryBase)
+                                        <input type="hidden" name="hitos[{{ $i }}][incluir]" value="1" class="hito-incluir-hidden">
+                                    @else
+                                        <input type="hidden" name="hitos[{{ $i }}][incluir]" value="1" class="hito-incluir-hidden">
+                                    @endif
+                                    <div class="sm:col-span-2" data-hito-content="1">
+                                        <div class="flex items-center justify-between gap-3 mb-2">
+                                            <label class="field-label !mb-0">Hito</label>
+                                            <div class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600">
+                                                @if($isMandatoryBase)
+                                                    <input type="checkbox" class="w-4 h-4 accent-blue-700" checked disabled>
+                                                    <span>Obligatorio en plataforma</span>
+                                                @else
+                                                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                                                        <input type="checkbox" data-hito-incluir-cb value="1" class="hito-toggle-incluir w-4 h-4 accent-blue-700" {{ old('hitos.' . $i . '.incluir', !empty($saved) ? '1' : '0') == '1' ? 'checked' : '' }}>
+                                                        <span>Incluir hito</span>
+                                                    </label>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <input type="text" name="hitos[{{ $i }}][titulo]" class="field-input" value="{{ old('hitos.' . $i . '.titulo', $saved->__titulo_normalizado ?? $base['titulo']) }}" required>
                                     </div>
-                                    <div class="sm:col-span-3" data-hito-content="1">
-                                        <label class="field-label">Hito</label>
-                                        <input type="text" name="hitos[{{ $i }}][titulo]" class="field-input" value="{{ old('hitos.' . $i . '.titulo', $saved->titulo_hito ?? $base['titulo']) }}" required>
-                                    </div>
-                                    <div data-hito-content="1">
-                                        <label class="field-label">Inicio</label>
-                                        <input type="date" name="hitos[{{ $i }}][fecha_inicio]" class="field-input hito-fecha-inicio" value="{{ old('hitos.' . $i . '.fecha_inicio', !empty($saved?->fecha_inicio) ? Carbon::parse($saved->fecha_inicio)->toDateString() : '') }}">
-                                    </div>
-                                    <div data-hito-content="1">
-                                        <input type="hidden" name="hitos[{{ $i }}][tiene_fin]" value="0">
-                                        <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 mb-2">
-                                            <input type="checkbox" name="hitos[{{ $i }}][tiene_fin]" value="1" class="hito-toggle-fin w-4 h-4 accent-blue-700" {{ old('hitos.' . $i . '.fecha_fin', !empty($saved?->fecha_fin) ? Carbon::parse($saved->fecha_fin)->toDateString() : '') ? 'checked' : '' }}>
-                                            Tiene fecha fin
-                                        </label>
-                                        <label class="field-label">Fin</label>
-                                        <input type="date" name="hitos[{{ $i }}][fecha_fin]" class="field-input hito-fecha-fin" value="{{ old('hitos.' . $i . '.fecha_fin', !empty($saved?->fecha_fin) ? Carbon::parse($saved->fecha_fin)->toDateString() : '') }}">
-                                    </div>
-                                    <div class="flex items-end text-xs text-slate-500 font-semibold" data-hito-content="1">Editable</div>
+                                    
+                                    {{-- Hito puntual (solo inicio) --}}
+                                    @if(!$tienePeriodo)
+                                        <div class="sm:col-span-1" data-hito-content="1">
+                                            <label class="field-label">Fecha de inicio</label>
+                                            <input type="date" name="hitos[{{ $i }}][fecha_inicio]" class="field-input hito-fecha-inicio" value="{{ old('hitos.' . $i . '.fecha_inicio', !empty($saved?->fecha_inicio) ? Carbon::parse($saved->fecha_inicio)->toDateString() : '') }}">
+                                        </div>
+                                    {{-- Hito con período (inicio y fin PARALELOS) --}}
+                                    @else
+                                        <div class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3" data-hito-content="1">
+                                            <div>
+                                                <label class="field-label">Fecha de inicio</label>
+                                                <input type="date" name="hitos[{{ $i }}][fecha_inicio]" class="field-input hito-fecha-inicio" value="{{ old('hitos.' . $i . '.fecha_inicio', !empty($saved?->fecha_inicio) ? Carbon::parse($saved->fecha_inicio)->toDateString() : '') }}" required>
+                                            </div>
+                                            <div>
+                                                <label class="field-label">Fecha de fin</label>
+                                                <input type="date" name="hitos[{{ $i }}][fecha_fin]" class="field-input hito-fecha-fin" value="{{ old('hitos.' . $i . '.fecha_fin', !empty($saved?->fecha_fin) ? Carbon::parse($saved->fecha_fin)->toDateString() : '') }}" required>
+                                            </div>
+                                        </div>
+                                    @endif
                                 </div>
                             @endforeach
                         </div>
@@ -312,7 +372,7 @@ $customMilestones = $existingMilestonesCollection->where('es_base', 0)->values()
                                         <button type="button" class="text-xs font-bold text-red-600 hover:text-red-700" data-remove-hito="1">Eliminar</button>
                                     </div>
                                     <div class="sm:col-span-3">
-                                        <input type="text" name="hitos[{{ $idx }}][titulo]" class="field-input" value="{{ old('hitos.' . $idx . '.titulo', $custom->titulo_hito) }}" required>
+                                        <input type="text" name="hitos[{{ $idx }}][titulo]" class="field-input" value="{{ old('hitos.' . $idx . '.titulo', $custom->__titulo_normalizado ?? 'Hito') }}" required>
                                     </div>
                                     <div>
                                         <label class="field-label">Inicio</label>
@@ -334,7 +394,14 @@ $customMilestones = $existingMilestonesCollection->where('es_base', 0)->values()
                     </div>
                 </div>
 
-                {{-- Panel: Documentos requeridos --}}
+
+
+            </div>
+
+            {{-- COLUMNA DERECHA --}}
+            <div class="xl:col-span-1 flex flex-col gap-6">
+
+                {{-- Panel: Documentos requeridos (EN COLUMNA DERECHA) --}}
                 <div class="panel">
                     <div class="panel-title">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -344,26 +411,20 @@ $customMilestones = $existingMilestonesCollection->where('es_base', 0)->values()
                     </div>
                     <div class="panel-body">
                         @if(isset($tiposDocumentos) && $tiposDocumentos->count())
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div class="grid grid-cols-1 gap-2">
                                 @foreach($tiposDocumentos as $td)
                                     <label class="flex items-center gap-2 p-2 rounded-lg border border-gray-200 hover:border-blue-300 transition cursor-pointer">
                                         <input type="checkbox" name="documentos_requeridos[]" value="{{ $td->id_tipo_doc }}" class="w-4 h-4 accent-blue-700"
                                             {{ in_array($td->id_tipo_doc, old('documentos_requeridos', $requisitosActuales ?? []), false) ? 'checked' : '' }}>
-                                        <span class="text-sm text-gray-700">{{ $td->nombre_documento }}</span>
+                                        <span class="text-xs text-gray-700">{{ $td->nombre_documento }}</span>
                                     </label>
                                 @endforeach
                             </div>
-                            <p class="text-xs text-gray-400 mt-3">Puedes marcar o desmarcar documentos y guardar cambios.</p>
                         @else
-                            <p class="text-sm text-gray-500">No hay tipos de documento disponibles en catálogo.</p>
+                            <p class="text-xs text-gray-500">Sin documentos configurados.</p>
                         @endif
                     </div>
                 </div>
-
-            </div>
-
-            {{-- COLUMNA DERECHA --}}
-            <div class="xl:col-span-1 flex flex-col gap-6">
 
                 {{-- Panel: Imagen --}}
                 <div class="panel">
@@ -455,34 +516,147 @@ $customMilestones = $existingMilestonesCollection->where('es_base', 0)->values()
 
             const idx = hitoIndexCounter++;
             const row = document.createElement('div');
-            row.className = 'rounded-xl border border-slate-200 p-3 bg-white grid grid-cols-1 sm:grid-cols-3 gap-3';
+            row.className = 'rounded-xl border border-slate-200 p-3 bg-white grid grid-cols-1 sm:grid-cols-2 gap-3';
             row.innerHTML = `
                 <input type="hidden" name="hitos[${idx}][incluir]" value="1">
                 <input type="hidden" name="hitos[${idx}][es_base]" value="0">
-                <div class="sm:col-span-3 flex items-center justify-between gap-2">
+                <div class="sm:col-span-2 flex items-center justify-between gap-2">
                     <label class="field-label !mb-0">Hito adicional</label>
                     <button type="button" class="text-xs font-bold text-red-600 hover:text-red-700" data-remove-hito="1">Eliminar</button>
                 </div>
-                <div class="sm:col-span-3">
+                <div class="sm:col-span-2">
                     <input type="text" name="hitos[${idx}][titulo]" class="field-input" placeholder="Nombre del hito" required>
                 </div>
-                <div>
-                    <label class="field-label">Inicio</label>
-                    <input type="date" name="hitos[${idx}][fecha_inicio]" class="field-input hito-fecha-inicio">
+                <div class="sm:col-span-1">
+                    <div class="space-y-2">
+                        <div>
+                            <label class="field-label">Fecha de inicio</label>
+                            <input type="date" name="hitos[${idx}][fecha_inicio]" class="field-input hito-fecha-inicio">
+                        </div>
+                        <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600">
+                            <input type="checkbox" name="hitos[${idx}][tiene_fin]" value="1" class="hito-toggle-fin w-4 h-4 accent-blue-700">
+                            Tiene fecha fin
+                        </label>
+                        <div>
+                            <label class="field-label">Fecha de fin</label>
+                            <input type="date" name="hitos[${idx}][fecha_fin]" class="field-input hito-fecha-fin" disabled>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <input type="hidden" name="hitos[${idx}][tiene_fin]" value="0">
-                    <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 mb-2">
-                        <input type="checkbox" name="hitos[${idx}][tiene_fin]" value="1" class="hito-toggle-fin w-4 h-4 accent-blue-700">
-                        Tiene fecha fin
-                    </label>
-                    <label class="field-label">Fin</label>
-                    <input type="date" name="hitos[${idx}][fecha_fin]" class="field-input hito-fecha-fin" disabled>
-                </div>
-                <div class="flex items-end text-xs text-slate-500 font-semibold">Personalizado</div>
             `;
             hitosCustomGrid.appendChild(row);
             initHitoRow(row);
+            sortCustomMilestonesByStartDate();
+        }
+
+        function parseISODate(value) {
+            if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+            const [y, m, d] = value.split('-').map(Number);
+            return new Date(y, m - 1, d);
+        }
+
+        function getRowStartDate(row) {
+            const startInput = row.querySelector('input[name*="[fecha_inicio]"]');
+            return startInput ? parseISODate(startInput.value) : null;
+        }
+
+        function sortCustomMilestonesByStartDate() {
+            if (!hitosCustomGrid) return;
+            const rows = Array.from(hitosCustomGrid.querySelectorAll(':scope > .rounded-xl'));
+            rows.sort((a, b) => {
+                const aDate = getRowStartDate(a);
+                const bDate = getRowStartDate(b);
+
+                if (aDate && bDate) return aDate - bDate;
+                if (aDate && !bDate) return -1;
+                if (!aDate && bDate) return 1;
+                return 0;
+            });
+
+            rows.forEach((row) => hitosCustomGrid.appendChild(row));
+        }
+
+        function collectIncludedMilestoneRows() {
+            return Array.from(document.querySelectorAll('#hitos-base-grid > .rounded-xl, #hitos-custom-grid > .rounded-xl'))
+                .filter((row) => {
+                    const mandatory = row.dataset.mandatoryBase === '1';
+                    if (mandatory) return true;
+
+                    const includeToggle = row.querySelector('.hito-toggle-incluir');
+                    return !includeToggle || includeToggle.checked;
+                });
+        }
+
+        function validatePlatformDateRange() {
+            const fechaInicioInput = document.getElementById('fechaInicio');
+            const fechafinInput = document.getElementById('fechafin');
+            const inicio = convertDate(fechaInicioInput.value);
+            const fin = convertDate(fechafinInput.value);
+
+            if (!inicio || !fin) {
+                alert('La fecha de inicio y fin del apoyo en plataforma son obligatorias.');
+                return false;
+            }
+
+            if (inicio > fin) {
+                alert('La fecha de inicio del apoyo no puede ser posterior a la fecha de cierre.');
+                return false;
+            }
+
+            return { inicio, fin };
+        }
+
+        function validateMilestonesConsistency(platformRange) {
+            const rows = collectIncludedMilestoneRows();
+            const milestonesWithStart = [];
+
+            for (const row of rows) {
+                const titleInput = row.querySelector('input[name*="[titulo]"]');
+                const startInput = row.querySelector('input[name*="[fecha_inicio]"]');
+                const endInput = row.querySelector('input[name*="[fecha_fin]"]');
+                const title = titleInput?.value?.trim() || 'Hito';
+                const start = startInput?.value || '';
+                const end = endInput?.value || '';
+
+                if (end && !start) {
+                    alert(`El hito "${title}" tiene fecha de fin pero no fecha de inicio.`);
+                    return false;
+                }
+
+                if (start && end && end < start) {
+                    alert(`La fecha de fin del hito "${title}" no puede ser menor a su inicio.`);
+                    return false;
+                }
+
+                if (start) {
+                    milestonesWithStart.push({ title, start, end });
+
+                    if (start < platformRange.inicio) {
+                        alert(`El inicio del hito "${title}" no puede ser antes del inicio del apoyo en plataforma.`);
+                        return false;
+                    }
+
+                    if (start > platformRange.fin) {
+                        alert(`El inicio del hito "${title}" no puede ser después del cierre del apoyo en plataforma.`);
+                        return false;
+                    }
+                }
+
+                if (end && end > platformRange.fin) {
+                    alert(`El fin del hito "${title}" no puede ser después del cierre del apoyo en plataforma.`);
+                    return false;
+                }
+            }
+
+            milestonesWithStart.sort((a, b) => a.start.localeCompare(b.start));
+            for (let i = 1; i < milestonesWithStart.length; i++) {
+                if (milestonesWithStart[i].start < milestonesWithStart[i - 1].start) {
+                    alert('Los hitos deben estar ordenados por fecha de inicio.');
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         function syncHitoDateRange(row) {
@@ -516,6 +690,10 @@ $customMilestones = $existingMilestonesCollection->where('es_base', 0)->values()
             const includeToggle = row.querySelector('.hito-toggle-incluir');
             if (!includeToggle) return;
 
+            if (row.dataset.mandatoryBase === '1') {
+                includeToggle.checked = true;
+            }
+
             const content = row.querySelectorAll('[data-hito-content="1"] input, [data-hito-content="1"] select, [data-hito-content="1"] textarea, [data-hito-content="1"] .hito-fecha-fin');
             row.classList.toggle('opacity-60', !includeToggle.checked);
 
@@ -537,10 +715,19 @@ $customMilestones = $existingMilestonesCollection->where('es_base', 0)->values()
             const endInput = row.querySelector('.hito-fecha-fin');
             const finToggle = row.querySelector('.hito-toggle-fin');
             const includeToggle = row.querySelector('.hito-toggle-incluir');
+            const includeCheckbox = row.querySelector('[data-hito-incluir-cb]');
+            const includeHidden = row.querySelector('.hito-incluir-hidden');
+
+            if (row.dataset.mandatoryBase === '1' && finToggle) {
+                finToggle.checked = false;
+            }
 
             if (startInput) {
                 startInput.classList.add('hito-fecha-inicio');
-                startInput.addEventListener('change', () => syncHitoDateRange(row));
+                startInput.addEventListener('change', () => {
+                    syncHitoDateRange(row);
+                    sortCustomMilestonesByStartDate();
+                });
             }
 
             if (endInput) {
@@ -556,6 +743,16 @@ $customMilestones = $existingMilestonesCollection->where('es_base', 0)->values()
 
             if (includeToggle) {
                 includeToggle.addEventListener('change', () => syncHitoIncludeToggle(row));
+            }
+
+            // Sincronizar checkbox con campo hidden
+            if (includeCheckbox && includeHidden) {
+                includeCheckbox.addEventListener('change', () => {
+                    includeHidden.value = includeCheckbox.checked ? '1' : '0';
+                    syncHitoIncludeToggle(row);
+                });
+                // Establecer el valor inicial
+                includeHidden.value = includeCheckbox.checked ? '1' : '0';
             }
 
             syncHitoFinToggle(row);
@@ -640,8 +837,19 @@ $customMilestones = $existingMilestonesCollection->where('es_base', 0)->values()
                 return dateStr;
             };
             
-            fechaInicioInput.value = convertDate(fechaInicioInput.value);
-            fechafinInput.value = convertDate(fechafinInput.value);
+            const platformRange = validatePlatformDateRange();
+            if (!platformRange) {
+                return;
+            }
+
+            sortCustomMilestonesByStartDate();
+
+            if (!validateMilestonesConsistency(platformRange)) {
+                return;
+            }
+
+            fechaInicioInput.value = platformRange.inicio;
+            fechafinInput.value = platformRange.fin;
 
             const btn = form.querySelector('[type="submit"]');
             const originalText = btn.textContent;

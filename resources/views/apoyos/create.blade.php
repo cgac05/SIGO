@@ -208,13 +208,12 @@
         <input type="hidden" name="stock_aprobado_por" id="stock-aprobado-por">
 
         {{-- ═══════════════════════════════════════════════════════
-             GRID PRINCIPAL: izquierda (2 col) | derecha (1 col)
+             GRID PRINCIPAL: izquierda (1 col) | derecha (1 col)
         ═══════════════════════════════════════════════════════ --}}
-        <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6
-                    grid grid-cols-1 xl:grid-cols-3 gap-6 pb-24">
+        <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem;">
 
-            {{-- ─── COLUMNA IZQUIERDA (span 2) ─── --}}
-            <div class="xl:col-span-2 flex flex-col gap-6">
+            {{-- ─── COLUMNA IZQUIERDA ─── --}}
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
 
                 {{-- Panel: Identificación --}}
                 <div class="panel">
@@ -224,47 +223,63 @@
                         </svg>
                         Identificación del programa
                     </div>
-                    <div class="panel-body grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div class="sm:col-span-2">
-                            <label class="field-label" for="nombre_apoyo">Nombre del apoyo <span class="req">*</span></label>
-                            <input id="nombre_apoyo" name="nombre_apoyo" type="text"
-                                   class="field-input" placeholder="Ej. Beca de emprendimiento juvenil"
-                                   required maxlength="100" value="{{ old('nombre_apoyo') }}">
-                            <div class="text-xs text-right text-gray-400 mt-1">
-                                <span id="nombre-count">0</span>/100
+                    <div class="panel-body space-y-6">
+                        {{-- Sección 1: Información básica --}}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="sm:col-span-2">
+                                <label class="field-label" for="nombre_apoyo">Nombre del apoyo <span class="req">*</span></label>
+                                <input id="nombre_apoyo" name="nombre_apoyo" type="text"
+                                       class="field-input" placeholder="Ej. Beca de emprendimiento juvenil"
+                                       required maxlength="100" value="{{ old('nombre_apoyo') }}">
+                                <div class="text-xs text-right text-gray-400 mt-1">
+                                    <span id="nombre-count">0</span>/100
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="field-label" for="tipo_apoyo">Tipo de apoyo <span class="req">*</span></label>
+                                <select id="tipo_apoyo" name="tipo_apoyo" class="field-input" required>
+                                    <option value="Económico" {{ old('tipo_apoyo') === 'Económico' ? 'selected' : '' }}>💰 Económico</option>
+                                    <option value="Especie"   {{ old('tipo_apoyo') === 'Especie'   ? 'selected' : '' }}>📦 Especie (material)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="field-label" for="anio_fiscal">Año fiscal</label>
+                                <input id="anio_fiscal" name="anio_fiscal" type="number"
+                                       class="field-input" value="{{ old('anio_fiscal', date('Y')) }}"
+                                       min="2020" max="2099">
                             </div>
                         </div>
 
+                        {{-- Separador visual --}}
+                        <div class="border-t border-dashed border-gray-200"></div>
+
+                        {{-- Sección 2: Período de vigencia --}}
                         <div>
-                            <label class="field-label" for="tipo_apoyo">Tipo de apoyo <span class="req">*</span></label>
-                            <select id="tipo_apoyo" name="tipo_apoyo" class="field-input" required>
-                                <option value="Económico" {{ old('tipo_apoyo') === 'Económico' ? 'selected' : '' }}>💰 Económico</option>
-                                <option value="Especie"   {{ old('tipo_apoyo') === 'Especie'   ? 'selected' : '' }}>📦 Especie (material)</option>
-                            </select>
+                            <p class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">Período de vigencia</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="field-label" for="fechaInicio">Fecha de inicio <span class="req">*</span></label>
+                                    <input id="fechaInicio" name="fechaInicio" type="text"
+                                           class="field-input flatpickr" placeholder="dd/mm/aaaa"
+                                           required value="{{ old('fechaInicio') }}">
+                                </div>
+
+                                <div>
+                                    <label class="field-label" for="fechafin">Fecha de cierre <span class="req">*</span></label>
+                                    <input id="fechafin" name="fechafin" type="text"
+                                           class="field-input flatpickr" placeholder="dd/mm/aaaa"
+                                           required value="{{ old('fechafin') }}">
+                                </div>
+                            </div>
                         </div>
 
-                        <div>
-                            <label class="field-label" for="anio_fiscal">Año fiscal</label>
-                            <input id="anio_fiscal" name="anio_fiscal" type="number"
-                                   class="field-input" value="{{ old('anio_fiscal', date('Y')) }}"
-                                   min="2020" max="2099">
-                        </div>
+                        {{-- Separador visual --}}
+                        <div class="border-t border-dashed border-gray-200"></div>
 
-                        <div>
-                            <label class="field-label" for="fechaInicio">Fecha de inicio <span class="req">*</span></label>
-                            <input id="fechaInicio" name="fechaInicio" type="text"
-                                   class="field-input flatpickr" placeholder="dd/mm/aaaa"
-                                   required value="{{ old('fechaInicio') }}">
-                        </div>
-
-                        <div>
-                            <label class="field-label" for="fechafin">Fecha de cierre <span class="req">*</span></label>
-                            <input id="fechafin" name="fechafin" type="text"
-                                   class="field-input flatpickr" placeholder="dd/mm/aaaa"
-                                   required value="{{ old('fechafin') }}">
-                        </div>
-
-                        <div class="sm:col-span-2 flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                        {{-- Sección 3: Estado --}}
+                        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
                             <input type="hidden" name="activo" value="0">
                             <input id="activo" name="activo" value="1" type="checkbox"
                                    class="w-4 h-4 accent-blue-700 cursor-pointer"
@@ -284,56 +299,71 @@
                         </svg>
                         <span id="panel-fin-title">Financiamiento</span>
                     </div>
-                    <div class="panel-body grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="panel-body space-y-6">
 
-                        {{-- Monto máximo (siempre visible) --}}
+                        {{-- Sección 1: Alcance (común a todos los tipos) --}}
                         <div>
-                            <label class="field-label" for="monto_maximo" id="lbl-monto-maximo">
-                                Monto máximo por beneficiario <span class="req">*</span>
-                            </label>
-                            <div class="prefix-wrap">
-                                <span class="prefix">$</span>
-                                <input id="monto_maximo" name="monto_maximo" type="number"
-                                       class="field-input" step="0.01" min="0" placeholder="0.00"
-                                       value="{{ old('monto_maximo') }}">
+                            <p class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3">Alcance y capacidad</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="field-label" for="monto_maximo" id="lbl-monto-maximo">
+                                        Monto máximo por beneficiario <span class="req">*</span>
+                                    </label>
+                                    <div class="prefix-wrap">
+                                        <span class="prefix">$</span>
+                                        <input id="monto_maximo" name="monto_maximo" type="number"
+                                               class="field-input" step="0.01" min="0" placeholder="0.00"
+                                               value="{{ old('monto_maximo') }}">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="field-label" for="cupo_limite">
+                                        Cupo máximo de beneficiarios <span class="req" id="req-cupo">*</span>
+                                    </label>
+                                    <input id="cupo_limite" name="cupo_limite" type="number"
+                                           class="field-input" min="1" step="1" placeholder="Ej. 100"
+                                           value="{{ old('cupo_limite') }}">
+                                </div>
                             </div>
                         </div>
 
-                        {{-- Cupo máximo (siempre visible) --}}
+                        {{-- Separador visual --}}
+                        <div class="border-t border-dashed border-gray-200"></div>
+
+                        {{-- Sección 2: Presupuesto (condicional por tipo) --}}
                         <div>
-                            <label class="field-label" for="cupo_limite">
-                                Cupo máximo de beneficiarios <span class="req" id="req-cupo">*</span>
-                            </label>
-                            <input id="cupo_limite" name="cupo_limite" type="number"
-                                   class="field-input" min="1" step="1" placeholder="Ej. 100"
-                                   value="{{ old('cupo_limite') }}">
-                        </div>
-
-                        {{-- Monto inicial asignado — solo Económico --}}
-                        <div id="section-economico">
-                            <label class="field-label" for="monto_inicial_asignado">
-                                Presupuesto total asignado <span class="req">*</span>
-                            </label>
-                            <div class="prefix-wrap">
-                                <span class="prefix">$</span>
-                                <input id="monto_inicial_asignado" name="monto_inicial_asignado" type="number"
-                                       class="field-input" step="0.01" min="0" placeholder="0.00"
-                                       value="{{ old('monto_inicial_asignado') }}">
+                            <p class="text-xs font-bold text-gray-600 uppercase tracking-wider mb-3" id="lbl-presupuesto-seccion">Presupuesto</p>
+                            
+                            {{-- Solo Económico --}}
+                            <div id="section-economico">
+                                <div>
+                                    <label class="field-label" for="monto_inicial_asignado">
+                                        Presupuesto total asignado <span class="req">*</span>
+                                    </label>
+                                    <div class="prefix-wrap">
+                                        <span class="prefix">$</span>
+                                        <input id="monto_inicial_asignado" name="monto_inicial_asignado" type="number"
+                                               class="field-input" step="0.01" min="0" placeholder="0.00"
+                                               value="{{ old('monto_inicial_asignado') }}">
+                                    </div>
+                                    <p id="lbl-cobertura" class="text-xs text-gray-400 mt-1">
+                                        Cobertura estimada: —
+                                    </p>
+                                </div>
                             </div>
-                            <p id="lbl-cobertura" class="text-xs text-gray-400 mt-1">
-                                Cobertura estimada: —
-                            </p>
-                        </div>
 
-                        {{-- Stock inicial — solo Especie --}}
-                        <div id="section-especie" class="hidden">
-                            <label class="field-label" for="stock_inicial">
-                                Stock inicial (unidades) <span class="req">*</span>
-                            </label>
-                            <input id="stock_inicial" name="stock_inicial" type="number"
-                                   class="field-input" min="0" step="1" placeholder="Ej. 200"
-                                   value="{{ old('stock_inicial') }}">
-                            <p class="text-xs text-gray-400 mt-1" id="lbl-deficit-info"></p>
+                            {{-- Solo Especie --}}
+                            <div id="section-especie" class="hidden space-y-4">
+                                <div>
+                                    <label class="field-label" for="stock_inicial">
+                                        Stock inicial (unidades) <span class="req">*</span>
+                                    </label>
+                                    <input id="stock_inicial" name="stock_inicial" type="number"
+                                           class="field-input" min="0" step="1" placeholder="Ej. 200"
+                                           value="{{ old('stock_inicial') }}">
+                                    <p class="text-xs text-gray-400 mt-1" id="lbl-deficit-info"></p>
+                                </div>
 
                             {{-- Alerta de inventario insuficiente --}}
                             <div id="inv-alert">
@@ -395,35 +425,53 @@
 
                         <div id="hitos-base-grid" class="space-y-3">
                             @foreach(($milestonesBase ?? []) as $i => $hito)
-                                <div class="rounded-xl border border-slate-200 p-3 bg-slate-50 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                @php($isMandatoryBase = in_array($hito['slug'], ['inicio_publicacion', 'proceso_cerrado'], true))
+                                @php($tienePeriodo = !empty($hito['tiene_periodo']) && $hito['tiene_periodo'] === true)
+                                <div class="rounded-xl border border-slate-200 p-3 bg-slate-50 grid grid-cols-1 sm:grid-cols-2 gap-3" data-mandatory-base="{{ $isMandatoryBase ? '1' : '0' }}">
                                     <input type="hidden" name="hitos[{{ $i }}][slug]" value="{{ $hito['slug'] }}">
                                     <input type="hidden" name="hitos[{{ $i }}][es_base]" value="1">
-                                    <input type="hidden" name="hitos[{{ $i }}][incluir]" value="0">
-                                    <div class="sm:col-span-3 flex items-center justify-between gap-2">
-                                        <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600">
-                                            <input type="checkbox" name="hitos[{{ $i }}][incluir]" value="1" class="hito-toggle-incluir w-4 h-4 accent-blue-700" {{ old('hitos.' . $i . '.incluir', '1') == '1' ? 'checked' : '' }}>
-                                            Incluir hito
-                                        </label>
-                                        <span class="text-xs text-slate-500 font-semibold">Base</span>
-                                    </div>
-                                    <div class="sm:col-span-3" data-hito-content="1">
-                                        <label class="field-label">Hito</label>
+                                    @if($isMandatoryBase)
+                                        <input type="hidden" name="hitos[{{ $i }}][incluir]" value="1" class="hito-incluir-hidden">
+                                    @else
+                                        <input type="hidden" name="hitos[{{ $i }}][incluir]" value="1" class="hito-incluir-hidden">
+                                    @endif
+                                    <div class="sm:col-span-2" data-hito-content="1">
+                                        <div class="flex items-center justify-between gap-3 mb-2">
+                                            <label class="field-label !mb-0">Hito</label>
+                                            <div class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600">
+                                                @if($isMandatoryBase)
+                                                    <input type="checkbox" class="w-4 h-4 accent-blue-700" checked disabled>
+                                                    <span>Obligatorio en plataforma</span>
+                                                @else
+                                                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                                                        <input type="checkbox" data-hito-incluir-cb value="1" class="hito-toggle-incluir w-4 h-4 accent-blue-700" {{ old('hitos.' . $i . '.incluir', '1') == '1' ? 'checked' : '' }}>
+                                                        <span>Incluir hito</span>
+                                                    </label>
+                                                @endif
+                                            </div>
+                                        </div>
                                         <input type="text" name="hitos[{{ $i }}][titulo]" class="field-input" value="{{ old('hitos.' . $i . '.titulo', $hito['titulo']) }}" required>
                                     </div>
-                                    <div data-hito-content="1">
-                                        <label class="field-label">Inicio</label>
-                                        <input type="date" name="hitos[{{ $i }}][fecha_inicio]" class="field-input" value="{{ old('hitos.' . $i . '.fecha_inicio') }}">
-                                    </div>
-                                    <div data-hito-content="1">
-                                        <input type="hidden" name="hitos[{{ $i }}][tiene_fin]" value="0">
-                                        <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 mb-2">
-                                            <input type="checkbox" name="hitos[{{ $i }}][tiene_fin]" value="1" class="hito-toggle-fin w-4 h-4 accent-blue-700" {{ old('hitos.' . $i . '.fecha_fin') ? 'checked' : '' }}>
-                                            Tiene fecha fin
-                                        </label>
-                                        <label class="field-label">Fin</label>
-                                        <input type="date" name="hitos[{{ $i }}][fecha_fin]" class="field-input hito-fecha-fin" value="{{ old('hitos.' . $i . '.fecha_fin') }}">
-                                    </div>
-                                    <div class="flex items-end text-xs text-slate-500 font-semibold" data-hito-content="1">Editable</div>
+                                    
+                                    {{-- Hito puntual (solo inicio) --}}
+                                    @if(!$tienePeriodo)
+                                        <div class="sm:col-span-1" data-hito-content="1">
+                                            <label class="field-label">Fecha de inicio</label>
+                                            <input type="date" name="hitos[{{ $i }}][fecha_inicio]" class="field-input" value="{{ old('hitos.' . $i . '.fecha_inicio') }}">
+                                        </div>
+                                    {{-- Hito con período (inicio y fin PARALELOS) --}}
+                                    @else
+                                        <div class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3" data-hito-content="1">
+                                            <div>
+                                                <label class="field-label">Fecha de inicio</label>
+                                                <input type="date" name="hitos[{{ $i }}][fecha_inicio]" class="field-input hito-fecha-inicio" value="{{ old('hitos.' . $i . '.fecha_inicio') }}" required>
+                                            </div>
+                                            <div>
+                                                <label class="field-label">Fecha de fin</label>
+                                                <input type="date" name="hitos[{{ $i }}][fecha_fin]" class="field-input hito-fecha-fin" value="{{ old('hitos.' . $i . '.fecha_fin') }}" required>
+                                            </div>
+                                        </div>
+                                    @endif
                                 </div>
                             @endforeach
                         </div>
@@ -435,97 +483,10 @@
                     </div>
                 </div>
 
-                {{-- Panel: Documentos requeridos --}}
-                <div class="panel">
-                    <div class="panel-title">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
-                        </svg>
-                        Documentos requeridos al beneficiario
-                    </div>
-                    <div class="panel-body">
-                        <div class="mb-3 flex justify-end">
-                            <button type="button" id="btn-open-doc-modal" class="btn-secondary text-xs !py-2">
-                                + Agregar tipo de documento
-                            </button>
-                        </div>
-                        @if(isset($tiposDocumentos) && $tiposDocumentos->count())
-                            <div id="docs-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                @foreach($tiposDocumentos as $td)
-                                    <label class="doc-check">
-                                        <input type="checkbox" name="documentos_requeridos[]"
-                                               value="{{ $td->id_tipo_doc }}"
-                                               class="w-4 h-4 accent-blue-700">
-                                        <span>{{ $td->nombre_documento }}</span>
-                                        @if(isset($td->tipo_archivo_permitido))
-                                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 uppercase">{{ $td->tipo_archivo_permitido }}</span>
-                                        @endif
-                                    </label>
-                                @endforeach
-                            </div>
-                        @else
-                            <p id="docs-empty" class="text-sm text-gray-400 italic">
-                                No hay tipos de documento configurados. Puedes agregar tipos en el catálogo.
-                            </p>
-                            <div id="docs-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2" style="display:none"></div>
-                        @endif
-
-                        <div class="mt-5 border-t border-dashed border-gray-200 pt-4">
-                            <button type="button" id="btn-toggle-doc-admin" class="text-xs font-bold text-slate-700 hover:text-slate-900 underline underline-offset-2">
-                                Administrar catálogo de documentos
-                            </button>
-
-                            <div id="doc-admin-wrap" class="mt-3" style="display:none">
-                                <div class="overflow-x-auto border border-gray-200 rounded-xl">
-                                    <table class="min-w-full text-xs">
-                                        <thead class="bg-gray-50">
-                                            <tr>
-                                                <th class="text-left p-2 font-bold text-gray-600">Documento</th>
-                                                <th class="text-left p-2 font-bold text-gray-600">Tipo permitido</th>
-                                                <th class="text-left p-2 font-bold text-gray-600">Validar tipo</th>
-                                                <th class="text-left p-2 font-bold text-gray-600">Acción</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="doc-admin-body">
-                                            @if(isset($tiposDocumentos) && $tiposDocumentos->count())
-                                                @foreach($tiposDocumentos as $td)
-                                                    <tr data-doc-id="{{ $td->id_tipo_doc }}" class="border-t border-gray-100">
-                                                        <td class="p-2 font-semibold text-gray-700">{{ $td->nombre_documento }}</td>
-                                                        <td class="p-2">
-                                                            <select class="field-input !py-1.5 !text-xs doc-admin-tipo">
-                                                                @php($tipoActual = $td->tipo_archivo_permitido ?? 'pdf')
-                                                                <option value="pdf"   {{ $tipoActual === 'pdf' ? 'selected' : '' }}>PDF</option>
-                                                                <option value="image" {{ $tipoActual === 'image' ? 'selected' : '' }}>Imagen</option>
-                                                                <option value="word"  {{ $tipoActual === 'word' ? 'selected' : '' }}>Word</option>
-                                                                <option value="excel" {{ $tipoActual === 'excel' ? 'selected' : '' }}>Excel/CSV</option>
-                                                                <option value="zip"   {{ $tipoActual === 'zip' ? 'selected' : '' }}>ZIP/RAR/7Z</option>
-                                                                <option value="any"   {{ $tipoActual === 'any' ? 'selected' : '' }}>Cualquiera</option>
-                                                            </select>
-                                                        </td>
-                                                        <td class="p-2">
-                                                            <label class="inline-flex items-center gap-2">
-                                                                <input type="checkbox" class="w-4 h-4 accent-blue-700 doc-admin-validar" {{ (isset($td->validar_tipo_archivo) ? (int) $td->validar_tipo_archivo : 1) === 1 ? 'checked' : '' }}>
-                                                                <span class="text-gray-600">Activo</span>
-                                                            </label>
-                                                        </td>
-                                                        <td class="p-2">
-                                                            <button type="button" class="btn-secondary !py-1.5 !px-3 !text-xs doc-admin-save">Guardar</button>
-                                                        </td>
-                                                    </tr>
-                                                @endforeach
-                                            @endif
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
             </div>{{-- /columna izquierda --}}
 
             {{-- ─── COLUMNA DERECHA ─── --}}
-            <div class="xl:col-span-1 flex flex-col gap-6">
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
 
                 {{-- Panel: Imagen --}}
                 <div class="panel">
@@ -584,6 +545,93 @@
                         <div class="flex justify-between items-center">
                             <span class="text-gray-500 text-xs font-semibold uppercase tracking-wider">Vigencia</span>
                             <span id="res-vigencia" class="font-bold text-gray-800 text-right text-xs">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Panel: Documentos requeridos (EN COLUMNA DERECHA) --}}
+                <div class="panel">
+                    <div class="panel-title">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
+                        </svg>
+                        Documentos requeridos
+                    </div>
+                    <div class="panel-body">
+                        <div class="mb-3 flex justify-end">
+                            <button type="button" id="btn-open-doc-modal" class="btn-secondary text-xs !py-2">
+                                + Agregar
+                            </button>
+                        </div>
+                        @if(isset($tiposDocumentos) && $tiposDocumentos->count())
+                            <div id="docs-grid" class="grid grid-cols-1 gap-2">
+                                @foreach($tiposDocumentos as $td)
+                                    <label class="doc-check">
+                                        <input type="checkbox" name="documentos_requeridos[]"
+                                               value="{{ $td->id_tipo_doc }}"
+                                               class="w-4 h-4 accent-blue-700">
+                                        <span class="text-xs">{{ $td->nombre_documento }}</span>
+                                        @if(isset($td->tipo_archivo_permitido))
+                                            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 uppercase">{{ $td->tipo_archivo_permitido }}</span>
+                                        @endif
+                                    </label>
+                                @endforeach
+                            </div>
+                        @else
+                            <p id="docs-empty" class="text-xs text-gray-400 italic">
+                                Sin documentos configurados.
+                            </p>
+                            <div id="docs-grid" class="grid grid-cols-1 gap-2" style="display:none"></div>
+                        @endif
+
+                        <div class="mt-3 border-t border-dashed border-gray-200 pt-3">
+                            <button type="button" id="btn-toggle-doc-admin" class="text-xs font-bold text-slate-700 hover:text-slate-900 underline underline-offset-2">
+                                Administrar catálogo
+                            </button>
+
+                            <div id="doc-admin-wrap" class="mt-3" style="display:none">
+                                <div class="overflow-x-auto border border-gray-200 rounded-xl">
+                                    <table class="min-w-full text-xs">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th class="text-left p-2 font-bold text-gray-600">Documento</th>
+                                                <th class="text-left p-2 font-bold text-gray-600">Tipo permitido</th>
+                                                <th class="text-left p-2 font-bold text-gray-600">Validar tipo</th>
+                                                <th class="text-left p-2 font-bold text-gray-600">Acción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="doc-admin-body">
+                                            @if(isset($tiposDocumentos) && $tiposDocumentos->count())
+                                                @foreach($tiposDocumentos as $td)
+                                                    <tr data-doc-id="{{ $td->id_tipo_doc }}" class="border-t border-gray-100">
+                                                        <td class="p-2 font-semibold text-gray-700">{{ $td->nombre_documento }}</td>
+                                                        <td class="p-2">
+                                                            <select class="field-input !py-1.5 !text-xs doc-admin-tipo">
+                                                                @php($tipoActual = $td->tipo_archivo_permitido ?? 'pdf')
+                                                                <option value="pdf"   {{ $tipoActual === 'pdf' ? 'selected' : '' }}>PDF</option>
+                                                                <option value="image" {{ $tipoActual === 'image' ? 'selected' : '' }}>Imagen</option>
+                                                                <option value="word"  {{ $tipoActual === 'word' ? 'selected' : '' }}>Word</option>
+                                                                <option value="excel" {{ $tipoActual === 'excel' ? 'selected' : '' }}>Excel/CSV</option>
+                                                                <option value="zip"   {{ $tipoActual === 'zip' ? 'selected' : '' }}>ZIP/RAR/7Z</option>
+                                                                <option value="any"   {{ $tipoActual === 'any' ? 'selected' : '' }}>Cualquiera</option>
+                                                            </select>
+                                                        </td>
+                                                        <td class="p-2">
+                                                            <label class="inline-flex items-center gap-2">
+                                                                <input type="checkbox" class="w-4 h-4 accent-blue-700 doc-admin-validar" {{ (isset($td->validar_tipo_archivo) ? (int) $td->validar_tipo_archivo : 1) === 1 ? 'checked' : '' }}>
+                                                                <span class="text-gray-600">Activo</span>
+                                                            </label>
+                                                        </td>
+                                                        <td class="p-2">
+                                                            <button type="button" class="btn-secondary !py-1.5 !px-3 !text-xs doc-admin-save">Guardar</button>
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            @endif
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -857,31 +905,33 @@
 
             const idx = hitoIndexCounter++;
             const wrapper = document.createElement('div');
-            wrapper.className = 'rounded-xl border border-slate-200 p-3 bg-white grid grid-cols-1 sm:grid-cols-3 gap-3';
+            wrapper.className = 'rounded-xl border border-slate-200 p-3 bg-white grid grid-cols-1 sm:grid-cols-2 gap-3';
             wrapper.innerHTML = `
                 <input type="hidden" name="hitos[${idx}][incluir]" value="1">
                 <input type="hidden" name="hitos[${idx}][es_base]" value="0">
-                <div class="sm:col-span-3 flex items-center justify-between gap-2">
+                <div class="sm:col-span-2 flex items-center justify-between gap-2">
                     <label class="field-label !mb-0">Hito adicional</label>
                     <button type="button" class="text-xs font-bold text-red-600 hover:text-red-700" data-remove-hito="1">Eliminar</button>
                 </div>
-                <div class="sm:col-span-3">
+                <div class="sm:col-span-2">
                     <input type="text" name="hitos[${idx}][titulo]" class="field-input" placeholder="Nombre del hito" required>
                 </div>
-                <div>
-                    <label class="field-label">Inicio</label>
-                    <input type="date" name="hitos[${idx}][fecha_inicio]" class="field-input hito-fecha-inicio">
+                <div class="sm:col-span-1">
+                    <div class="space-y-2">
+                        <div>
+                            <label class="field-label">Fecha de inicio</label>
+                            <input type="date" name="hitos[${idx}][fecha_inicio]" class="field-input hito-fecha-inicio">
+                        </div>
+                        <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600">
+                            <input type="checkbox" name="hitos[${idx}][tiene_fin]" value="1" class="hito-toggle-fin w-4 h-4 accent-blue-700">
+                            Tiene fecha fin
+                        </label>
+                        <div>
+                            <label class="field-label">Fecha de fin</label>
+                            <input type="date" name="hitos[${idx}][fecha_fin]" class="field-input hito-fecha-fin" disabled>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <input type="hidden" name="hitos[${idx}][tiene_fin]" value="0">
-                    <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 mb-2">
-                        <input type="checkbox" name="hitos[${idx}][tiene_fin]" value="1" class="hito-toggle-fin w-4 h-4 accent-blue-700">
-                        Tiene fecha fin
-                    </label>
-                    <label class="field-label">Fin</label>
-                    <input type="date" name="hitos[${idx}][fecha_fin]" class="field-input hito-fecha-fin" disabled>
-                </div>
-                <div class="flex items-end text-xs text-slate-500 font-semibold">Personalizado</div>
             `;
 
             hitosCustomGrid.appendChild(wrapper);
@@ -919,6 +969,10 @@
             const includeToggle = row.querySelector('.hito-toggle-incluir');
             if (!includeToggle) return;
 
+            if (row.dataset.mandatoryBase === '1') {
+                includeToggle.checked = true;
+            }
+
             const content = row.querySelectorAll('[data-hito-content="1"] input, [data-hito-content="1"] select, [data-hito-content="1"] textarea, [data-hito-content="1"] .hito-fecha-fin');
             row.classList.toggle('opacity-60', !includeToggle.checked);
 
@@ -940,6 +994,12 @@
             const endInput = row.querySelector('.hito-fecha-fin');
             const finToggle = row.querySelector('.hito-toggle-fin');
             const includeToggle = row.querySelector('.hito-toggle-incluir');
+            const includeCheckbox = row.querySelector('[data-hito-incluir-cb]');
+            const includeHidden = row.querySelector('.hito-incluir-hidden');
+
+            if (row.dataset.mandatoryBase === '1' && finToggle) {
+                finToggle.checked = false;
+            }
 
             if (startInput) {
                 startInput.classList.add('hito-fecha-inicio');
@@ -959,6 +1019,16 @@
 
             if (includeToggle) {
                 includeToggle.addEventListener('change', () => syncHitoIncludeToggle(row));
+            }
+
+            // Sincronizar checkbox con campo hidden
+            if (includeCheckbox && includeHidden) {
+                includeCheckbox.addEventListener('change', () => {
+                    includeHidden.value = includeCheckbox.checked ? '1' : '0';
+                    syncHitoIncludeToggle(row);
+                });
+                // Establecer el valor inicial
+                includeHidden.value = includeCheckbox.checked ? '1' : '0';
             }
 
             syncHitoFinToggle(row);

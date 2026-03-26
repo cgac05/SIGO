@@ -5,6 +5,8 @@ use App\Http\Controllers\SolicitudProcesoController;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ApoyoController;
+use App\Http\Controllers\GoogleDriveController;
+use App\Http\Controllers\Auth\GoogleAuthController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -89,5 +91,18 @@ Route::middleware('auth')->group(function () {
 // Validación pública de solicitudes (sin autenticación)
 Route::match(['GET', 'POST'], '/validar', [SolicitudProcesoController::class, 'validarPublico'])
     ->name('solicitudes.publico.validar');
+
+// Google Authentication Routes
+Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
+Route::post('/logout', [GoogleAuthController::class, 'logout'])->middleware('auth')->name('logout');
+
+// Google Drive API Routes (Protegidas por autenticación)
+Route::middleware('auth')->group(function () {
+    Route::get('/api/google-drive/token', [GoogleDriveController::class, 'getToken'])->name('api.google-drive.token');
+    Route::post('/api/google-drive/upload', [GoogleDriveController::class, 'upload'])->name('api.google-drive.upload');
+    Route::get('/api/google-drive/files', [GoogleDriveController::class, 'list'])->name('api.google-drive.list');
+    Route::delete('/api/google-drive/file/{fileId}', [GoogleDriveController::class, 'destroy'])->name('api.google-drive.destroy');
+});
 
 require __DIR__.'/auth.php';
