@@ -33,5 +33,9 @@
                 {{ $slot }}
             </main>
         </div>
+
+        {{-- Modal cambio de contraseña obligatorio --}}
+        @include('components.modal-cambio-password')
+
     </body>
 </html>

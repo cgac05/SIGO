@@ -14,7 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'beneficiario.profile' => EnsureBeneficiarioProfileIsComplete::class,
+            'beneficiario.profile'   => EnsureBeneficiarioProfileIsComplete::class,
+            'forzar.cambio.password' => \App\Http\Middleware\ForzarCambioPassword::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CambioPasswordController;
 use App\Http\Controllers\PersonalController;
 use App\Http\Controllers\SolicitudController;
 use App\Http\Controllers\SolicitudProcesoController;
@@ -23,13 +24,15 @@ Route::get('/dashboard', function () {
     ]);
 })->middleware('auth')->name('dashboard');
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'forzar.cambio.password'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::get('/personal/crear',  [PersonalController::class, 'create'])->name('personal.crear');
     Route::post('/personal/crear', [PersonalController::class, 'store'])->name('personal.store');
+
+    Route::post('/password/forzar', [CambioPasswordController::class, 'update'])->name('password.forzar.update');
 });
 
 Route::get('/Registrar-Solicitud', function () {
@@ -44,7 +47,7 @@ Route::get('/apoyos/{id}/solicitud', [SolicitudController::class, 'create'])
     ->middleware(['auth', 'beneficiario.profile'])
     ->name('solicitud.create');
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'forzar.cambio.password'])->group(function () {
     Route::get('/apoyos',                  [ApoyoController::class, 'index'])->name('apoyos.index');
     Route::get('/apoyos/imagen/{path}',    [ApoyoController::class, 'image'])->where('path', '.*')->name('apoyos.image');
     Route::get('/apoyos/{id}/comentarios', [ApoyoController::class, 'comments'])->name('apoyos.comments');
