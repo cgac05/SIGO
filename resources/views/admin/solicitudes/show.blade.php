@@ -108,7 +108,7 @@
                             </div>
 
                             <!-- Verification Panel -->
-                            <div class="mt-4 pt-4 border-t border-slate-200" id="verify-form-{{ $documento->id_doc }}" style="display: {{ $documento->admin_status === 'pendiente' ? 'block' : 'none' }}">
+                            <div class="mt-4 pt-4 border-t border-slate-200" id="verify-form-{{ $documento->id_doc }}" style="display: {{ ($documento->admin_status === 'pendiente' || $documento->admin_status === null) ? 'block' : 'none' }}">
                                 <form class="space-y-3 verify-form" data-documento-id="{{ $documento->id_doc }}">
                                     @csrf
                                     
