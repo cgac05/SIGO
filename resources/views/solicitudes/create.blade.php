@@ -1,21 +1,35 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('apoyos.index', ['comentario_apoyo' => $apoyo->id_apoyo]) }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
-                    </svg>
-                </a>
-                <div>
-                    <h2 class="text-xl font-extrabold text-slate-900">Carga formal de documentos</h2>
-                    <p class="text-xs text-slate-500">{{ $apoyo->nombre_apoyo }}</p>
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Carga de Documentos - {{ config('app.name', 'SIGO') }}</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body class="font-sans antialiased">
+    <div class="min-h-screen bg-gray-100">
+        @include('layouts.navigation')
+
+        <header class="bg-white shadow">
+            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <a href="{{ route('apoyos.index', ['comentario_apoyo' => $apoyo->id_apoyo]) }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+                            </svg>
+                        </a>
+                        <div>
+                            <h2 class="text-xl font-extrabold text-slate-900">Carga formal de documentos</h2>
+                            <p class="text-xs text-slate-500">{{ $apoyo->nombre_apoyo }}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </x-slot>
+        </header>
 
-    <div class="max-w-4xl mx-auto px-4 py-6 space-y-5">
+        <main class="max-w-4xl mx-auto px-4 py-6 space-y-5">
         @if(session('error'))
             <div class="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">{{ session('error') }}</div>
         @endif
@@ -338,4 +352,7 @@
             window.setTimeout(initGoogleAPI, 1200);
         });
     </script>
-</x-app-layout>
+        </main>
+    </div>
+</body>
+</html>
