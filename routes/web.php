@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PersonalController;
 use App\Http\Controllers\SolicitudController;
 use App\Http\Controllers\SolicitudProcesoController;
 use App\Http\Controllers\NotificacionController;
@@ -26,6 +27,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    Route::get('/personal/crear',  [PersonalController::class, 'create'])->name('personal.crear');
+    Route::post('/personal/crear', [PersonalController::class, 'store'])->name('personal.store');
 });
 
 Route::get('/Registrar-Solicitud', function () {
