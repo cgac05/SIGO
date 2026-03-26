@@ -94,7 +94,7 @@ class Documento extends Model
      */
     public function isFromDrive(): bool
     {
-        return $this->origen_archivo === 'drive';
+        return $this->origen_archivo === 'drive' || $this->origen_archivo === 'google_drive';
     }
 
     /**
