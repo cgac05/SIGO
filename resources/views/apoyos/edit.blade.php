@@ -19,39 +19,53 @@ $baseMilestonesBySlug = $normalizedMilestones->where('es_base', 1)->keyBy('__slu
 $customMilestones = $normalizedMilestones->where('es_base', 0)->values();
 @endphp
 
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('apoyos.index') }}"
-                   class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition">
-                    <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
-                    </svg>
-                </a>
-                <div>
-                    <h2 class="font-extrabold text-xl text-gray-900 leading-tight">Editar Apoyo</h2>
-                    <p class="text-xs text-gray-500 mt-0.5">Modifica los detalles del programa de apoyo</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <span id="badge-tipo"
-                      class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold {{ $apoyo->tipo_apoyo === 'Económico' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800' }} ring-1 {{ $apoyo->tipo_apoyo === 'Económico' ? 'ring-amber-200' : 'ring-green-200' }}">
-                    {{ $apoyo->tipo_apoyo }}
-                </span>
-            </div>
-        </div>
-    </x-slot>
-
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Editar Apoyo - {{ config('app.name', 'SIGO') }}</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
+</head>
+<body class="font-sans antialiased">
+    <div class="min-h-screen bg-gray-100">
+        @include('layouts.navigation')
 
-    <style>
-        :root {
-            --navy: #0f2044;
-            --blue: #1a4a8a;
-            --light: #eef3fb;
-        }
+        <header class="bg-white shadow">
+            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <a href="{{ route('apoyos.index') }}"
+                           class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition">
+                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+                            </svg>
+                        </a>
+                        <div>
+                            <h2 class="font-extrabold text-xl text-gray-900 leading-tight">Editar Apoyo</h2>
+                            <p class="text-xs text-gray-500 mt-0.5">Modifica los detalles del programa de apoyo</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="badge-tipo"
+                              class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold {{ $apoyo->tipo_apoyo === 'Económico' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800' }} ring-1 {{ $apoyo->tipo_apoyo === 'Económico' ? 'ring-amber-200' : 'ring-green-200' }}">
+                            {{ $apoyo->tipo_apoyo }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <style>
+                :root {
+                    --navy: #0f2044;
+                    --blue: #1a4a8a;
+                    --light: #eef3fb;
+                }
         .panel {
             background: #fff;
             border: 1.5px solid #e2e8f0;
@@ -587,6 +601,16 @@ $customMilestones = $normalizedMilestones->where('es_base', 0)->values();
                 });
         }
 
+        // Función para convertir fechas de d/m/Y a Y-m-d
+        const convertDate = (dateStr) => {
+            if (!dateStr) return '';
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            return dateStr;
+        };
+
         function validatePlatformDateRange() {
             const fechaInicioInput = document.getElementById('fechaInicio');
             const fechafinInput = document.getElementById('fechafin');
@@ -615,8 +639,12 @@ $customMilestones = $normalizedMilestones->where('es_base', 0)->values();
                 const startInput = row.querySelector('input[name*="[fecha_inicio]"]');
                 const endInput = row.querySelector('input[name*="[fecha_fin]"]');
                 const title = titleInput?.value?.trim() || 'Hito';
-                const start = startInput?.value || '';
-                const end = endInput?.value || '';
+                const startRaw = startInput?.value || '';
+                const endRaw = endInput?.value || '';
+                
+                // Convertir fechas de hitos al formato Y-m-d para comparar correctamente
+                const start = convertDate(startRaw);
+                const end = convertDate(endRaw);
 
                 if (end && !start) {
                     alert(`El hito "${title}" tiene fecha de fin pero no fecha de inicio.`);
@@ -828,14 +856,6 @@ $customMilestones = $normalizedMilestones->where('es_base', 0)->values();
             const fechaInicioInput = document.getElementById('fechaInicio');
             const fechafinInput = document.getElementById('fechafin');
             
-            const convertDate = (dateStr) => {
-                if (!dateStr) return '';
-                const parts = dateStr.split('/');
-                if (parts.length === 3) {
-                    return `${parts[2]}-${parts[1]}-${parts[0]}`;
-                }
-                return dateStr;
-            };
             
             const platformRange = validatePlatformDateRange();
             if (!platformRange) {
@@ -890,4 +910,7 @@ $customMilestones = $normalizedMilestones->where('es_base', 0)->values();
             }
         });
     </script>
-</x-app-layout>
+        </main>
+    </div>
+</body>
+</html>

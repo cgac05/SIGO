@@ -3,27 +3,42 @@
     $canEditApoyo = $user && $user->personal && in_array((int) $user->personal->fk_rol, [1, 2], true);
 @endphp
 
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('apoyos.index') }}" class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
-                    </svg>
-                </a>
-                <div>
-                    <h2 class="text-xl font-extrabold text-slate-900">Detalle del apoyo</h2>
-                    <p class="text-xs text-slate-500">Vista informativa y comentarios publicos</p>
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Detalle del apoyo - {{ config('app.name', 'SIGO') }}</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body class="font-sans antialiased">
+    <div class="min-h-screen bg-gray-100">
+        @include('layouts.navigation')
+
+        <header class="bg-white shadow">
+            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <a href="{{ route('apoyos.index') }}" class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+                            </svg>
+                        </a>
+                        <div>
+                            <h2 class="text-xl font-extrabold text-slate-900">Detalle del apoyo</h2>
+                            <p class="text-xs text-slate-500">Vista informativa y comentarios publicos</p>
+                        </div>
+                    </div>
+                    @if($canEditApoyo)
+                        <a href="{{ route('apoyos.edit', $apoyo->id_apoyo) }}" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition">Editar apoyo</a>
+                    @endif
                 </div>
             </div>
-            @if($canEditApoyo)
-                <a href="{{ route('apoyos.edit', $apoyo->id_apoyo) }}" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition">Editar apoyo</a>
-            @endif
-        </div>
-    </x-slot>
+        </header>
 
-    <div class="min-h-screen bg-slate-100 py-6" x-data="apoyoCommentsApp()">
+        <main>
+            <div class="min-h-screen bg-slate-100 py-6" x-data="apoyoCommentsApp()">
         <script>
             window.apoyoCommentsBootstrap = {
                 apoyoId: {{ (int) $apoyo->id_apoyo }},
@@ -421,4 +436,8 @@
             };
         }
     </script>
-</x-app-layout>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

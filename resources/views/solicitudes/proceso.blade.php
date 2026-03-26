@@ -1,16 +1,31 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">Proceso de Cierre y Validacion</h2>
-            <div class="flex gap-2">
-                <a href="{{ route('solicitudes.padron.export', ['format' => 'csv']) }}" class="px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700">Exportar CSV</a>
-                <a href="{{ route('solicitudes.padron.export', ['format' => 'xls']) }}" class="px-3 py-2 rounded-lg text-sm font-semibold bg-sky-700 text-white hover:bg-sky-800">Exportar XLS</a>
-            </div>
-        </div>
-    </x-slot>
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Proceso de Cierre y Validación - {{ config('app.name', 'SIGO') }}</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body class="font-sans antialiased">
+    <div class="min-h-screen bg-gray-100">
+        @include('layouts.navigation')
 
-    <div class="py-10">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-4">
+        <header class="bg-white shadow">
+            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between">
+                    <h2 class="font-semibold text-xl text-gray-800 leading-tight">Proceso de Cierre y Validacion</h2>
+                    <div class="flex gap-2">
+                        <a href="{{ route('solicitudes.padron.export', ['format' => 'csv']) }}" class="px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700">Exportar CSV</a>
+                        <a href="{{ route('solicitudes.padron.export', ['format' => 'xls']) }}" class="px-3 py-2 rounded-lg text-sm font-semibold bg-sky-700 text-white hover:bg-sky-800">Exportar XLS</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="py-10">
+                <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-4">
             @if (session('status'))
                 <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800 text-sm">{{ session('status') }}</div>
             @endif
@@ -105,6 +120,9 @@
                     </div>
                 </div>
             @endforeach
-        </div>
+            </div>
+            </div>
+        </main>
     </div>
-</x-app-layout>
+</body>
+</html>

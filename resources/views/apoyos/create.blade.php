@@ -1,33 +1,46 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <a href="{{ route('apoyos.index') }}"
-                   class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition">
-                    <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
-                    </svg>
-                </a>
-                <div>
-                    <h2 class="font-extrabold text-xl text-gray-900 leading-tight">Nuevo Apoyo</h2>
-                    <p class="text-xs text-gray-500 mt-0.5">Completa todos los campos para registrar un programa de apoyo</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <span id="badge-tipo"
-                      class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 ring-1 ring-amber-200">
-                    Económico
-                </span>
-            </div>
-        </div>
-    </x-slot>
-
-    {{-- ── QUILL + FLATPICKR ─────────────────────────────────────── --}}
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Nuevo Apoyo - {{ config('app.name', 'SIGO') }}</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
+</head>
+<body class="font-sans antialiased">
+    <div class="min-h-screen bg-gray-100">
+        @include('layouts.navigation')
 
-    <style>
-        :root {
+        <header class="bg-white shadow">
+            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <a href="{{ route('apoyos.index') }}"
+                           class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition">
+                            <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+                            </svg>
+                        </a>
+                        <div>
+                            <h2 class="font-extrabold text-xl text-gray-900 leading-tight">Nuevo Apoyo</h2>
+                            <p class="text-xs text-gray-500 mt-0.5">Completa todos los campos para registrar un programa de apoyo</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="badge-tipo"
+                              class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 ring-1 ring-amber-200">
+                            Económico
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main>
+        <style>
+            :root {
             --navy: #0f2044;
             --blue: #1a4a8a;
             --light: #eef3fb;
@@ -1566,4 +1579,7 @@
 
     })();
     </script>
-</x-app-layout>
+        </main>
+    </div>
+</body>
+</html>
