@@ -8,12 +8,14 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ApoyoController;
 use App\Http\Controllers\GoogleDriveController;
 use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Models\Beneficiario;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 Route::get('/', function () {
-    return view('welcome');
+    $beneficiariosCount = Beneficiario::count();
+    return view('welcome', ['beneficiariosCount' => $beneficiariosCount]);
 });
 
 Route::get('/dashboard', function () {
