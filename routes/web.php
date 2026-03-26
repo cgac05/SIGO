@@ -44,6 +44,156 @@ Route::get('/apoyos/{id}/solicitud', [SolicitudController::class, 'create'])
     ->name('solicitud.create');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/apoyos-test', function() {
+        return view('apoyos.index-simple-test', [
+            'user' => auth()->user(),
+            'apoyos' => (new \App\Http\Controllers\ApoyoController())->getApoyosForDebug()
+        ]);
+    });
+    Route::get('/apoyos-direct', function() {
+        $controller = app()->make(\App\Http\Controllers\ApoyoController::class);
+        $user = auth()->user()->loadMissing(['personal', 'beneficiario']);
+        $isBeneficiario = $user->isBeneficiario();
+        
+        $apoyosQuery = \Illuminate\Support\Facades\DB::table('Apoyos')
+            ->select([
+                'id_apoyo',
+                'nombre_apoyo',
+                'tipo_apoyo',
+                'monto_maximo',
+                'activo',
+                'anio_fiscal',
+                'cupo_limite',
+                'fecha_inicio',
+                'fecha_fin',
+                'foto_ruta',
+                'descripcion',
+            ]);
+
+        if ($isBeneficiario) {
+            $hoy = \Illuminate\Support\Carbon::now()->toDateString();
+            $apoyosQuery
+                ->where('activo', 1)
+                ->where(function ($query) use ($hoy) {
+                    $query->whereNull('fecha_inicio')
+                        ->orWhereDate('fecha_inicio', '<=', $hoy);
+                })
+                ->where(function ($query) use ($hoy) {
+                    $query->whereNull('fecha_fin')
+                        ->orWhereDate('fecha_fin', '>=', $hoy);
+                });
+        }
+
+        $apoyos = $apoyosQuery->orderBy('id_apoyo', 'desc')->get();
+        
+        return view('apoyos.index-direct', compact('apoyos', 'user'));
+    });
+    Route::get('/apoyos-test-bare', function() {
+        $user = auth()->user()->loadMissing(['personal', 'beneficiario']);
+        $apoyosQuery = \Illuminate\Support\Facades\DB::table('Apoyos')
+            ->select([
+                'id_apoyo',
+                'nombre_apoyo',
+                'tipo_apoyo',
+                'monto_maximo',
+                'activo',
+                'anio_fiscal',
+                'cupo_limite',
+                'fecha_inicio',
+                'fecha_fin',
+                'foto_ruta',
+                'descripcion',
+            ])
+            ->where('activo', 1)
+            ->orderBy('id_apoyo', 'desc')
+            ->get();
+        
+        return view('apoyos.index-test-direct', compact('apoyos', 'user'));
+    });
+    Route::get('/apoyos-no-component', function() {
+        // Llama al controller index pero con vista alternativa
+        $controller = app()->make(\App\Http\Controllers\ApoyoController::class);
+        $user = auth()->user()->loadMissing(['personal', 'beneficiario']);
+        $isBeneficiario = $user->isBeneficiario();
+
+        $apoyosQuery = \Illuminate\Support\Facades\DB::table('Apoyos')
+            ->select([
+                'id_apoyo',
+                'nombre_apoyo',
+                'tipo_apoyo',
+                'monto_maximo',
+                'activo',
+                'anio_fiscal',
+                'cupo_limite',
+                'fecha_inicio',
+                'fecha_fin',
+                'foto_ruta',
+                'descripcion',
+            ]);
+
+        if ($isBeneficiario) {
+            $hoy = \Carbon\Carbon::now()->toDateString();
+            $apoyosQuery
+                ->where('activo', 1)
+                ->where(function ($query) use ($hoy) {
+                    $query->whereNull('fecha_inicio')
+                        ->orWhereDate('fecha_inicio', '<=', $hoy);
+                })
+                ->where(function ($query) use ($hoy) {
+                    $query->whereNull('fecha_fin')
+                        ->orWhereDate('fecha_fin', '>=', $hoy);
+                });
+        }
+
+        $apoyos = $apoyosQuery->orderBy('id_apoyo', 'desc')->get();
+        
+        return view('apoyos.index-no-component', compact('apoyos', 'user'));
+    });
+    Route::get('/apoyos-logs', function() {
+        $logFile = storage_path('logs/laravel.log');
+        if (!file_exists($logFile)) {
+            return response('No log file found', 404);
+        }
+        $content = file_get_contents($logFile);
+        $lines = array_slice(explode("\n", $content), -100);
+        $logs = implode("\n", $lines);
+        return '<pre style="white-space: pre-wrap; word-wrap: break-word; background: #f5f5f5; padding: 15px; overflow: auto; font-size: 12px;">' . htmlspecialchars($logs) . '</pre>';
+    });
+    Route::get('/apoyos-component-removed', function() {
+        // Same logic as ApoyoController index() but returns view without component
+        $user = auth()->user()->loadMissing(['personal', 'beneficiario']);
+        $isBeneficiario = $user->isBeneficiario();
+
+        $apoyosQuery = \Illuminate\Support\Facades\DB::table('Apoyos')
+            ->select([
+                'id_apoyo', 'nombre_apoyo', 'tipo_apoyo', 'monto_maximo', 'activo',
+                'anio_fiscal', 'cupo_limite', 'fecha_inicio', 'fecha_fin', 'foto_ruta', 'descripcion',
+            ]);
+
+        if ($isBeneficiario) {
+            $hoy = \Carbon\Carbon::now()->toDateString();
+            $apoyosQuery
+                ->where('activo', 1)
+                ->where(function ($query) use ($hoy) {
+                    $query->whereNull('fecha_inicio')->orWhereDate('fecha_inicio', '<=', $hoy);
+                })
+                ->where(function ($query) use ($hoy) {
+                    $query->whereNull('fecha_fin')->orWhereDate('fecha_fin', '>=', $hoy);
+                });
+        }
+
+        $apoyos = $apoyosQuery->orderBy('id_apoyo', 'desc')->get();
+
+        $tiposDocumentos = \Illuminate\Support\Facades\DB::table('Cat_TiposDocumento')
+            ->select('id_tipo_doc', 'nombre_documento')
+            ->orderBy('nombre_documento')
+            ->get();
+
+        $misSolicitudes = collect();
+        $solicitudesRecientes = collect();
+
+        return view('apoyos.index-component-removed', compact('apoyos', 'tiposDocumentos', 'user', 'misSolicitudes', 'solicitudesRecientes'));
+    });
     Route::get('/apoyos',                  [ApoyoController::class, 'index'])->name('apoyos.index');
     Route::get('/apoyos/imagen/{path}',    [ApoyoController::class, 'image'])->where('path', '.*')->name('apoyos.image');
     Route::get('/apoyos/{id}/comentarios', [ApoyoController::class, 'comments'])->name('apoyos.comments');

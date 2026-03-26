@@ -350,6 +350,14 @@ class ApoyoController extends Controller
         abort_unless($isManager, 403, 'No cuentas con permisos para gestionar apoyos.');
     }
 
+    public function getApoyosForDebug()
+    {
+        return DB::table('Apoyos')
+            ->select('id_apoyo', 'nombre_apoyo', 'tipo_apoyo', 'fecha_inicio', 'fecha_fin')
+            ->limit(10)
+            ->get();
+    }
+
     public function index()
     {
         $user = Auth::user()->loadMissing(['personal', 'beneficiario']);
@@ -364,8 +372,8 @@ class ApoyoController extends Controller
                 'activo',
                 'anio_fiscal',
                 'cupo_limite',
-                'fecha_inicio as fechaInicio',
-                'fecha_fin as fechafin',
+                'fecha_inicio',
+                'fecha_fin',
                 'foto_ruta',
                 'descripcion',
             ]);
@@ -430,12 +438,12 @@ class ApoyoController extends Controller
         }
 
         $apoyos = $apoyos->map(function ($apoyo) use ($requisitos, $hitosByApoyo, $solicitudesActivasByApoyo) {
-            if (! empty($apoyo->fechaInicio)) {
-                $apoyo->fechaInicio = Carbon::parse($apoyo->fechaInicio)->toDateString();
+            if (! empty($apoyo->fecha_inicio)) {
+                $apoyo->fecha_inicio = Carbon::parse($apoyo->fecha_inicio)->toDateString();
             }
 
-            if (! empty($apoyo->fechafin)) {
-                $apoyo->fechafin = Carbon::parse($apoyo->fechafin)->toDateString();
+            if (! empty($apoyo->fecha_fin)) {
+                $apoyo->fecha_fin = Carbon::parse($apoyo->fecha_fin)->toDateString();
             }
 
             $apoyo->requisitos = $requisitos->where('fk_id_apoyo', $apoyo->id_apoyo)->values();
@@ -490,6 +498,14 @@ class ApoyoController extends Controller
                 ->limit(12)
                 ->get();
         }
+
+        // Detallado debug logging
+        \Log::info('ApoyoController@index - Before view render', [
+            'apoyos_array' => $apoyos->toArray(),
+            'tipos_count' => $tiposDocumentos->count(),
+            'mis_solicitudes_count' => $misSolicitudes->count(),
+            'solicitudes_recientes_count' => $solicitudesRecientes->count(),
+        ]);
 
         return view('apoyos.index', compact('apoyos', 'tiposDocumentos', 'user', 'misSolicitudes', 'solicitudesRecientes'));
     }
