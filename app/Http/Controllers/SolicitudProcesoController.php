@@ -67,7 +67,7 @@ class SolicitudProcesoController extends Controller
         $user = $this->authorizePersonal($request);
 
         $data = $request->validate([
-            'id_documento' => ['required', 'integer', 'exists:Documentos_Expediente,id_documento'],
+            'id_documento' => ['required', 'integer', 'exists:Documentos_Expediente,id_doc'],
             'accion' => ['required', 'in:aprobar,observar,rechazar'],
             'observaciones' => ['nullable', 'string'],
             'permite_correcciones' => ['nullable', 'boolean'],

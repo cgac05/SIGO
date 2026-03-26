@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Events\SolicitudRechazada;
+use App\Listeners\EnviarNotificacionRechazo;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +22,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Registrar listeners para eventos
+        Event::listen(
+            SolicitudRechazada::class,
+            EnviarNotificacionRechazo::class
+        );
     }
 }
+

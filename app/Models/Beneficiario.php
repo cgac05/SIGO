@@ -4,9 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Notifications\Notifiable;
 
 class Beneficiario extends Model
 {
+    use Notifiable;
+
     protected $table = 'Beneficiarios';
     protected $primaryKey = 'curp';
     public $incrementing = false;
@@ -43,5 +46,21 @@ class Beneficiario extends Model
             $this->apellido_paterno,
             $this->apellido_materno,
         ])->filter()->implode(' '));
+    }
+
+    /**
+     * Retorna el email para notificaciones (obtiene del usuario asociado)
+     */
+    public function getEmailForNotification(): ?string
+    {
+        return $this->user?->email;
+    }
+
+    /**
+     * Retorna el nombre para notificaciones
+     */
+    public function getNotificationToAttribute(): string
+    {
+        return $this->getEmailForNotification() ?? 'no-email@example.com';
     }
 }

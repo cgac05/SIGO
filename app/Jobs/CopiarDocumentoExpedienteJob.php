@@ -29,7 +29,7 @@ class CopiarDocumentoExpedienteJob implements ShouldQueue
             return;
         }
 
-        $documento = DB::table('Documentos_Expediente')->where('id_documento', $this->idDocumento)->first();
+        $documento = DB::table('Documentos_Expediente')->where('id_doc', $this->idDocumento)->first();
         if (! $documento) {
             return;
         }
@@ -47,7 +47,7 @@ class CopiarDocumentoExpedienteJob implements ShouldQueue
         $origen = (string) $documento->ruta_archivo;
         if ($origen === '' || ! Storage::disk('public')->exists($origen)) {
             Log::warning('No se pudo copiar documento a expediente oficial: archivo origen no encontrado.', [
-                'id_documento' => $this->idDocumento,
+                'id_doc' => $this->idDocumento,
                 'ruta_origen' => $origen,
             ]);
 
@@ -69,7 +69,7 @@ class CopiarDocumentoExpedienteJob implements ShouldQueue
         $webViewLink = Storage::disk('public')->url($destino);
 
         DB::table('Documentos_Expediente')
-            ->where('id_documento', $this->idDocumento)
+            ->where('id_doc', $this->idDocumento)
             ->update([
                 'official_file_id' => $officialFileId,
                 'webview_link' => $webViewLink,

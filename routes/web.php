@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\SolicitudController;
 use App\Http\Controllers\SolicitudProcesoController;
+use App\Http\Controllers\DocumentVerificationController;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ApoyoController;
@@ -76,6 +77,21 @@ Route::middleware('auth')->group(function () {
     Route::get('/solicitudes/padron/export', [SolicitudProcesoController::class, 'exportPadron'])
         ->name('solicitudes.padron.export');
 
+    // Módulo administrativo - Verificación de documentos
+    Route::prefix('admin/solicitudes')->group(function () {
+        Route::get('/', [DocumentVerificationController::class, 'index'])
+            ->name('admin.solicitudes.index');
+        Route::get('/{folio}', [DocumentVerificationController::class, 'show'])
+            ->whereNumber('folio')
+            ->name('admin.solicitudes.show');
+        Route::post('/{id}/verify', [DocumentVerificationController::class, 'verifyDocument'])
+            ->whereNumber('id')
+            ->name('admin.documentos.verify');
+        Route::get('/{id}/view', [DocumentVerificationController::class, 'viewDocument'])
+            ->whereNumber('id')
+            ->name('admin.documentos.view');
+    });
+
     // Notificaciones 
     Route::get('/notificaciones', [NotificacionController::class, 'index'])
         ->name('notificaciones.index');
@@ -91,6 +107,11 @@ Route::middleware('auth')->group(function () {
 // Validación pública de solicitudes (sin autenticación)
 Route::match(['GET', 'POST'], '/validar', [SolicitudProcesoController::class, 'validarPublico'])
     ->name('solicitudes.publico.validar');
+
+// Validación de documentos verificados vía QR (sin autenticación)
+Route::get('/validacion/{token}', [DocumentVerificationController::class, 'validarPublico'])
+    ->where('token', '[a-f0-9]{64}')
+    ->name('admin.validacion.publico');
 
 // Google Authentication Routes
 Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
