@@ -69,8 +69,8 @@ class PresupuestoController extends Controller
                 return [
                     'id_categoria' => $cat->id_categoria,
                     'nombre' => $cat->nombre,
-                    'presupuesto_total' => $cat->presupuesto_anual,
-                    'disponible' => $cat->disponible,
+                    'presupuesto_total' => (float) $cat->presupuesto_anual,
+                    'disponible' => (float) $cat->disponible,
                     'gastado' => (float) $cat->presupuesto_anual - (float) $cat->disponible,
                     'porcentaje_utilizado' => $cat->getPorcentajeUtilizacion(),
                     'badge_color' => $cat->getBadgeColor(),
@@ -81,9 +81,9 @@ class PresupuestoController extends Controller
 
         // Resumen general
         $resumen = [
-            'presupuesto_total' => $ciclo->presupuesto_total,
-            'disponible_total' => $categorias->sum('disponible'),
-            'gastado_total' => $categorias->sum('gastado'),
+            'presupuesto_total' => (float) $ciclo->presupuesto_total,
+            'disponible_total' => (float) $categorias->sum('disponible'),
+            'gastado_total' => (float) $categorias->sum('gastado'),
             'porcentaje_general' => $ciclo->presupuesto_total > 0 
                 ? round(($categorias->sum('gastado') / $ciclo->presupuesto_total) * 100, 2)
                 : 0,
