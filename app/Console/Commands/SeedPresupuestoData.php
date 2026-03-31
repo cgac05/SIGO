@@ -70,6 +70,7 @@ class SeedPresupuestoData extends Command
         
         $totalPresupuesto = 0;
         $totalGastado = 0;
+        $categoriasIds = [];
         
         foreach ($categorias as $cat) {
             // Insertar usando SQL directo
@@ -85,6 +86,15 @@ class SeedPresupuestoData extends Command
                 ]
             );
             
+            // Obtener el ID insertado
+            $categoriaId = DB::getPdo()->lastInsertId();
+            $categoriasIds[] = [
+                'id' => $categoriaId,
+                'nombre' => $cat['nombre'],
+                'presupuesto' => $cat['presupuesto_anual'],
+                'disponible' => $cat['disponible'],
+            ];
+            
             $gastado = $cat['presupuesto_anual'] - $cat['disponible'];
             $totalPresupuesto += $cat['presupuesto_anual'];
             $totalGastado += $gastado;
@@ -98,7 +108,7 @@ class SeedPresupuestoData extends Command
         $this->line("  Categorías: " . count($categorias));
         $this->line("  Total Presupuesto: \$" . number_format($totalPresupuesto, 0));
         $this->line("  Total Gastado: \$" . number_format($totalGastado, 0));
-        $this->line("  % Ejecución: " . round(($totalGastado / $totalPresupuesto) * 100) . "%");
+        $this->line("  % Ejecución: " . round(($totalGastado / $totalPresupuesto) * 100, 1) . "%");
 
         return 0;
     }

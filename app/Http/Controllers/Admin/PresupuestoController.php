@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\CicloPresupuestario;
 use App\Models\PresupuestoApoyo;
 use App\Models\PresupuestoCategoria;
+use App\Models\MovimientoPresupuestario;
 use App\Services\PresupuetaryControlService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 /**
  * PresupuestoController
@@ -93,10 +95,33 @@ class PresupuestoController extends Controller
                 ->count(),
         ];
 
+        // Datos para gráfico de REPARTICIÓN (presupuesto por categoría)
+        $datosReparticion = $categorias->map(function ($cat) {
+            return [
+                'nombre' => $cat['nombre'],
+                'valor' => $cat['presupuesto_total'],
+                'porcentaje' => round(($cat['presupuesto_total'] / $ciclo->presupuesto_total) * 100, 1),
+            ];
+        })->toArray();
+
+        // Datos para gráfico de GASTOS (ejecución por categoría)
+        $gastosCategoria = $categorias->map(function ($cat) use ($ciclo) {
+            $total_ciclo = $ciclo->presupuesto_total ?: 1;
+            return [
+                'nombre' => $cat['nombre'],
+                'valor' => $cat['gastado'],
+                'porcentaje' => round(($cat['gastado'] / $total_ciclo) * 100, 1),
+                'disponible' => $cat['disponible'],
+            ];
+        })->toArray();
+
         return view('admin.presupuesto.dashboard', [
             'ciclo' => $ciclo,
             'categorias' => $categorias,
             'resumen' => $resumen,
+            'datosReparticion' => $datosReparticion,
+            'gastosCategoria' => $gastosCategoria,
+            'totalGastosDetallado' => $resumen['gastado_total'],
         ]);
     }
 

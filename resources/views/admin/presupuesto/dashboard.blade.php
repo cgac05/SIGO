@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-8">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-8" x-data="{ tab: 'reparticion' }">
     <!-- Header -->
     <div class="mb-8">
         <div class="flex justify-between items-start mb-6">
@@ -83,47 +83,112 @@
         </div>
     </div>
 
-    <!-- ROW 2: Gráficos principales -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <!-- Gráfico Circular Doughnut -->
-        <div class="bg-white rounded-lg shadow overflow-hidden">
-            <div class="border-b border-gray-200 px-6 py-4">
+    <!-- ROW 2: Tabs con Gráficos Anillo (tipo Notion) -->
+    <div class="bg-white rounded-lg shadow overflow-hidden mb-8">
+        <!-- Header de Tabs -->
+        <div class="border-b border-gray-200 px-6 py-4">
+            <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-bold text-gray-900">
-                    <i class="fas fa-circle-notch text-blue-600 mr-2"></i>
-                    Distribución del Presupuesto
+                    <i class="fas fa-chart-doughnut text-indigo-600 mr-2"></i>
+                    Análisis Presupuestario
                 </h3>
-                <p class="text-sm text-gray-600 mt-1">Presupuesto Total vs Disponible</p>
             </div>
-            <div class="p-6 flex items-center justify-center" style="min-height: 350px;">
-                @if($resumen['presupuesto_total'] > 0)
-                    <canvas id="chartPresupuesto"></canvas>
-                @else
-                    <div class="text-center text-gray-500 py-12">
-                        <i class="fas fa-chart-pie text-4xl opacity-30 mb-3 block"></i>
-                        <p>Sin datos disponibles</p>
-                    </div>
-                @endif
+            
+            <!-- Tabs Navigation -->
+            <div class="flex space-x-1">
+                <button 
+                    @click="tab = 'reparticion'"
+                    :class="tab === 'reparticion' ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-600' : 'bg-gray-100 text-gray-600 border-b-2 border-transparent'"
+                    class="px-6 py-2 rounded-t-lg font-semibold transition-all duration-200 text-sm"
+                >
+                    <i class="fas fa-pie-chart mr-2"></i>Distribución de Presupuesto
+                </button>
+                <button 
+                    @click="tab = 'gastos'"
+                    :class="tab === 'gastos' ? 'bg-indigo-100 text-indigo-700 border-b-2 border-indigo-600' : 'bg-gray-100 text-gray-600 border-b-2 border-transparent'"
+                    class="px-6 py-2 rounded-t-lg font-semibold transition-all duration-200 text-sm"
+                >
+                    <i class="fas fa-chart-line mr-2"></i>Ejecución de Gastos
+                </button>
             </div>
         </div>
 
-        <!-- Gráfico Barras Horizontal -->
-        <div class="bg-white rounded-lg shadow overflow-hidden">
-            <div class="border-b border-gray-200 px-6 py-4">
-                <h3 class="text-lg font-bold text-gray-900">
-                    <i class="fas fa-bar-chart text-green-600 mr-2"></i>
-                    Ejecución Presupuestaria
-                </h3>
-                <p class="text-sm text-gray-600 mt-1">Porcentaje de utilización por categoría</p>
-            </div>
-            <div class="p-6 flex items-center justify-center" style="min-height: 350px;">
-                @if($categorias->count() > 0)
-                    <canvas id="chartEjecucion"></canvas>
-                @else
-                    <div class="text-center text-gray-500 py-12">
-                        <i class="fas fa-chart-bar text-4xl opacity-30 mb-3 block"></i>
-                        <p>Sin categorías configuradas</p>
+        <!-- Content Area -->
+        <div class="p-8">
+            <!-- PESTAÑA 1: REPARTICIÓN -->
+            <div x-show="tab === 'reparticion'" x-transition class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Gráfico Anillo Izquierdo -->
+                <div class="flex flex-col items-center justify-center">
+                    <div class="relative w-64 h-64 mb-6">
+                        <canvas id="chartReparticion"></canvas>
                     </div>
-                @endif
+                    <p class="text-center text-gray-600 text-sm max-w-xs">
+                        <strong>Presupuesto Total por Categoría</strong> - Visualiza cómo se ha repartido el presupuesto 
+                        de <strong>${{ number_format($resumen['presupuesto_total'], 0) }}</strong> entre las categorías.
+                    </p>
+                </div>
+
+                <!-- Listado Derecho -->
+                <div class="flex flex-col justify-center">
+                    <h4 class="font-bold text-gray-900 mb-4 text-lg">Detalles de Repartición</h4>
+                    <div class="space-y-3 max-h-96 overflow-y-auto">
+                        @php
+                            $colores = ['#3B82F6', '#F97316', '#10B981', '#F59E0B', '#8B5CF6'];
+                            $idx = 0;
+                        @endphp
+                        @foreach($datosReparticion as $dato)
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                                <div class="flex items-center flex-1">
+                                    <div class="w-3 h-3 rounded-full mr-3" style="background-color: {{ $colores[$idx % 5] }};"></div>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-semibold text-gray-900">{{ $dato['nombre'] }}</p>
+                                        <p class="text-xs text-gray-500">{{ $dato['porcentaje'] }}% del total</p>
+                                    </div>
+                                </div>
+                                <p class="text-sm font-bold text-gray-900 ml-3">${{ number_format($dato['valor'], 0) }}</p>
+                            </div>
+                            @php $idx++; @endphp
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            <!-- PESTAÑA 2: GASTOS -->
+            <div x-show="tab === 'gastos'" x-transition class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Gráfico Anillo Izquierdo -->
+                <div class="flex flex-col items-center justify-center">
+                    <div class="relative w-64 h-64 mb-6">
+                        <canvas id="chartGastos"></canvas>
+                    </div>
+                    <p class="text-center text-gray-600 text-sm max-w-xs">
+                        <strong>Gastos Realizados por Categoría</strong> - Visualiza cómo se han ejecutado los gastos 
+                        de <strong>${{ number_format($totalGastosDetallado, 0) }}</strong> registrados en movimientos.
+                    </p>
+                </div>
+
+                <!-- Listado Derecho -->
+                <div class="flex flex-col justify-center">
+                    <h4 class="font-bold text-gray-900 mb-4 text-lg">Movimientos por Categoría</h4>
+                    <div class="space-y-3 max-h-96 overflow-y-auto">
+                        @php
+                            $colores = ['#3B82F6', '#F97316', '#10B981', '#F59E0B', '#8B5CF6'];
+                            $idx = 0;
+                        @endphp
+                        @foreach($gastosCategoria as $gasto)
+                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                                <div class="flex items-center flex-1">
+                                    <div class="w-3 h-3 rounded-full mr-3" style="background-color: {{ $colores[$idx % 5] }};"></div>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-semibold text-gray-900">{{ $gasto['nombre'] }}</p>
+                                        <p class="text-xs text-gray-500">{{ $gasto['porcentaje'] }}% del total general</p>
+                                    </div>
+                                </div>
+                                <p class="text-sm font-bold text-gray-900 ml-3">${{ number_format($gasto['valor'], 0) }}</p>
+                            </div>
+                            @php $idx++; @endphp
+                        @endforeach
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -220,130 +285,96 @@
                                                 $bgColor = match($categoria['badge_color']) {
                                                     'success' => 'bg-green-500',
                                                     'warning' => 'bg-orange-500',
-                                                    'danger' => 'bg-red-500',
-                                                    'info' => 'bg-cyan-500',
-                                                    default => 'bg-blue-500'
-                                                };
-                                            @endphp
-                                            <div class="{{ $bgColor }} h-2 rounded-full" style="width: {{ $categoria['porcentaje_utilizado'] }}%"></div>
-                                        </div>
-                                        <span class="font-bold text-gray-700 text-xs">{{ $categoria['porcentaje_utilizado'] }}%</span>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    @php
-                                        $badgeClass = match($categoria['badge_color']) {
-                                            'success' => 'bg-green-100 text-green-800',
-                                            'warning' => 'bg-orange-100 text-orange-800',
-                                            'danger' => 'bg-red-100 text-red-800',
-                                            'info' => 'bg-cyan-100 text-cyan-800',
-                                            default => 'bg-blue-100 text-blue-800'
-                                        };
-                                    @endphp
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold {{ $badgeClass }}">
-                                        {{ $categoria['estado_visual'] }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-cyan-100 text-cyan-800">
-                                        {{ $categoria['apoyos_aprobados'] }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <a href="{{ route('presupuesto.categorias.show', $categoria['id_categoria']) }}" 
-                                       class="inline-flex items-center px-3 py-2 text-xs font-bold text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition">
-                                        <i class="fas fa-eye mr-1"></i>Ver
-                                    </a>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="9" class="px-6 py-8 text-center text-gray-500">
-                                    <i class="fas fa-inbox text-3xl opacity-30 mb-2 block"></i>
-                                    No hay categorías configuradas
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    @else
-        <div class="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-lg">
-            <div class="flex items-start">
-                <i class="fas fa-info-circle text-blue-600 mr-3 mt-1"></i>
-                <div>
-                    <h3 class="font-bold text-blue-900 mb-1">Sin categorías configuradas</h3>
-                    <p class="text-sm text-blue-700">El administrador debe configurar las categorías presupuestarias para este ciclo fiscal.</p>
-                </div>
-            </div>
-        </div>
-    @endif
-</div>
-
-<!-- Chart.js CDN -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-<script>
-    // Datos comunes
-    const presupuestoTotal = {{ $resumen['presupuesto_total'] }};
-    const disponibleTotal = {{ $resumen['disponible_total'] }};
-    const gastadoTotal = {{ $resumen['gastado_total'] }};
-
-    // Gráfico Circular (Doughnut)
-    @if($resumen['presupuesto_total'] > 0)
-        const ctx1 = document.getElementById('chartPresupuesto');
-        if (ctx1) {
-            new Chart(ctx1, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Gastado', 'Disponible'],
-                    datasets: [{
-                        data: [gastadoTotal, disponibleTotal],
-                        backgroundColor: ['#ff7675', '#74b9ff'],
-                        borderColor: ['#d63031', '#0984e3'],
-                        borderWidth: 2,
-                        hoverOffset: 10
-                    }]
+             de repartición
+    const datosReparticion = @json($datosReparticion);
+    const coloresReparticion = ['#3B82F6', '#F97316', '#10B981', '#F59E0B', '#8B5CF6'];
+    
+    // Gráfico de Repartición (Presupuesto)
+    const ctxReparticion = document.getElementById('chartReparticion').getContext('2d');
+    new Chart(ctxReparticion, {
+        type: 'doughnut',
+        data: {
+            labels: datosReparticion.map(d => d.nombre),
+            datasets: [{
+                data: datosReparticion.map(d => d.valor),
+                backgroundColor: coloresReparticion.slice(0, datosReparticion.length),
+                borderColor: '#ffffff',
+                borderWidth: 3,
+                borderRadius: 4,
+                hoverOffset: 8,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false,
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                font: { size: 13, weight: 'bold' },
-                                padding: 20,
-                                usePointStyle: true
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = '$' + context.parsed;
-                                    const percentage = ((context.parsed / presupuestoTotal) * 100).toFixed(1);
-                                    return label + ': ' + value + ' (' + percentage + '%)';
-                                }
-                            }
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 14, weight: 'bold' },
+                    bodyFont: { size: 13 },
+                    borderColor: '#ffffff',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percent = ((value / total) * 100).toFixed(1);
+                            return `$${(value / 1000000).toFixed(1)}M (${percent}%)`;
                         }
                     }
+                }
+            }
+        }
+    });
+
+    // Datos de gastos
+    const datosGastos = @json($gastosCategoria);
+    
+    // Gráfico de Gastos
+    const ctxGastos = document.getElementById('chartGastos').getContext('2d');
+    new Chart(ctxGastos, {
+        type: 'doughnut',
+        data: {
+            labels: datosGastos.map(d => d.nombre),
+            datasets: [{
+                data: datosGastos.map(d => d.valor),
+                backgroundColor: coloresReparticion.slice(0, datosGastos.length),
+                borderColor: '#ffffff',
+                borderWidth: 3,
+                borderRadius: 4,
+                hoverOffset: 8,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false,
                 },
-                plugins: [{
-                    id: 'textCenter',
-                    beforeDatasetsDraw(chart) {
-                        const {ctx, chartArea: {left, top, width, height}} = chart;
-                        ctx.save();
-                        
-                        ctx.font = 'bold 20px Arial';
-                        ctx.fillStyle = '#374151';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText('$' + presupuestoTotal.toLocaleString('es-MX', {maximumFractionDigits: 0}), left + width / 2, top + height / 2 - 10);
-                        
-                        ctx.font = '12px Arial';
-                        ctx.fillStyle = '#6b7280';
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 14, weight: 'bold' },
+                    bodyFont: { size: 13 },
+                    borderColor: '#ffffff',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percent = ((value / total) * 100).toFixed(1);
+                            return `$${(value / 1000000).toFixed(1)}M (${percent}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });              ctx.fillStyle = '#6b7280';
                         ctx.fillText('Presupuesto Total', left + width / 2, top + height / 2 + 15);
                         
                         ctx.restore();
