@@ -10,12 +10,6 @@ use Illuminate\Support\Facades\DB;
 
 class PadronController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-        $this->middleware('role:1,2,3');  // Admin L1, L2, Directivo
-    }
-
     /**
      * Mostrar padrón de usuarios (beneficiarios + personal)
      */
@@ -145,18 +139,18 @@ class PadronController extends Controller
     }
 
     /**
-     * Mapear campo de ordenamiento
+     * Mapear campo de ordenamiento (solo columnas que existen en Usuarios)
      */
     private function mapearOrdenamiento($ordenar, $tipo = null)
     {
         $mapeo = [
-            'nombre' => 'nombre',
+            'nombre' => 'email',  // Fallback a email ya que nombre está en relacionadas
             'email' => 'email',
             'creacion' => 'fecha_creacion',
             'acceso' => 'ultima_conexion',
         ];
 
-        return $mapeo[$ordenar] ?? 'nombre';
+        return $mapeo[$ordenar] ?? 'email';
     }
 
     /**
