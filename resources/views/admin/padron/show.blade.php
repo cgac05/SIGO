@@ -34,80 +34,85 @@
                 </a>
             </div>
 
-            <!-- Información Principal -->
-            <div class="bg-white rounded-lg shadow mb-6">
-                <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-                    <h2 class="text-xl font-semibold text-gray-900">Información General</h2>
-                </div>
-                <div class="px-6 py-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <!-- Foto y Estado -->
-                        <div class="flex flex-col items-center">
-                            <div class="mb-4">
-                                <x-avatar-image :usuario="$usuario" size="lg" />
-                            </div>
-
-                            <div class="text-center">
-                                <h3 class="text-2xl font-bold text-gray-900">
-                                    @if($tipo === 'Beneficiario')
-                                        {{ $beneficiario->nombre }} {{ $beneficiario->apellido_paterno }}
-                                    @else
-                                        {{ $personal->nombre }} {{ $personal->apellido_paterno }}
-                                    @endif
-                                </h3>
-                                <p class="text-gray-600 mt-1">
-                                    @if($tipo === 'Beneficiario')
-                                        <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">Beneficiario</span>
-                                    @else
-                                        <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-purple-100 text-purple-800">{{ ucfirst($usuario->tipo_usuario) }}</span>
-                                    @endif
-                                </p>
-                                <p class="text-sm text-gray-500 mt-2">
-                                    @if($usuario->activo)
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                                            <span class="inline-block h-2 w-2 bg-green-500 rounded-full mr-2"></span>Activo
-                                        </span>
-                                    @else
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
-                                            <span class="inline-block h-2 w-2 bg-red-500 rounded-full mr-2"></span>Inactivo
-                                        </span>
-                                    @endif
-                                </p>
-                            </div>
+            <!-- Layout: dos columnas arriba, auditoría abajo -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                <!-- Columna Izquierda: Información Principal y Datos Específicos -->
+                <div class="md:col-span-2">
+                    <!-- Información Principal -->
+                    <div class="bg-white rounded-lg shadow mb-6">
+                        <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                            <h2 class="text-xl font-semibold text-gray-900">Información General</h2>
                         </div>
+                        <div class="px-6 py-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <!-- Foto y Estado -->
+                                <div class="flex flex-col items-center">
+                                    <div class="mb-4">
+                                        <x-avatar-image :usuario="$usuario" size="lg" />
+                                    </div>
 
-                        <!-- Información de Contacto -->
-                        <div>
-                            <h4 class="text-lg font-semibold text-gray-900 mb-4">Información de Contacto</h4>
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="block text-xs font-semibold text-gray-600 uppercase">Email</label>
-                                    <p class="text-gray-900">{{ $usuario->email }}</p>
+                                    <div class="text-center">
+                                        <h3 class="text-2xl font-bold text-gray-900">
+                                            @if($tipo === 'Beneficiario')
+                                                {{ $beneficiario->nombre }} {{ $beneficiario->apellido_paterno }}
+                                            @else
+                                                {{ $personal->nombre }} {{ $personal->apellido_paterno }}
+                                            @endif
+                                        </h3>
+                                        <p class="text-gray-600 mt-1">
+                                            @if($tipo === 'Beneficiario')
+                                                <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">Beneficiario</span>
+                                            @else
+                                                <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-purple-100 text-purple-800">{{ ucfirst($usuario->tipo_usuario) }}</span>
+                                            @endif
+                                        </p>
+                                        <p class="text-sm text-gray-500 mt-2">
+                                            @if($usuario->activo)
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                                                    <span class="inline-block h-2 w-2 bg-green-500 rounded-full mr-2"></span>Activo
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
+                                                    <span class="inline-block h-2 w-2 bg-red-500 rounded-full mr-2"></span>Inactivo
+                                                </span>
+                                            @endif
+                                        </p>
+                                    </div>
                                 </div>
 
-                                @if($tipo === 'Beneficiario')
-                                    <div>
-                                        <label class="block text-xs font-semibold text-gray-600 uppercase">Teléfono</label>
-                                        <p class="text-gray-900">{{ $beneficiario->telefono ?? 'No registrado' }}</p>
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-semibold text-gray-600 uppercase">Género</label>
-                                        <p class="text-gray-900">{{ ucfirst($beneficiario->genero) }}</p>
-                                    </div>
-                                @else
-                                    <div>
-                                        <label class="block text-xs font-semibold text-gray-600 uppercase">Puesto</label>
-                                        <p class="text-gray-900">{{ $personal->puesto ?? 'No asignado' }}</p>
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
+                                <!-- Información de Contacto -->
+                                <div>
+                                    <h4 class="text-lg font-semibold text-gray-900 mb-4">Información de Contacto</h4>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label class="block text-xs font-semibold text-gray-600 uppercase">Email</label>
+                                            <p class="text-gray-900">{{ $usuario->email }}</p>
+                                        </div>
 
-                    <!-- Datos Específicos -->
-                    <div class="mt-8 pt-8 border-t border-gray-200">
-                        <h4 class="text-lg font-semibold text-gray-900 mb-4">Datos Específicos</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        @if($tipo === 'Beneficiario')
+                                            <div>
+                                                <label class="block text-xs font-semibold text-gray-600 uppercase">Teléfono</label>
+                                                <p class="text-gray-900">{{ $beneficiario->telefono ?? 'No registrado' }}</p>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-semibold text-gray-600 uppercase">Género</label>
+                                                <p class="text-gray-900">{{ ucfirst($beneficiario->genero) }}</p>
+                                            </div>
+                                        @else
+                                            <div>
+                                                <label class="block text-xs font-semibold text-gray-600 uppercase">Puesto</label>
+                                                <p class="text-gray-900">{{ $personal->puesto ?? 'No asignado' }}</p>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Datos Específicos -->
+                            <div class="mt-8 pt-8 border-t border-gray-200">
+                                <h4 class="text-lg font-semibold text-gray-900 mb-4">Datos Específicos</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6"
                             @if($tipo === 'Beneficiario')
                                 <div>
                                     <label class="block text-xs font-semibold text-gray-600 uppercase mb-2">CURP</label>
@@ -139,89 +144,28 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Auditoría -->
-            <div class="bg-white rounded-lg shadow">
-                <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-                    <h2 class="text-xl font-semibold text-gray-900">Registro de Auditoría</h2>
                 </div>
-                <div class="px-6 py-6">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                        <div class="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-500">
-                            <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Fecha de Creación</label>
-                            <p class="text-gray-900 font-semibold">
-                                {{ optional($usuario->fecha_creacion)->format('d/m/Y H:i') ?? 'No disponible' }}
-                            </p>
-                        </div>
-                        <div class="bg-purple-50 rounded-lg p-4 border-l-4 border-purple-500">
-                            <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Última Conexión</label>
-                            <p class="text-gray-900 font-semibold">
-                                {{ optional($usuario->ultima_conexion)->format('d/m/Y H:i') ?? 'Nunca' }}
-                            </p>
-                        </div>
-                        <div class="bg-indigo-50 rounded-lg p-4 border-l-4 border-indigo-500">
-                            <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Cambio de Contraseña</label>
-                            <p class="text-gray-900 font-semibold">
-                                {{ $usuario->debe_cambiar_password ? 'Pendiente' : 'Completado' }}
-                            </p>
-                        </div>
-                    </div>
 
-                    <!-- Acciones -->
-                    <div class="border-t border-gray-200 pt-6">
-                        <h4 class="text-lg font-semibold text-gray-900 mb-4">Acciones</h4>
-                        <div class="flex gap-3 flex-wrap">
-                            <button class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition">
-                                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"></path>
-                                </svg>
-                                Editar
-                            </button>
-                            @if($usuario->activo)
-                                <button class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition">
-                                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                <!-- Columna Derecha: Histórico de Apoyos (solo para beneficiarios) -->
+                @if($tipo === 'Beneficiario')
+                <div class="md:col-span-1">
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <svg class="w-6 h-6 text-green-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
+                                        <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000-2H6a6 6 0 016 6v3h3a1 1 0 01.82.4l2.601 3.42a1 1 0 01-.454 1.659.5.5 0 00-.171.95l2.16 1.08a1 1 0 11-.896 1.79L15.75 16.07a.5.5 0 00-.171.95.5.5 0 01-.454 1.659l-2.601-3.42A1 1 0 0112 15h-3v2a1 1 0 11-2 0v-2H6a2 2 0 01-2-2V5zm12-1a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd"></path>
                                     </svg>
-                                    Desactivar
-                                </button>
-                            @else
-                                <button class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition">
-                                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                                    </svg>
-                                    Reactivar
-                                </button>
-                            @endif
-                            <button class="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition">
-                                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                                </svg>
-                                Historial de Cambios
-                            </button>
+                                    <h2 class="text-lg font-semibold text-gray-900">Apoyos</h2>
+                                </div>
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                                    {{ $beneficiario->solicitudes->count() }}
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Histórico de Apoyos (solo para beneficiarios) -->
-            @if($tipo === 'Beneficiario')
-            <div class="bg-white rounded-lg shadow mt-8">
-                <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center">
-                            <svg class="w-6 h-6 text-green-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
-                                <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000-2H6a6 6 0 016 6v3h3a1 1 0 01.82.4l2.601 3.42a1 1 0 01-.454 1.659.5.5 0 00-.171.95l2.16 1.08a1 1 0 11-.896 1.79L15.75 16.07a.5.5 0 00-.171.95.5.5 0 01-.454 1.659l-2.601-3.42A1 1 0 0112 15h-3v2a1 1 0 11-2 0v-2H6a2 2 0 01-2-2V5zm12-1a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd"></path>
-                            </svg>
-                            <h2 class="text-xl font-semibold text-gray-900">Histórico de Apoyos Solicitados</h2>
-                        </div>
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
-                            {{ $beneficiario->solicitudes->count() }} solicitud{{ $beneficiario->solicitudes->count() !== 1 ? 'es' : '' }}
-                        </span>
-                    </div>
-                </div>
-                <div class="px-6 py-6">
-                    @if($beneficiario->solicitudes->count() > 0)
+                        <div class="px-6 py-6">
+                            @if($beneficiario->solicitudes->count() > 0)
                         <div class="overflow-x-auto">
                             <table class="w-full">
                                 <thead class="bg-gray-50 border-b border-gray-200">
@@ -352,9 +296,78 @@
                             <p class="text-sm text-gray-400 mt-2">Este beneficiario aún no ha solicitado ningún apoyo</p>
                         </div>
                     @endif
+                        </div>
+                    </div>
+                </div>
+                @endif
+            </div>
+
+            <!-- Auditoría (ocupando todo el ancho abajo) -->
+            <div class="mt-8 col-span-full">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                        <h2 class="text-xl font-semibold text-gray-900">Registro de Auditoría</h2>
+                    </div>
+                    <div class="px-6 py-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                            <div class="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-500">
+                                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Fecha de Creación</label>
+                                <p class="text-gray-900 font-semibold">
+                                    {{ optional($usuario->fecha_creacion)->format('d/m/Y H:i') ?? 'No disponible' }}
+                                </p>
+                            </div>
+                            <div class="bg-purple-50 rounded-lg p-4 border-l-4 border-purple-500">
+                                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Última Conexión</label>
+                                <p class="text-gray-900 font-semibold">
+                                    {{ optional($usuario->ultima_conexion)->format('d/m/Y H:i') ?? 'Nunca' }}
+                                </p>
+                            </div>
+                            <div class="bg-indigo-50 rounded-lg p-4 border-l-4 border-indigo-500">
+                                <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Cambio de Contraseña</label>
+                                <p class="text-gray-900 font-semibold">
+                                    {{ $usuario->debe_cambiar_password ? 'Pendiente' : 'Completado' }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Acciones -->
+                        <div class="border-t border-gray-200 pt-6">
+                            <h4 class="text-lg font-semibold text-gray-900 mb-4">Acciones</h4>
+                            <div class="flex gap-3 flex-wrap">
+                                <button class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition">
+                                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"></path>
+                                    </svg>
+                                    Editar
+                                </button>
+                                @if($usuario->activo)
+                                    <button class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition">
+                                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                        </svg>
+                                        Desactivar
+                                    </button>
+                                @else
+                                    <button class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition">
+                                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                        </svg>
+                                        Reactivar
+                                    </button>
+                                @endif
+                                <button class="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition">
+                                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    Historial de Cambios
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            @endif
+            </div>
+
         </main>
     </div>
 </body>
