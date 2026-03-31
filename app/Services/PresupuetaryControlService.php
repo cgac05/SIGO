@@ -262,9 +262,9 @@ class PresupuetaryControlService
                 );
             }
 
-            // Validación 4: Usuario directivo existe y tiene rol 3
-            $directivo = Usuario::findOrFail($id_directivo_aprobador);
-            if ($directivo->rol !== 3) {
+            // Validación 4: Usuario directivo existe y tiene rol 2
+            $directivo = Usuario::findOrFail($id_directivo);
+            if ($directivo->rol !== 2) {
                 throw new Exception("Usuario {$directivo->nombre} no tiene permisos de Directivo");
             }
 

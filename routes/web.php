@@ -227,7 +227,7 @@ Route::middleware(['auth', 'role:1,2,3'])->prefix('admin')->group(function () {
 // ============= PRESUPUESTACIÓN (FASE 4) =============
 use App\Http\Controllers\Admin\PresupuestoController;
 
-Route::middleware(['auth', 'role:3'])->prefix('admin/presupuesto')->group(function () {
+Route::middleware(['auth', 'role:2'])->prefix('admin/presupuesto')->group(function () {
     // Dashboard y reportes
     Route::get('/dashboard', [PresupuestoController::class, 'dashboard'])
         ->name('presupuesto.dashboard');

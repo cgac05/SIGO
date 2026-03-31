@@ -20,7 +20,7 @@ class PresupuestoController extends Controller
     private function authorizeDirectivo(): void
     {
         $user = Auth::user();
-        if (!$user || (int) $user->rol !== 3) {
+        if (!$user || (int) $user->rol !== 2) {
             abort(403, 'Solo directivos pueden acceder a presupuestación');
         }
     }
