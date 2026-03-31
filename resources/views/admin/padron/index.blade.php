@@ -212,7 +212,7 @@
                                     @forelse($usuarios as $usuario)
                                     <tr class="hover:bg-gray-50 transition">
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <img src="{{ $usuario->getFotoUrl() }}" alt="Foto" class="h-10 w-10 rounded-full object-cover border-2 border-gray-200">
+                                            <x-avatar-image :usuario="$usuario" size="sm" />
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="text-sm font-medium text-gray-900">
