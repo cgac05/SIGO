@@ -209,98 +209,94 @@
 
     <!-- ROW 4: Tabla de Categorías -->
     @if($categorias->count() > 0)
-    <div class="row">
-        <div class="col-lg-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-primary text-white py-3">
-                    <h5 class="card-title me-2 mb-0">
-                        <i class="fas fa-cubes me-2"></i>
-                        Desglose Detallado por Categoría
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover" id="categoriasTable">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Categoría</th>
-                                    <th>Presupuesto Total</th>
-                                    <th>Disponible</th>
-                                    <th>Gastado</th>
-                                    <th>% Utilizado</th>
-                                    <th>Estado</th>
-                                    <th>Apoyos</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($categorias as $index => $categoria)
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="card-title me-2 mb-0">
+                            <i class="fas fa-cubes me-2"></i>
+                            Desglose Detallado por Categoría
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="categoriasTable">
+                                <thead class="table-light">
                                     <tr>
-                                        <td>{{ $index + 1 }}</td>
-                                        <td>
-                                            <strong>{{ $categoria['nombre'] }}</strong>
-                                        </td>
-                                        <td>
-                                            ${{ number_format($categoria['presupuesto_total'], 0) }}
-                                        </td>
-                                        <td class="text-success">
-                                            <strong>${{ number_format($categoria['disponible'], 0) }}</strong>
-                                        </td>
-                                        <td class="text-warning">
-                                            <strong>${{ number_format($categoria['gastado'], 0) }}</strong>
-                                        </td>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="progress w-100 me-2" style="height: 10px;">
-                                                    <div class="progress-bar bg-{{ $categoria['badge_color'] }}" 
-                                                         role="progressbar" 
-                                                         style="width: {{ $categoria['porcentaje_utilizado'] }}%">
+                                        <th>#</th>
+                                        <th>Categoría</th>
+                                        <th>Presupuesto Total</th>
+                                        <th>Disponible</th>
+                                        <th>Gastado</th>
+                                        <th>% Utilizado</th>
+                                        <th>Estado</th>
+                                        <th>Apoyos</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($categorias as $index => $categoria)
+                                        <tr>
+                                            <td>{{ $index + 1 }}</td>
+                                            <td><strong>{{ $categoria['nombre'] }}</strong></td>
+                                            <td>${{ number_format($categoria['presupuesto_total'], 0) }}</td>
+                                            <td class="text-success">
+                                                <strong>${{ number_format($categoria['disponible'], 0) }}</strong>
+                                            </td>
+                                            <td class="text-warning">
+                                                <strong>${{ number_format($categoria['gastado'], 0) }}</strong>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="progress w-100 me-2" style="height: 10px;">
+                                                        <div class="progress-bar bg-{{ $categoria['badge_color'] }}" 
+                                                             role="progressbar" 
+                                                             style="width: {{ $categoria['porcentaje_utilizado'] }}%">
+                                                        </div>
                                                     </div>
+                                                    <small class="fw-bold">{{ $categoria['porcentaje_utilizado'] }}%</small>
                                                 </div>
-                                                <small class="fw-bold">{{ $categoria['porcentaje_utilizado'] }}%</small>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-{{ $categoria['badge_color'] }}">
-                                                {{ $categoria['estado_visual'] }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-info">{{ $categoria['apoyos_aprobados'] }}</span>
-                                        </td>
-                                        <td>
-                                            <a href="{{ route('presupuesto.categorias.show', $categoria['id_categoria']) }}" 
-                                               class="btn btn-sm btn-outline-primary">
-                                                <i class="fas fa-eye me-1"></i>Ver
-                                            </a>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="9" class="text-center text-muted py-4">
-                                            <i class="fas fa-inbox fa-2x opacity-50 mb-2 d-block"></i>
-                                            No hay categorías configuradas
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{{ $categoria['badge_color'] }}">
+                                                    {{ $categoria['estado_visual'] }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info">{{ $categoria['apoyos_aprobados'] }}</span>
+                                            </td>
+                                            <td>
+                                                <a href="{{ route('presupuesto.categorias.show', $categoria['id_categoria']) }}" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye me-1"></i>Ver
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="9" class="text-center text-muted py-4">
+                                                <i class="fas fa-inbox fa-2x opacity-50 mb-2 d-block"></i>
+                                                No hay categorías configuradas
+                                            </td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
     @else
-    <div class="row">
-        <div class="col-lg-12">
-            <div class="alert alert-info border-0 shadow-sm" role="alert">
-                <i class="fas fa-info-circle me-2"></i>
-                <strong>Sin categorías configuradas</strong>
-                <p class="mb-0 mt-2">El administrador debe configurar las categorías presupuestarias para este ciclo fiscal.</p>
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="alert alert-info border-0 shadow-sm" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Sin categorías configuradas</strong>
+                    <p class="mb-0 mt-2">El administrador debe configurar las categorías presupuestarias para este ciclo fiscal.</p>
+                </div>
             </div>
         </div>
-    </div>
     @endif
 </div>
 
@@ -310,222 +306,124 @@
 <script>
     // Gráfico Circular (Doughnut) - Presupuesto Vs Disponible
     @if($resumen['presupuesto_total'] > 0)
-    const presupuestoTotal = {{ $resumen['presupuesto_total'] }};
-    const disponibleTotal = {{ $resumen['disponible_total'] }};
-    const gastadoTotal = {{ $resumen['gastado_total'] }};
+        const presupuestoTotal = {{ $resumen['presupuesto_total'] }};
+        const disponibleTotal = {{ $resumen['disponible_total'] }};
+        const gastadoTotal = {{ $resumen['gastado_total'] }};
 
-    const ctx1 = document.getElementById('chartPresupuesto').getContext('2d');
-    new Chart(ctx1, {
-        type: 'doughnut',
-        data: {
-            labels: ['Gastado', 'Disponible'],
-            datasets: [{
-                data: [gastadoTotal, disponibleTotal],
-                backgroundColor: [
-                    '#ff9999',
-                    '#90EE90'
-                ],
-                borderColor: [
-                    '#ff6666',
-                    '#66BB6A'
-                ],
-                borderWidth: 3,
-                hoverOffset: 10
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        font: { size: 14, weight: 'bold' },
-                        padding: 20,
-                        usePointStyle: true
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = '$' + context.parsed;
-                            const percentage = ((context.parsed / presupuestoTotal) * 100).toFixed(1);
-                            return `${label}: ${value} (${percentage}%)`;
+        const ctx1 = document.getElementById('chartPresupuesto').getContext('2d');
+        new Chart(ctx1, {
+            type: 'doughnut',
+            data: {
+                labels: ['Gastado', 'Disponible'],
+                datasets: [{
+                    data: [gastadoTotal, disponibleTotal],
+                    backgroundColor: ['#ff9999', '#90EE90'],
+                    borderColor: ['#ff6666', '#66BB6A'],
+                    borderWidth: 3,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: { size: 14, weight: 'bold' },
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = '$' + context.parsed.toString();
+                                const percentage = ((context.parsed / presupuestoTotal) * 100).toFixed(1);
+                                return label + ': ' + value + ' (' + percentage + '%)';
+                            }
                         }
                     }
                 }
-            }
-        },
-        plugins: [{
-            id: 'textCenter',
-            beforeDatasetsDraw(chart) {
-                const {ctx, chartArea: {left, top, width, height}} = chart;
-                ctx.save();
-                
-                // Texto central
-                ctx.font = 'bold 24px Arial';
-                ctx.fillStyle = '#333';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(`$${(presupuestoTotal).toLocaleString('es-MX', {maximumFractionDigits: 0})}`, 
-                           left + width / 2, 
-                           top + height / 2 - 10);
-                
-                ctx.font = '14px Arial';
-                ctx.fillStyle = '#666';
-                ctx.fillText('Presupuesto Total', left + width / 2, top + height / 2 + 15);
-                
-                ctx.restore();
-            }
-        }]
-    });
+            },
+            plugins: [{
+                id: 'textCenter',
+                beforeDatasetsDraw(chart) {
+                    const {ctx, chartArea: {left, top, width, height}} = chart;
+                    ctx.save();
+                    
+                    ctx.font = 'bold 24px Arial';
+                    ctx.fillStyle = '#333';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('$' + presupuestoTotal.toLocaleString('es-MX', {maximumFractionDigits: 0}), left + width / 2, top + height / 2 - 10);
+                    
+                    ctx.font = '14px Arial';
+                    ctx.fillStyle = '#666';
+                    ctx.fillText('Presupuesto Total', left + width / 2, top + height / 2 + 15);
+                    
+                    ctx.restore();
+                }
+            }]
+        });
     @endif
 
     // Gráfico de Barras - Ejecución por Categoría
     @if($categorias->count() > 0)
-    const categoriasData = @json($categorias);
-    
-    const ctx2 = document.getElementById('chartEjecucion').getContext('2d');
-    new Chart(ctx2, {
-        type: 'bar',
-        data: {
-            labels: categoriasData.map(c => c.nombre),
-            datasets: [{
-                label: '% Utilizado',
-                data: categoriasData.map(c => c.porcentaje_utilizado),
-                backgroundColor: categoriasData.map(c => {
-                    const colors = {
-                        'success': '#198754',
-                        'warning': '#fd7e14',
-                        'danger': '#dc3545',
-                        'info': '#0dcaf0'
-                    };
-                    return colors[c.badge_color] || '#0d6efd';
-                }),
-                borderRadius: 5,
-                borderSkipped: false
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return `${context.parsed.x.toFixed(2)}%`;
+        const categoriasData = @json($categorias);
+        
+        const ctx2 = document.getElementById('chartEjecucion').getContext('2d');
+        new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: categoriasData.map(function(c) { return c.nombre; }),
+                datasets: [{
+                    label: '% Utilizado',
+                    data: categoriasData.map(function(c) { return c.porcentaje_utilizado; }),
+                    backgroundColor: categoriasData.map(function(c) {
+                        const colors = {
+                            'success': '#198754',
+                            'warning': '#fd7e14',
+                            'danger': '#dc3545',
+                            'info': '#0dcaf0'
+                        };
+                        return colors[c.badge_color] || '#0d6efd';
+                    }),
+                    borderRadius: 5,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.parsed.x.toFixed(2) + '%';
+                            }
                         }
                     }
-                }
-            },
-            scales: {
-                x: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: function(value) {
-                            return value + '%';
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
     @endif
 </script>
-
-@endsection
-                                </td>
-                                <td class="text-warning">
-                                    ${{ number_format($categoria['gastado'], 2) }}
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="progress" style="width: 60px; height: 20px;">
-                                            <div
-                                                class="progress-bar bg-{{ $categoria['badge_color'] }}"
-                                                role="progressbar"
-                                                style="width: {{ min($categoria['porcentaje_utilizado'], 100) }}%"
-                                                aria-valuenow="{{ $categoria['porcentaje_utilizado'] }}"
-                                                aria-valuemin="0"
-                                                aria-valuemax="100">
-                                            </div>
-                                        </div>
-                                        <span class="ms-2 fw-bold">
-                                            {{ $categoria['porcentaje_utilizado'] }}%
-                                        </span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <span class="badge bg-{{ $categoria['badge_color'] }}">
-                                        {{ $categoria['estado_visual'] }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="badge bg-info">
-                                        {{ $categoria['apoyos_aprobados'] }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <a href="{{ route('presupuesto.categorias.show', $categoria['id_categoria']) }}"
-                                       class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-eye me-1"></i>
-                                        Ver
-                                    </a>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="9" class="text-center text-muted py-4">
-                                    <i class="fas fa-inbox me-2"></i>
-                                    No hay categorías configuradas para este ciclo
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Botones de Acción -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <a href="{{ route('presupuesto.reportes') }}" class="btn btn-lg btn-info me-2">
-                <i class="fas fa-file-pdf me-2"></i>
-                Ver Reportes Completos
-            </a>
-            <a href="{{ route('dashboard') }}" class="btn btn-lg btn-secondary">
-                <i class="fas fa-arrow-left me-2"></i>
-                Volver al Panel
-            </a>
-        </div>
-    </div>
-
-</div>
-
-@push('scripts')
-<script>
-    $(document).ready(function() {
-        if ($.fn.DataTable.isDataTable('#categoriasTable')) {
-            $('#categoriasTable').DataTable().destroy();
-        }
-        
-        $('#categoriasTable').DataTable({
-            responsive: true,
-            language: {
-                url: '//cdn.datatables.net/plug-ins/1.10.21/i18n/Spanish.json'
-            },
-            pageLength: 25,
-            order: [[5, 'desc']]
-        });
-    });
-</script>
-@endpush
 
 @endsection
