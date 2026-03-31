@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\NotificacionGenerada;
 use App\Jobs\CopiarDocumentoExpedienteJob;
+use App\Services\PresupuetaryIntegrationService;
 use App\Services\SolicitudWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,8 +13,10 @@ use Illuminate\Support\Facades\Mail;
 
 class SolicitudProcesoController extends Controller
 {
-    public function __construct(private readonly SolicitudWorkflowService $workflow)
-    {
+    public function __construct(
+        private readonly SolicitudWorkflowService $workflow,
+        private readonly PresupuetaryIntegrationService $presupuetoIntegration
+    ) {
     }
 
     public function index(Request $request)
@@ -215,6 +218,12 @@ class SolicitudProcesoController extends Controller
             $this->crearNotificacionBeneficiario((int) $data['folio'], 'Tu apoyo fue autorizado por direccion.', 'apoyo_autorizado');
 
             DB::commit();
+
+            // Integración con presupuestación (Phase 4): Asignar presupuesto tras autorización
+            $this->presupuetoIntegration->asignarPresupuestoAlAutorizar(
+                (int) $data['folio'],
+                (int) $user->id_usuario
+            );
 
             return back()->with('status', 'Firma directiva registrada. CUV: ' . $cuv);
         } catch (\Throwable $e) {

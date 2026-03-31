@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Apoyo;
 use App\Models\HitosApoyo;
+use App\Services\PresupuetaryIntegrationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -775,6 +776,7 @@ class ApoyoController extends Controller
             'monto_inicial_asignado' => 'nullable|required_if:tipo_apoyo,Económico|numeric|min:0',
             'stock_inicial' => 'nullable|required_if:tipo_apoyo,Especie|integer|min:0',
             'activo' => 'nullable|boolean',
+            'id_categoria' => 'nullable|integer|exists:presupuesto_categorias,id_categoria',
             'fechaInicio' => 'required|date',
             'fechafin' => 'required|date|after_or_equal:fechaInicio',
             'foto_ruta' => 'nullable|image|max:5120',
@@ -819,6 +821,10 @@ class ApoyoController extends Controller
                 'fecha_fin' => $fechaFin,
             ];
 
+            if (!empty($data['id_categoria'])) {
+                $payload['id_categoria'] = (int) $data['id_categoria'];
+            }
+
             if (Schema::hasColumn('Apoyos', 'foto_ruta')) {
                 $payload['foto_ruta'] = $fotoRuta;
             }
@@ -855,6 +861,10 @@ class ApoyoController extends Controller
             $this->syncApoyoMilestones((int) $apoyo->id_apoyo, $data['hitos'] ?? []);
 
             DB::commit();
+
+            // Integración con presupuestación (Phase 4)
+            $presupuetoIntegration = app(PresupuetaryIntegrationService::class);
+            $presupuetoIntegration->reservarPresupuestoApoyo($apoyo, $data['id_categoria'] ?? null);
 
             return response()->json(['success' => true, 'message' => 'Apoyo registrado correctamente.']);
         } catch (\Exception $e) {
