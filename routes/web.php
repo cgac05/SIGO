@@ -227,6 +227,11 @@ Route::middleware(['auth', 'role:1,2,3'])->prefix('admin')->group(function () {
 // ============= PRESUPUESTACIÓN (FASE 4) =============
 use App\Http\Controllers\Admin\PresupuestoController;
 
+// DEBUG: Ver información del usuario (sin protección)
+Route::get('/admin/presupuesto/debug', function () {
+    return view('admin.presupuesto.debug');
+})->middleware('auth')->name('presupuesto.debug');
+
 Route::middleware(['auth', 'role:2'])->prefix('admin/presupuesto')->group(function () {
     // Dashboard y reportes
     Route::get('/dashboard', [PresupuestoController::class, 'dashboard'])

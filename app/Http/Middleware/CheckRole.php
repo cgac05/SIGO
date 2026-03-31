@@ -32,8 +32,8 @@ class CheckRole
         $userRole = null;
 
         if ($user->isPersonal()) {
-            // Si es personal, obtener el id_rol de la tabla Personal
-            $personal = $user->personal;
+            // Si es personal, obtener el id_rol de la tabla Personal (con carga lazy si es necesario)
+            $personal = $user->personal ?? $user->load('personal')->personal;
             if ($personal) {
                 $userRole = $personal->fk_rol;
             }
@@ -48,8 +48,11 @@ class CheckRole
         }
 
         // Si no tiene el rol requerido, denegar acceso
+        \Log::warning("CheckRole: Usuario {$user->id_usuario} ({$user->email}) sin acceso. Rol encontrado: {$userRole}, Roles requeridos: " . implode(',', $rolesRequeridos));
+        
         return response()->view('errors.403', [
-            'message' => 'No tienes permiso para acceder a este recurso. Rol requerido: ' . implode(', ', $rolesRequeridos)
+            'message' => 'No tienes permiso para acceder a este recurso. Rol requerido: ' . implode(', ', $rolesRequeridos) . 
+                         (config('app.debug') ? " (Debug: rol actual: {$userRole})" : '')
         ], 403);
     }
 }
