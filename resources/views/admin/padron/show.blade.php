@@ -43,11 +43,8 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <!-- Foto y Estado -->
                         <div class="flex flex-col items-center">
-                            <div class="h-32 w-32 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center mb-4">
-                                <svg class="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
-                                </svg>
-                            </div>
+                            <img src="{{ $usuario->getFotoUrl() }}" alt="Foto de {{ $usuario->email }}" class="h-40 w-40 rounded-full object-cover border-4 border-blue-200 mb-4 shadow-lg">
+
                             <div class="text-center">
                                 <h3 class="text-2xl font-bold text-gray-900">
                                     @if($tipo === 'Beneficiario')

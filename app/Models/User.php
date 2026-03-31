@@ -28,6 +28,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'google_refresh_token',
         'google_token_expires_at',
         'google_avatar',
+        'foto_ruta',
         'activo',
         'ultima_conexion',
         'remember_token',
@@ -49,6 +50,23 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'google_token_expires_at' => 'datetime',
     ];
 
+
+    /**
+     * Obtener URL de la foto del usuario
+     */
+    public function getFotoUrl(): string
+    {
+        // Prioridad: foto local > google avatar > avatar por defecto
+        if ($this->foto_ruta && file_exists(storage_path('app/fotos/' . $this->foto_ruta))) {
+            return asset('storage/fotos/' . $this->foto_ruta);
+        }
+
+        if ($this->google_avatar) {
+            return $this->google_avatar;
+        }
+
+        return asset('images/avatar-default.png');
+    }
 
     public function getAuthPassword(): string
     {
