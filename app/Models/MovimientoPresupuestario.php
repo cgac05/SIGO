@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MovimientoPresupuestario extends Model
 {
-    use HasFactory;
-
     protected $table = 'movimientos_presupuestarios';
     protected $primaryKey = 'id_movimiento';
     protected $guarded = [];

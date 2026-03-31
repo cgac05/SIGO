@@ -8,8 +8,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PresupuestoCategoria extends Model
 {
-    use HasFactory;
-
     protected $table = 'presupuesto_categorias';
     protected $primaryKey = 'id_categoria';
     protected $guarded = [];

@@ -224,4 +224,30 @@ Route::middleware(['auth', 'role:1,2,3'])->prefix('admin')->group(function () {
         ->name('padron.exportar');
 });
 
+// ============= PRESUPUESTACIÓN (FASE 4) =============
+use App\Http\Controllers\Admin\PresupuestoController;
+
+Route::middleware(['auth', 'role:3'])->prefix('admin/presupuesto')->group(function () {
+    // Dashboard y reportes
+    Route::get('/dashboard', [PresupuestoController::class, 'dashboard'])
+        ->name('presupuesto.dashboard');
+    Route::get('/reportes', [PresupuestoController::class, 'reportes'])
+        ->name('presupuesto.reportes');
+    
+    // Categorías y detalles
+    Route::get('/categorias/{id}', [PresupuestoController::class, 'showCategoria'])
+        ->whereNumber('id')
+        ->name('presupuesto.categorias.show');
+    
+    // Apoyos presupuestarios y movimientos
+    Route::get('/apoyos/{id}', [PresupuestoController::class, 'showApoyo'])
+        ->whereNumber('id')
+        ->name('presupuesto.apoyos.show');
+    
+    // API endpoints
+    Route::get('/api/historial/{id}', [PresupuestoController::class, 'apiHistorial'])
+        ->whereNumber('id')
+        ->name('presupuesto.api.historial');
+});
+
 require __DIR__.'/auth.php';
