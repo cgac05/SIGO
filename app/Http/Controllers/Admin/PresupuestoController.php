@@ -20,8 +20,21 @@ class PresupuestoController extends Controller
     private function authorizeDirectivo(): void
     {
         $user = Auth::user();
-        if (!$user || (int) $user->rol !== 2) {
+        
+        // Verificar que sea usuario Personal
+        if (!$user || !$user->isPersonal()) {
             abort(403, 'Solo directivos pueden acceder a presupuestación');
+        }
+        
+        // Cargar relación personal si no está cargada
+        if (!$user->relationLoaded('personal')) {
+            $user->load('personal');
+        }
+        
+        // Verificar que tenga Personal y rol 2
+        $personal = $user->personal;
+        if (!$personal || (int) $personal->fk_rol !== 2) {
+            abort(403, 'Solo directivos (rol 2) pueden acceder a presupuestación');
         }
     }
 

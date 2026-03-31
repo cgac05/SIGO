@@ -9,10 +9,14 @@ class CicloPresupuestario extends Model
     protected $table = 'ciclos_presupuestarios';
     protected $primaryKey = 'id_ciclo';
     protected $guarded = [];
-    protected $dates = ['fecha_apertura', 'fecha_cierre_programado', 'fecha_cierre_efectivo', 'created_at', 'updated_at'];
     protected $casts = [
         'año_fiscal' => 'integer',
         'presupuesto_total' => 'decimal:2',
+        'fecha_apertura' => 'datetime',
+        'fecha_cierre_programado' => 'datetime',
+        'fecha_cierre_efectivo' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     // ========== RELATIONSHIPS ==========

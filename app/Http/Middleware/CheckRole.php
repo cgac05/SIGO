@@ -15,66 +15,107 @@ class CheckRole
      */
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
-        // Verificar que el usuario esté autenticado
+        // PASO 1: Verificar autenticación
+        \Log::info("=== CheckRole INICIO ===");
+        \Log::info("Ruta: {$request->path()}");
+        \Log::info("Middleware roles requeridos: " . json_encode($roles));
+        
         if (!auth()->check()) {
+            \Log::warning("CheckRole: Usuario NO autenticado - redirect a login");
             return redirect('login');
         }
 
         $user = auth()->user();
+        \Log::info("PASO 1: Usuario autenticado", [
+            'id' => $user->id_usuario,
+            'email' => $user->email,
+            'tipo_usuario' => $user->tipo_usuario
+        ]);
         
         // Si no se especifican roles, permitir acceso
         if (empty($roles)) {
+            \Log::info("CheckRole: PERMITIDO - no hay roles requeridos");
             return $next($request);
         }
 
-        // Obtener el rol del usuario
-        $userRole = null;
-
-        if ($user->isPersonal()) {
-            // Cargar la relación personal si aún no está cargada
-            if (!$user->relationLoaded('personal')) {
-                $user->load('personal');
-            }
-            
-            $personal = $user->personal;
-            
-            if ($personal && isset($personal->fk_rol)) {
-                $userRole = (int) $personal->fk_rol;
-                
-                \Log::debug("CheckRole: Usuario {$user->id_usuario} ({$user->email}) Personal encontrado", [
-                    'numero_empleado' => $personal->numero_empleado ?? 'NULL',
-                    'fk_rol' => $userRole,
-                    'rolesRequeridos' => $roles
-                ]);
-            } else {
-                \Log::warning("CheckRole: Usuario {$user->id_usuario} ({$user->email}) Personal NO encontrado o SIN fk_rol");
-            }
-        } else {
-            \Log::warning("CheckRole: Usuario {$user->id_usuario} ({$user->email}) NO es Personal (tipo: {$user->tipo_usuario})");
-        }
-
-        // Convertir los roles a enteros para comparación
-        $rolesRequeridos = array_map('intval', $roles);
-
-        // Si el usuario tiene rol y está en los roles requeridos
-        if ($userRole !== null && in_array($userRole, $rolesRequeridos)) {
-            \Log::debug("CheckRole: ✅ Acceso PERMITIDO para usuario {$user->id_usuario}");
-            return $next($request);
-        }
-
-        // Si no tiene el rol requerido, denegar acceso
-        $errorMsg = "No tienes permiso para acceder a este recurso. Rol requerido: " . implode(', ', $rolesRequeridos);
-        if (config('app.debug')) {
-            $errorMsg .= " (Tu rol actual: " . ($userRole ?? 'NULL') . ")";
-        }
+        // PASO 2: Verificar si es Personal
+        $isPersonal = $user->isPersonal();
+        \Log::info("PASO 2: isPersonal() = " . ($isPersonal ? 'TRUE' : 'FALSE'));
         
-        \Log::warning("CheckRole: ❌ Acceso DENEGADO para usuario {$user->id_usuario} ({$user->email})", [
-            'rolEncontrado' => $userRole,
-            'rolesRequeridos' => $rolesRequeridos
+        if (!$isPersonal) {
+            \Log::error("CheckRole: Usuario NO es Personal, tipo_usuario = {$user->tipo_usuario}");
+            return response()->view('errors.403', ['message' => 'Usuario no es Personal'], 403);
+        }
+
+        // PASO 3: Cargar relación personal si no está cargada
+        \Log::info("PASO 3: Cargando relación Personal");
+        
+        if (!$user->relationLoaded('personal')) {
+            \Log::info("  Relación NO cargada - ejecutando load()");
+            $user->load('personal');
+        } else {
+            \Log::info("  Relación YA fue cargada antes");
+        }
+
+        // PASO 4: Verificar que personal existe
+        $personal = $user->personal;
+        \Log::info("PASO 4: Personal cargado", [
+            'existe' => $personal ? 'SÍ' : 'NO',
+            'numero_empleado' => $personal?->numero_empleado ?? 'NULL',
+        ]);
+        
+        if (!$personal) {
+            \Log::error("CheckRole: Personal NO ENCONTRADO en BD");
+            return response()->view('errors.403', ['message' => 'Usuario sin registro Personal'], 403);
+        }
+
+        // PASO 5: Obtener rol
+        $fkRolRaw = $personal->fk_rol;
+        $userRole = $fkRolRaw !== null ? (int) $fkRolRaw : null;
+        
+        \Log::info("PASO 5: Rol obtenido", [
+            'fk_rol_raw' => $fkRolRaw,
+            'fk_rol_type' => gettype($fkRolRaw),
+            'userRole_int' => $userRole,
+            'userRole_type' => gettype($userRole),
+        ]);
+        
+        if ($userRole === null) {
+            \Log::error("CheckRole: fk_rol es NULL ❌");
+            return response()->view('errors.403', ['message' => 'Usuario sin rol asignado'], 403);
+        }
+
+        // PASO 6: Convertir roles requeridos a enteros
+        $rolesRequeridos = array_map('intval', $roles);
+        \Log::info("PASO 6: Comparación de roles", [
+            'userRole' => $userRole,
+            'userRole_type' => gettype($userRole),
+            'rolesRequeridos' => $rolesRequeridos,
+            'rolesRequeridos_type' => implode(',', array_map('gettype', $rolesRequeridos)),
+        ]);
+
+        // PASO 7: Verificar si está en los roles requeridos
+        $tieneAcceso = in_array($userRole, $rolesRequeridos, true); // strict comparison
+        
+        \Log::info("PASO 7: Verificación in_array", [
+            'in_array_result' => $tieneAcceso ? 'TRUE' : 'FALSE',
+            'in_array_strict' => in_array($userRole, $rolesRequeridos, true) ? 'TRUE' : 'FALSE',
+        ]);
+
+        if ($tieneAcceso) {
+            \Log::info("✅ CheckRole: ACCESO PERMITIDO");
+            return $next($request);
+        }
+
+        // ACCESO DENEGADO
+        \Log::error("❌ CheckRole: ACCESO DENEGADO", [
+            'usuario' => $user->email,
+            'rol_usuario' => $userRole,
+            'roles_requeridos' => $rolesRequeridos,
         ]);
         
         return response()->view('errors.403', [
-            'message' => $errorMsg
+            'message' => 'No tienes permiso. Rol requerido: ' . implode(', ', $rolesRequeridos) . " (Tu rol: {$userRole})"
         ], 403);
     }
 }
