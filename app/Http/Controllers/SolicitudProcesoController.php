@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\NotificacionGenerada;
 use App\Jobs\CopiarDocumentoExpedienteJob;
+use App\Services\FirmaElectronicaService;
 use App\Services\PresupuetaryIntegrationService;
 use App\Services\SolicitudWorkflowService;
 use Illuminate\Http\Request;
@@ -15,7 +16,8 @@ class SolicitudProcesoController extends Controller
 {
     public function __construct(
         private readonly SolicitudWorkflowService $workflow,
-        private readonly PresupuetaryIntegrationService $presupuetoIntegration
+        private readonly PresupuetaryIntegrationService $presupuetoIntegration,
+        private readonly FirmaElectronicaService $firmaService
     ) {
     }
 
@@ -153,83 +155,78 @@ class SolicitudProcesoController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (! Hash::check($data['password'], (string) $user->password_hash)) {
-            return back()->with('error', 'La re-autenticacion fallo. Verifica la contrasena.');
+        // Usar FirmaElectronicaService para manejar la firma
+        $resultado = $this->firmaService->firmarSolicitud(
+            (int) $data['folio'],
+            $user,
+            $data['password']
+        );
+
+        if (!$resultado['exitoso']) {
+            return back()->with('error', $resultado['mensaje']);
         }
 
-        $this->workflow->assertHitoActual((int) $data['folio'], 'RESULTADOS');
+        // Notificar beneficiario de aprobación
+        $this->crearNotificacionBeneficiario(
+            (int) $data['folio'],
+            'Tu apoyo fue autorizado por dirección. CUV: ' . $resultado['firma']['cuv'],
+            'apoyo_autorizado'
+        );
 
-        DB::beginTransaction();
+        // Integración con presupuestación: Asignar presupuesto tras autorización
+        $this->presupuetoIntegration->asignarPresupuestoAlAutorizar(
+            (int) $data['folio'],
+            (int) $user->id_usuario
+        );
 
-        try {
-            $documentos = DB::table('Documentos_Expediente')
-                ->where('fk_folio', $data['folio'])
-                ->orderBy('id_documento')
-                ->get()
-                ->map(fn ($doc) => [
-                    'id_documento' => $doc->id_documento,
-                    'tipo' => $doc->fk_id_tipo_doc,
-                    'estado' => $doc->estado_validacion,
-                    'official_file_id' => $doc->official_file_id,
-                ])
-                ->all();
+        return back()->with('status', $resultado['mensaje']);
+    }
 
-            $sello = $this->workflow->generarSelloDigital((int) $data['folio'], $documentos, (int) $user->id_usuario);
-            $cuv = $this->workflow->generarCuv(18);
+    /**
+     * Rechazar solicitud con firma digital
+     */
+    public function rechazarSolicitud(Request $request)
+    {
+        $user = $this->authorizePersonal($request, 2);
 
-            $metadata = [
-                'ip' => $request->ip(),
-                'user_agent' => (string) $request->userAgent(),
-                'timestamp' => now()->toIso8601String(),
-            ];
+        $data = $request->validate([
+            'folio' => ['required', 'integer', 'exists:Solicitudes,folio'],
+            'password' => ['required', 'string'],
+            'motivo' => ['required', 'string', 'max:500'],
+        ], [
+            'motivo.required' => 'El motivo del rechazo es obligatorio.',
+        ]);
 
-            $seguimiento = DB::table('Seguimiento_Solicitud')
-                ->where('fk_folio', $data['folio'])
-                ->first();
+        // Usar FirmaElectronicaService para manejar el rechazo
+        $resultado = $this->firmaService->rechazarSolicitud(
+            (int) $data['folio'],
+            $user,
+            $data['password'],
+            $data['motivo']
+        );
 
-            $payload = [
-                'fk_id_directivo' => $user->id_usuario,
-                'sello_digital' => $sello,
-                'cuv' => $cuv,
-                'estado_proceso' => 'AUTORIZADO',
-                'metadata_seguridad' => json_encode($metadata, JSON_UNESCAPED_UNICODE),
-                'fecha_firma' => now(),
-                'fecha_actualizacion' => now(),
-            ];
-
-            if ($seguimiento) {
-                DB::table('Seguimiento_Solicitud')
-                    ->where('id_seguimiento', $seguimiento->id_seguimiento)
-                    ->update($payload);
-            } else {
-                DB::table('Seguimiento_Solicitud')->insert([
-                    ...$payload,
-                    'fk_folio' => $data['folio'],
-                    'fecha_creacion' => now(),
-                ]);
-            }
-
-            DB::table('Solicitudes')->where('folio', $data['folio'])->update([
-                'cuv' => $cuv,
-                'fk_id_estado' => 3,
-                'fecha_actualizacion' => now(),
-            ]);
-
-            $this->crearNotificacionBeneficiario((int) $data['folio'], 'Tu apoyo fue autorizado por direccion.', 'apoyo_autorizado');
-
-            DB::commit();
-
-            // Integración con presupuestación (Phase 4): Asignar presupuesto tras autorización
-            $this->presupuetoIntegration->asignarPresupuestoAlAutorizar(
-                (int) $data['folio'],
-                (int) $user->id_usuario
-            );
-
-            return back()->with('status', 'Firma directiva registrada. CUV: ' . $cuv);
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return back()->with('error', 'No fue posible registrar la firma: ' . $e->getMessage());
+        if (!$resultado['exitoso']) {
+            return back()->with('error', $resultado['mensaje']);
         }
+
+        // Notificar beneficiario de rechazo
+        $this->crearNotificacionBeneficiario(
+            (int) $data['folio'],
+            'Tu solicitud fue rechazada. Motivo: ' . $data['motivo'],
+            'apoyo_rechazado'
+        );
+
+        return back()->with('status', $resultado['mensaje']);
+    }
+
+    /**
+     * Verificar integridad de firma electrónica
+     */
+    public function verificarFirma(Request $request, string $cuv)
+    {
+        $resultado = $this->firmaService->verificarFirma($cuv);
+
+        return response()->json($resultado);
     }
 
     public function cierreFinanciero(Request $request)
