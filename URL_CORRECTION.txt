@@ -1,0 +1,134 @@
+🔧 CORRECCIÓN - Rutas Correctas para Testing
+
+═══════════════════════════════════════════════════════════
+
+❌ URL INCORRECTA QUE US UTILIZASTE:
+  http://localhost:8000/calendario/configuracion
+  → Resultado: 404 Not Found
+
+✅ URL CORRECTA:
+  http://localhost:8000/admin/calendario
+  → Ruta correcta hacia GoogleCalendarController
+
+═══════════════════════════════════════════════════════════
+
+📋 TODAS LAS RUTAS DISPONIBLES:
+
+Para Configuración y Pruebas:
+  ✅ http://localhost:8000/admin/calendario              ← Configuración principal
+  ✅ http://localhost:8000/admin/calendario/logs         ← Ver logs de auditoría
+  ✅ http://localhost:8000/admin/calendario/sync         ← Sincronizar manualmente
+  ✅ http://localhost:8000/admin/calendario/disconnect   ← Desconectar Google
+
+OAuth (Automáticamente):
+  • http://localhost:8000/admin/calendario/auth          ← Iniciar OAuth
+  • http://localhost:8000/admin/calendario/callback      ← Callback OAuth (automático)
+
+═══════════════════════════════════════════════════════════
+
+🔐 CREDENCIALES NECESARIAS:
+
+El setup_manual_tests.php ahora crea un usuario con:
+
+  Email:    directivo@test.local
+  Password: password123
+  Rol:      Directivo (Rol 3)
+
+Para acceder a http://localhost:8000/admin/calendario:
+
+  1. Ir a: http://localhost:8000/login
+  2. Ingresar:
+     - Email: directivo@test.local
+     - Password: password123
+  3. Hacer login
+  4. Acceder a: http://localhost:8000/admin/calendario
+
+═══════════════════════════════════════════════════════════
+
+🚀 PRÓXIMOS PASOS (Corregidos):
+
+Paso 1: Ejecutar Setup
+  php setup_manual_tests.php
+  
+  Esto va a crear:
+  ✅ Usuario: directivo_test (directivo@test.local)
+  ✅ Contraseña: password123
+  ✅ Rol: Directivo (Rol 3)
+  ✅ Permiso de calendario: (inactivo, se activa con OAuth)
+  ✅ Apoyo de prueba: Test Apoyo Calendar
+  ✅ Hito de prueba: Test Hito con Calendar
+
+Paso 2: Iniciar Servidor
+  php artisan serve
+  
+  Esperado: Laravel development server started: http://127.0.0.1:8000
+
+Paso 3: Hacer Login
+  Ir a: http://localhost:8000/login
+  
+  Credenciales:
+  - Email: directivo@test.local
+  - Password: password123
+  
+Paso 4: Acceder a Configuración
+  Ir a: http://localhost:8000/admin/calendario
+  
+  Ahora verás:
+  - ✅ Página de configuración
+  - ✅ Botón "Conectar con Google"
+  - ✅ Estado: No conectado
+
+Paso 5: Comenzar Tests
+  Seguir: MANUAL_TESTING_CHECKLIST.md
+  Comenzar por: Test 1 - OAuth Flow
+
+═══════════════════════════════════════════════════════════
+
+❓ ¿POR QUÉ ES BAJO /admin/?
+
+Las rutas están protegidas por:
+
+  Route::middleware(['auth', 'role:3'])->prefix('admin/calendario')->group(...)
+
+Esto significa:
+  ✅ Solo usuarios autenticados pueden acceder
+  ✅ Solo usuarios con Rol 3 (Directivos) pueden acceder
+  ✅ Todas las rutas están bajo el prefijo /admin/calendario
+
+═══════════════════════════════════════════════════════════
+
+📝 ARCHIVOS ACTUALIZADOS:
+
+Los siguientes archivos ya han sido actualizados con las URLs correctas:
+
+  ✅ MANUAL_TESTING_CHECKLIST.md
+  ✅ QUICK_START_MANUAL_TESTS.md
+  ✅ START_MANUAL_TESTING.txt
+  ✅ TESTING_SUMMARY.txt
+  ✅ setup_manual_tests.php (credenciales actualizadas)
+
+═══════════════════════════════════════════════════════════
+
+🎯 PRÓXIMO PASO INMEDIATO:
+
+1. Terminal 1:
+   php setup_manual_tests.php
+
+2. Terminal 2:
+   php artisan serve
+
+3. Navegador:
+   http://localhost:8000/login
+   
+   Login con:
+   - directivo@test.local
+   - password123
+   
+4. Luego:
+   http://localhost:8000/admin/calendario
+
+═══════════════════════════════════════════════════════════
+
+✨ Estado: 🟢 LISTO PARA CONTINUAR CON TESTS CORRECTOS
+
+Next: Ejecutar los pasos listados arriba

@@ -1,0 +1,54 @@
+✅ CORRECCIÓN - Roles de Categoría
+
+═══════════════════════════════════════════════════════════
+
+❌ ERROR ENCONTRADO:
+
+Se estaba usando rol:3 (Finanzas) en lugar de rol:2 (Directivo)
+
+Historia de roles en Cat_Roles:
+┌────┬──────────────┐
+│ ID │ Nombre_Rol   │
+├────┼──────────────┤
+│ 1  │ Administrativo
+│ 2  │ Directivo    ← CORRECTO para Google Calendar
+│ 3  │ Finanzas     ← Era incorrecto
+└────┴──────────────┘
+
+═══════════════════════════════════════════════════════════
+
+✅ CAMBIOS APLICADOS:
+
+1. RUTAS (routes/web.php):
+   ❌ Route::middleware(['auth', 'role:3'])
+   ✅ Route::middleware(['auth', 'role:2'])
+
+2. SETUP COMMAND (app/Console/Commands/SetupManualTests.php):
+   ❌ 'fk_rol' => 3,
+   ✅ 'fk_rol' => 2,
+
+3. USUARIO EN BD:
+   Usuario ID=17 (directivo@test.local)
+   ❌ fk_rol = 3
+   ✅ fk_rol = 2 (ACTUALIZADO)
+
+═══════════════════════════════════════════════════════════
+
+🔐 RUTAS PROTEGIDAS - AHORA CORRECTAS:
+
+Todas estas rutas ahora requieren role:2 (Directivo):
+
+  ✅ GET  /admin/calendario           (role:2)
+  ✅ GET  /admin/calendario/auth      (role:2)
+  ✅ GET  /admin/calendario/callback  (role:2)
+  ✅ POST /admin/calendario/sync      (role:2)
+  ✅ POST /admin/calendario/disconnect (role:2)
+  ✅ GET  /admin/calendario/logs      (role:2)
+
+═══════════════════════════════════════════════════════════
+
+✨ Status: 🟢 CORREGIDO
+
+Usuario directivo@test.local ahora tiene acceso correcto con rol 2 (Directivo)
+
+Próximo: php artisan serve

@@ -1,0 +1,87 @@
+✅ SOLUCIÓN - Middleware Role Registrado
+
+═══════════════════════════════════════════════════════════
+
+❌ PROBLEMA:
+  Illuminate\Contracts\Container\BindingResolutionException
+  Target class [role] does not exist
+
+✅ SOLUCIÓN APLICADA:
+
+1. ✅ Middleware 'CheckRole' Creado
+   Archivo: app/Http/Middleware/CheckRole.php
+   
+   Funcionalidad:
+   - Valida que el usuario esté autenticado
+   - Verifica el rol del usuario en tabla Personal.fk_rol
+   - Permite acceso solo si el rol está en los roles requeridos
+   - Deniega acceso si no tiene permisos (403)
+
+2. ✅ Middleware Registrado en Bootstrap
+   Archivo: bootstrap/app.php
+   
+   Cambios:
+   - Importado: use App\Http\Middleware\CheckRole;
+   - Registrado: 'role' => CheckRole::class,
+   
+   Ahora Laravel reconoce: Route::middleware(['auth', 'role:3'])
+
+3. ✅ Vista de Error 403 Creada
+   Archivo: resources/views/errors/403.blade.php
+   
+   Mostrada cuando:
+   - Usuario no tiene rol requerido
+   - Proporciona botón para volver al dashboard
+
+═══════════════════════════════════════════════════════════
+
+🔍 ESTRUCTURA DE ROLES:
+
+Tabla: Cat_Roles
+  - id_rol (1, 2, 3, ...)
+  - nombre_rol (Directivo, Administrativo, etc)
+
+Tabla: Usuarios
+  - id_usuario
+  - tipo_usuario (Beneficiario, Personal)
+
+Tabla: Personal (para usuarios tipo Personal)
+  - fk_rol → referencia a Cat_Roles.id_rol
+  
+El middleware obtiene el rol de:
+  - Si es Personal: Personal.fk_rol
+  - Si es Beneficiario: No tiene acceso a rutas con role:3
+
+═══════════════════════════════════════════════════════════
+
+🔐 RUTAS PROTEGIDAS:
+
+Todas estas rutas ahora funcionan:
+
+  ✅ GET  /admin/calendario        (requiere role:3)
+  ✅ GET  /admin/calendario/auth   (requiere role:3)
+  ✅ GET  /admin/calendario/callback (requiere role:3)
+  ✅ POST /admin/calendario/sync   (requiere role:3)
+  ✅ POST /admin/calendario/disconnect (requiere role:3)
+  ✅ GET  /admin/calendario/logs   (requiere role:3)
+
+═══════════════════════════════════════════════════════════
+
+🚀 PRÓXIMO PASO:
+
+Ejecutar setup nuevamente:
+
+  php setup_manual_tests.php
+
+Ahora debería:
+  ✅ Crear directivo_test con rol 3
+  ✅ Crear email: directivo@test.local
+  ✅ Crear password: password123
+  ✅ Asignar Rol 3 en tabla Personal.fk_rol
+  ✅ Completar sin errores
+
+═══════════════════════════════════════════════════════════
+
+✨ Status: 🟢 MIDDLEWARE LISTO
+
+Ejecutar: php setup_manual_tests.php

@@ -162,4 +162,12 @@ class User extends Authenticatable implements MustVerifyEmailContract
     {
         return $this->hasMany(GoogleDriveFile::class, 'user_id', 'id_usuario');
     }
+
+    /**
+     * Relación hasOne con permisos de Google Calendar
+     */
+    public function calendarioPermiso()
+    {
+        return $this->hasOne(DirectivoCalendarioPermiso::class, 'fk_id_directivo', 'id_usuario');
+    }
 }

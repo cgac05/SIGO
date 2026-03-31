@@ -278,4 +278,75 @@ Route::middleware('auth')->group(function () {
     Route::delete('/api/google-drive/file/{fileId}', [GoogleDriveController::class, 'destroy'])->name('api.google-drive.destroy');
 });
 
+// ============= CASO A - Carga Híbrida (3 Momentos) =============
+
+// Importar controllers
+use App\Http\Controllers\CasoAController;
+use App\Http\Controllers\GoogleCalendarController;
+
+// MOMENTO 1 & 2: Beneficiario Presencial + Admin Escaneo (Protegidas - Solo Admin Rol 1-2)
+Route::middleware(['auth', 'role:1,2'])->prefix('admin/caso-a')->group(function () {
+    // Momento 1: Crear expediente presencial
+    Route::get('/momento-uno', [CasoAController::class, 'momentoUno'])
+        ->name('caso-a.momento-uno');
+    Route::post('/momento-uno/guardar', [CasoAController::class, 'guardarMomentoUno'])
+        ->name('caso-a.momento-uno.guardar');
+    Route::get('/resumen/{folio}', [CasoAController::class, 'mostrarResumenMomentoUno'])
+        ->name('caso-a.resumen-uno');
+
+    // Momento 2: Escanear documentos
+    Route::get('/momento-dos', [CasoAController::class, 'momentoDos'])
+        ->name('caso-a.momento-dos');
+    Route::post('/momento-dos/cargar', [CasoAController::class, 'cargarDocumentoMomentoDos'])
+        ->name('caso-a.momento-dos.cargar');
+    Route::post('/momento-dos/confirmar', [CasoAController::class, 'confirmarCargaMomentoDos'])
+        ->name('caso-a.momento-dos.confirmar');
+});
+
+// MOMENTO 3: Consulta Privada (Sin autenticación - público)
+Route::get('/consulta-privada', [CasoAController::class, 'momentoTresForm'])
+    ->name('caso-a.momento-tres');
+Route::post('/consulta-privada/validar', [CasoAController::class, 'validarMomentoTres'])
+    ->name('caso-a.momento-tres.validar');
+Route::get('/consulta-privada/resumen', [CasoAController::class, 'mostrarResumenMomentoTres'])
+    ->middleware('caso-a.sesion-privada')
+    ->name('caso-a.momento-tres.resumen');
+Route::post('/consulta-privada/logout', [CasoAController::class, 'cerrarSesionMomentoTres'])
+    ->name('caso-a.momento-tres.logout');
+
+// ============= GOOGLE CALENDAR INTEGRATION =============
+
+// Google Calendar Authorization + Sync (Protegidas - Solo Directivos Rol 2)
+Route::middleware(['auth', 'role:2'])->prefix('admin/calendario')->group(function () {
+    // Configuración
+    Route::get('/', [GoogleCalendarController::class, 'mostrarConfiguracion'])
+        ->name('calendario.config');
+
+    // OAuth Flow - Inicio (Protegido)
+    Route::get('/auth', [GoogleCalendarController::class, 'redirectToGoogle'])
+        ->name('calendario.auth');
+
+    // Sincronización
+    Route::post('/sync', [GoogleCalendarController::class, 'sincronizar'])
+        ->name('calendario.sync');
+
+    // Desconectar
+    Route::post('/disconnect', [GoogleCalendarController::class, 'desconectar'])
+        ->name('calendario.disconnect');
+
+    // Logs de sincronización
+    Route::get('/logs', [GoogleCalendarController::class, 'mostrarLogs'])
+        ->name('calendario.logs');
+});
+
+// OAuth Callback (Sin protección - Google no mantiene sesión de SIGO)
+Route::get('/admin/calendario/callback', [GoogleCalendarController::class, 'handleGoogleCallback'])
+    ->name('calendario.callback');
+
+// API Endpoints (JSON responses)
+Route::middleware(['auth', 'role:2'])->prefix('api/calendario')->group(function () {
+    Route::get('/status', [GoogleCalendarController::class, 'apiStatus'])
+        ->name('api.calendario.status');
+});
+
 require __DIR__.'/auth.php';

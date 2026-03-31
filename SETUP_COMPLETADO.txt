@@ -1,0 +1,141 @@
+✅ MIDDLEWARE ROLE CONFIGURADO - SETUP COMPLETADO
+
+═══════════════════════════════════════════════════════════
+
+🟢 PROBLEMAS SOLUCIONADOS:
+
+1. ❌→✅ Middleware 'role' no existía
+   SOLUCIÓN: Creado CheckRole middleware en app/Http/Middleware/
+   REGISTRADO en: bootstrap/app.php
+   USO: Route::middleware(['auth', 'role:3'])
+
+2. ❌→✅ Campos de usuario incorrectos
+   SOLUCIÓN: Corregidos campos en setup script
+   - email (no correo_electronico)
+   - password_hash (no password)
+   - tipo_usuario = 'Personal' (no 'Directivo')
+   - Rol asignado en tabla Personal.fk_rol = 3
+
+3. ❌→✅ setup_manual_tests.php fallaba
+   SOLUCIÓN: Convertido a comando Artisan
+   COMANDO: php artisan test:setup-manual
+   EJECUTADO: ✅ Exitosamente
+
+═══════════════════════════════════════════════════════════
+
+✅ DATOS DE PRUEBA CREADOS:
+
+Usuario Directivo:
+  ├─ ID: 17
+  ├─ Email: directivo@test.local
+  ├─ Password: password123
+  ├─ Tipo: Personal
+  └─ Rol: Directivo (ID=3)
+
+Permiso de Calendario:
+  ├─ ID: 4
+  ├─ Directivo: ID=17
+  ├─ Estado: Inactivo (se activa con OAuth)
+  └─ Email: directivo@test.local
+
+Apoyo de Prueba:
+  ├─ ID: 18
+  ├─ Nombre: Test Apoyo Calendar
+  ├─ Sincronización: Habilitada
+  └─ Periode: 2026-03-29 a 2027-03-29
+
+═══════════════════════════════════════════════════════════
+
+🚀 PRÓXIMOS PASOS:
+
+PASO 1: Configurar Google OAuth (si no lo has hecho)
+────────────────────────────────────────────
+  1. Ir a: https://console.cloud.google.com
+  2. Crear proyecto "SIGO"
+  3. Habilitar Google Calendar API v3
+  4. Crear OAuth 2.0 Credentials (Web Application)
+  5. Configurar en .env:
+     GOOGLE_CLIENT_ID=tu_client_id
+     GOOGLE_CLIENT_SECRET=tu_client_secret
+     GOOGLE_REDIRECT_URI=http://localhost:8000/admin/calendario/callback
+
+PASO 2: Iniciar Servidor Local
+────────────────────────────────────────────
+Terminal 1:
+  php artisan serve
+
+Esperado:
+  Laravel development server started: http://127.0.0.1:8000
+
+PASO 3: Acceder a Configuración de Calendario
+────────────────────────────────────────────
+  1. Navegador: http://localhost:8000/login
+  2. Ingresar credenciales:
+     - Email: directivo@test.local
+     - Password: password123
+  3. Login
+  4. Acceder a: http://localhost:8000/admin/calendario
+  5. Verás: Página de configuración + botón "Conectar con Google"
+
+PASO 4: Realizar Pruebas Manuales
+────────────────────────────────────────────
+  Ver: MANUAL_TESTING_CHECKLIST.md
+  • Test 1: OAuth Flow (10 min)
+  • Test 2: Evento automático (10 min)
+  • Test 3: Actualización automática (10 min)
+  • Test 4: Scheduler (10 min)
+  • Test 5: Audit Logs (5 min)
+  • Test 6: Relaciones (10 min)
+  • Test 7: Scopes (5 min)
+  • Test 8: Seguridad (10 min)
+
+═══════════════════════════════════════════════════════════
+
+📋 MIDDLEWARE ROLE - DETALLES TÉCNICOS:
+
+Ubicación: app/Http/Middleware/CheckRole.php
+
+Funcionamiento:
+  ✓ Valida autenticación
+  ✓ Obtiene rol desde Personal.fk_rol
+  ✓ Verifica permisos requeridos
+  ✓ Retorna 403 si no autorizado
+
+Uso en rutas:
+  Route::middleware(['auth', 'role:3'])  // Rol 3 = Directivo
+  Route::middleware(['auth', 'role:1'])  // Rol 1 = Admin
+  Route::middleware(['auth', 'role:2'])  // Rol 2 = Supervisor
+
+Rutas Protegidas:
+  ✅ GET  /admin/calendario              (role:3)
+  ✅ GET  /admin/calendario/auth         (role:3)
+  ✅ GET  /admin/calendario/callback     (role:3)
+  ✅ POST /admin/calendario/sync         (role:3)
+  ✅ POST /admin/calendario/disconnect   (role:3)
+  ✅ GET  /admin/calendario/logs         (role:3)
+
+═══════════════════════════════════════════════════════════
+
+🔑 IMPORTANTE:
+
+- El usuario directivo@test.local ya está creado ✅
+- El rol Directivo (ID=3) está asignado ✅
+- El middleware está registrado y funcionando ✅
+- Las rutas están bajo /admin/calendario (no /calendario/) ✅
+- Todas las rutas requieren autenticación ✅
+
+═══════════════════════════════════════════════════════════
+
+⚠️ NOTAS IMPORTANTES:
+
+1. Las credenciales son solo para pruebas locales
+2. Google OAuth requiere configuración en .env
+3. El redirect URL debe coincidir EXACTAMENTE en Google Console
+4. El servidor debe estar corriendo para las pruebas
+5. Todos los logs se registran en storage/logs/
+
+═══════════════════════════════════════════════════════════
+
+✨ Status: 🟢 LISTO PARA PRUEBAS MANUALES
+
+Próximo: Inicia servidor y accede a http://localhost:8000/login

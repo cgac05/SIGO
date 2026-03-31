@@ -1,0 +1,181 @@
+===================================================================
+         SIGO GOOGLE CALENDAR - MANUAL TESTING START
+===================================================================
+
+🎯 ESTADO ACTUAL: Listo para iniciar pruebas manuales
+
+Usuario solicitó: "comencemos con las pruebas manuales"
+
+===================================================================
+
+📦 LO QUE YA ESTÁ LISTO
+
+✅ Código implementado (9 archivos nuevos, 5 modificados)
+✅ Tests automatizados (27 métodos)
+✅ Documentación completa (5 guías principales)
+✅ Dependencias instaladas (google/apiclient v2.19.1)
+✅ Database migration lista
+✅ Scripts de setup creados
+
+===================================================================
+
+🚀 COMENCEMOS - 3 PASOS SIMPLES
+
+PASO 1: Abrir 2 Terminales Simultáneamente
+───────────────────────────────────────────
+
+Terminal 1 - Setup (ejecutar UNA SOLA VEZ):
+  $ cd c:\xampp\htdocs\SIGO
+  $ php setup_manual_tests.php
+
+  Esto va a imprimir algo como:
+  ✅ Google Client cargado correctamente
+  ✅ Hitos_Apoyo.google_calendar_event_id
+  ✅ Apoyos.sincronizar_calendario
+  ✅ Directivo: ID=1
+  Setup completado
+
+
+Terminal 2 - servidor (MANTENER ABIERTA):
+  $ cd c:\xampp\htdocs\SIGO
+  $ php artisan serve
+
+  Esperado:
+  Laravel development server started: http://127.0.0.1:8000
+
+
+PASO 2: Verificar Google OAuth en .env
+──────────────────────────────────────
+
+Necesario para Test 1 (OAuth Flow). En archivo .env, verificar:
+
+  GOOGLE_CLIENT_ID=xxxxx
+  GOOGLE_CLIENT_SECRET=xxxxx
+  GOOGLE_REDIRECT_URI=http://localhost:8000/calendario/callback
+
+Si NO está configurado:
+  1. Ir a: https://console.cloud.google.com
+  2. Crear proyecto new
+  3. Habilitar Google Calendar API v3
+  4. Crear OAuth 2.0 Credentials (Web application)
+  5. Agregar credenciales a .env
+
+
+PASO 3: Abrir Navegador y Comenzar Tests
+───────────────────────────────────────────
+
+  http://localhost:8000/admin/calendario
+
+Si ve página de login, usar:
+  Email: directivo@test.local
+  Password: password123
+
+Seguir: MANUAL_TESTING_CHECKLIST.md
+
+===================================================================
+
+📝 TESTS A EJECUTAR (En Orden)
+
+Test 1  - OAuth Flow                    (10 min) ← COMENZAR POR AQUÍ
+Test 2  - Crear Evento Automático       (10 min)
+Test 3  - Actualizar Evento Automático (10 min)
+Test 4  - Scheduler Sincronización      (10 min)
+Test 5  - Verificar Logs               (5 min)
+Test 6  - Relaciones de Modelos        (10 min)
+Test 7  - Scopes Personalizados        (5 min)
+Test 8  - Validar Seguridad            (10 min)
+
+Total: 75 minutos
+
+===================================================================
+
+📚 DOCUMENTACIÓN DISPONIBLE
+
+Para referencia durante tests:
+
+✅ MANUAL_TESTING_CHECKLIST.md
+   → Pasos detallados de cada test
+   → Resultados esperados
+   → Validaciones en Base de Datos
+
+✅ QUICK_START_MANUAL_TESTS.md
+   → Resumen ejecutivo
+   → Próximos pasos
+   → Recursos disponibles
+
+✅ LOCAL_QA_TESTING_GUIDE.md
+   → Guía completa (500+ líneas)
+   → Troubleshooting
+   → Resolución de problemas comunes
+
+✅ TESTING_SUMMARY.txt
+   → Overview rápido
+   → Checklist de ejecución
+   → Tiempos estimados
+
+===================================================================
+
+🆘 SI ALGO FALLA
+
+Primer paso: Consultar troubleshooting
+  LOCAL_QA_TESTING_GUIDE.md → Part 7: Troubleshooting
+
+Errores comunes:
+  "Google Client not found"
+    → composer dump-autoload --optimize
+
+  "CSRF token mismatch"
+    → Limpiar cookies del navegador
+
+  "Access token expired"
+    → Se renueva automáticamente (implementado)
+
+  "Column does not exist"
+    → Ejecutar migración
+
+  Si no está en lista:
+    → Revisar storage/logs/laravel.log
+    → Consultar LOCAL_QA_TESTING_GUIDE.md completa
+
+===================================================================
+
+✨ DESPUÉS DE TERMINAR
+
+Si TODOS los Tests ✅ PASARON:
+  1. Documentar en MANUAL_TESTING_CHECKLIST.md → Resumen
+  2. Estado: LISTO PARA AZURE DEPLOYMENT
+  3. Próximo: Contactar DevOps para Fase 3
+
+Si Algunos Tests ❌ FALLARON:
+  1. Documentar errores específicos
+  2. Seguir troubleshooting
+  3. Reintentar después de fixes
+
+===================================================================
+
+🎬 COMANDO PARA COMENZAR AHORA:
+
+Terminal 1:
+  cd c:\xampp\htdocs\SIGO && php setup_manual_tests.php
+
+Terminal 2:
+  cd c:\xampp\htdocs\SIGO && php artisan serve
+
+Navegador:
+  http://localhost:8000/calendario/configuracion
+
+===================================================================
+
+⏱️ TIMELINE ESTIMADO
+
+Setup inicial:           5 min
+Pruebas manuales:       75 min
+Análisis de resultados:  5 min
+─────────────────────────────
+TOTAL:                  85 minutos
+
+===================================================================
+
+✅ STATUS: READY TO START MANUAL TESTING
+
+Next: Execute the 3 commands above →→→

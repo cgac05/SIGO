@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Apoyo;
+use App\Models\HitosApoyo;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -177,8 +178,12 @@ class ApoyoController extends Controller
             $rows[] = $row;
         }
 
+        // ✅ CORREGIDO: Usar HitosApoyo::create() en lugar de DB::table()->insert()
+        // Esto dispara el evento HitoCambiado que sincroniza con Google Calendar automáticamente
         if (! empty($rows)) {
-            DB::table('Hitos_Apoyo')->insert($rows);
+            foreach ($rows as $row) {
+                HitosApoyo::create($row);
+            }
         }
     }
 
