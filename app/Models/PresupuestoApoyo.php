@@ -11,9 +11,12 @@ class PresupuestoApoyo extends Model
     protected $table = 'presupuesto_apoyos';
     protected $primaryKey = 'id_presupuesto_apoyo';
     protected $guarded = [];
-    protected $dates = ['fecha_reserva', 'fecha_aprobacion', 'created_at', 'updated_at'];
     protected $casts = [
         'costo_estimado' => 'decimal:2',
+        'fecha_reserva' => 'datetime',
+        'fecha_aprobacion' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     // ========== RELATIONSHIPS ==========

@@ -10,9 +10,11 @@ class MovimientoPresupuestario extends Model
     protected $table = 'movimientos_presupuestarios';
     protected $primaryKey = 'id_movimiento';
     protected $guarded = [];
-    protected $dates = ['fecha_movimiento', 'created_at', 'updated_at'];
     protected $casts = [
         'monto' => 'decimal:2',
+        'fecha_movimiento' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     const TIPO_RESERVACION = 'RESERVACION';

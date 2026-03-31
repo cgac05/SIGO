@@ -11,11 +11,12 @@ class PresupuestoCategoria extends Model
     protected $table = 'presupuesto_categorias';
     protected $primaryKey = 'id_categoria';
     protected $guarded = [];
-    protected $dates = ['created_at', 'updated_at'];
     protected $casts = [
         'presupuesto_anual' => 'decimal:2',
         'disponible' => 'decimal:2',
         'activo' => 'boolean',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     // ========== RELATIONSHIPS ==========
