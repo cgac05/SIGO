@@ -57,15 +57,16 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function getFotoUrl(): string
     {
         // Prioridad: foto local > google avatar > avatar por defecto
-        if ($this->foto_ruta && file_exists(storage_path('app/fotos/' . $this->foto_ruta))) {
-            return asset('storage/fotos/' . $this->foto_ruta);
+        if ($this->foto_ruta && file_exists(storage_path('app/public/' . $this->foto_ruta))) {
+            // Usar ruta directa sin asset() para evitar problemas de configuración
+            return '/storage/' . str_replace('\\', '/', $this->foto_ruta);
         }
 
         if ($this->google_avatar) {
             return $this->google_avatar;
         }
 
-        return asset('images/avatar-default.png');
+        return '/images/avatar-default.png';
     }
 
     public function getAuthPassword(): string

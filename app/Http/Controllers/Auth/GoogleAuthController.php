@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\GoogleAvatarService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -55,6 +56,17 @@ class GoogleAuthController extends Controller
             ]);
         }
 
+        // Descargar avatar de Google y guardarlo localmente
+        $fotoRuta = null;
+        if ($googleUser->getAvatar()) {
+            $userType = $user->tipo_usuario === 'Beneficiario' ? 'beneficiarios' : 'personal';
+            $fotoRuta = GoogleAvatarService::downloadAndStore(
+                $googleUser->getAvatar(),
+                $userType,
+                $user->id_usuario ?? 'temp'
+            );
+        }
+
         $user->forceFill([
             'email' => $googleUser->getEmail(),
             'tipo_usuario' => $user->tipo_usuario ?: 'Beneficiario',
@@ -63,6 +75,7 @@ class GoogleAuthController extends Controller
             'google_refresh_token' => $googleUser->refreshToken,
             'google_token_expires_at' => now()->addSeconds($googleUser->expiresIn ?? 3600),
             'google_avatar' => $googleUser->getAvatar(),
+            'foto_ruta' => $fotoRuta,  // Guardar la ruta local
             'ultima_conexion' => now(),
             'activo' => true,
         ])->save();
