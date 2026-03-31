@@ -210,4 +210,18 @@ Route::middleware(['auth', 'role:2'])->prefix('api/calendario')->group(function 
         ->name('api.calendario.status');
 });
 
+// ============= PADRÓN DE USUARIOS =============
+
+use App\Http\Controllers\PadronController;
+
+Route::middleware(['auth', 'role:1,2,3'])->prefix('admin')->group(function () {
+    Route::get('/padron', [PadronController::class, 'index'])
+        ->name('padron.index');
+    Route::get('/padron/{id}', [PadronController::class, 'show'])
+        ->whereNumber('id')
+        ->name('padron.show');
+    Route::get('/padron/export', [PadronController::class, 'exportar'])
+        ->name('padron.exportar');
+});
+
 require __DIR__.'/auth.php';
