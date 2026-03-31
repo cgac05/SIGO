@@ -29,6 +29,10 @@ Route::get('/dashboard', function () {
     ]);
 })->middleware('auth')->name('dashboard');
 
+Route::get('/test-personal', function () {
+    return view('test-personal');
+})->middleware('auth');
+
 Route::middleware(['auth', 'forzar.cambio.password'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

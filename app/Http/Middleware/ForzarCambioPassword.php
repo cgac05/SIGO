@@ -18,6 +18,9 @@ class ForzarCambioPassword
             $user->tipo_usuario === 'personal' &&
             $user->debe_cambiar_password &&
             !$request->routeIs('password.forzar.update') &&
+            !$request->routeIs('personal.crear') &&
+            !$request->routeIs('personal.store') &&
+            !$request->routeIs('test-personal') &&
             !$request->routeIs('logout')
         ) {
             // Si es una petición AJAX devolvemos JSON
