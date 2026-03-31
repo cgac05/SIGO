@@ -7,8 +7,6 @@
 
     @vite('resources/js/apoyos-app.js')
 
-    <link href="https://fonts.bunny.net/css?family=sora:400,600,700,800&display=swap" rel="stylesheet"/>
-
     <style>
         :root {
             --sigo-navy:  #0f2044;

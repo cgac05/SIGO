@@ -5,8 +5,6 @@
         </h2>
     </x-slot>
 
-    <link href="https://fonts.bunny.net/css?family=sora:400,600,700,800&display=swap" rel="stylesheet"/>
-
     <style>
         :root {
             --navy:  #0f2044;
