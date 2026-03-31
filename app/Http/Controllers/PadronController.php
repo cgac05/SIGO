@@ -216,14 +216,18 @@ class PadronController extends Controller
         $tipo = $request->get('tipo', 'todos');
         $estado = $request->get('estado', 'activo');
         $busqueda = $request->get('busqueda', '');
+        $rol = $request->get('rol', '');
 
         // Construir query
         $query = User::query();
 
         if ($tipo === 'beneficiarios') {
-            $query = $this->queryBeneficiarios($query, $busqueda, 'nombre', $estado);
+            $query = $this->queryBeneficiarios($query, $busqueda, 'email', $estado);
         } elseif ($tipo === 'personal') {
-            $query = $this->queryPersonal($query, $busqueda, 'nombre', $estado, '');
+            $query = $this->queryPersonal($query, $busqueda, 'email', $estado, $rol);
+        } else {
+            // TODOS
+            $query = $this->queryTodos($query, $busqueda, 'email', $estado, $rol);
         }
 
         $usuarios = $query->get();
@@ -234,45 +238,49 @@ class PadronController extends Controller
         return response()->stream(function () use ($usuarios, $tipo) {
             $output = fopen('php://output', 'w');
 
-            // Headers
+            // Headers según tipo
             if ($tipo === 'beneficiarios') {
-                fputcsv($output, ['CURP', 'Nombre', 'Apellido Paterno', 'Apellido Materno', 'Email', 'Teléfono', 'Estado', 'Fecha Registro']);
+                fputcsv($output, ['CURP', 'Nombre', 'Apellido Paterno', 'Apellido Materno', 'Email', 'Teléfono', 'Género', 'Estado', 'Fecha Registro']);
+            } elseif ($tipo === 'personal') {
+                fputcsv($output, ['Nº Empleado', 'Nombre', 'Apellido Paterno', 'Apellido Materno', 'Email', 'Puesto', 'Rol', 'Estado', 'Fecha Registro']);
             } else {
-                fputcsv($output, ['Nº Empleado', 'Nombre', 'Apellido Paterno', 'Apellido Materno', 'Email', 'Rol', 'Estado', 'Fecha Registro']);
+                fputcsv($output, ['Tipo', 'CURP/Empleado', 'Nombre', 'Apellido Paterno', 'Email', 'Estado', 'Fecha Registro']);
             }
 
             // Datos
             foreach ($usuarios as $usuario) {
-                if ($tipo === 'beneficiarios') {
+                if ($usuario->isBeneficiario()) {
                     $beneficiario = $usuario->beneficiario;
                     fputcsv($output, [
                         $beneficiario->curp,
                         $beneficiario->nombre,
                         $beneficiario->apellido_paterno,
-                        $beneficiario->apellido_materno,
+                        $beneficiario->apellido_materno ?? '',
                         $usuario->email,
-                        $beneficiario->telefono,
+                        $beneficiario->telefono ?? '',
+                        ucfirst($beneficiario->genero ?? ''),
                         $usuario->activo ? 'Activo' : 'Inactivo',
-                        $usuario->fecha_creacion,
+                        optional($usuario->fecha_creacion)->format('d/m/Y H:i') ?? '',
                     ]);
-                } else {
+                } elseif ($usuario->isPersonal()) {
                     $personal = $usuario->personal;
                     fputcsv($output, [
                         $personal->numero_empleado,
                         $personal->nombre,
                         $personal->apellido_paterno,
-                        $personal->apellido_materno,
+                        $personal->apellido_materno ?? '',
                         $usuario->email,
-                        $personal->fk_rol,
+                        $personal->puesto ?? '',
+                        optional($personal->role)->nombre_rol ?? 'Sin rol',
                         $usuario->activo ? 'Activo' : 'Inactivo',
-                        $usuario->fecha_creacion,
+                        optional($usuario->fecha_creacion)->format('d/m/Y H:i') ?? '',
                     ]);
                 }
             }
 
             fclose($output);
         }, 200, [
-            'Content-Type' => 'text/csv',
+            'Content-Type' => 'text/csv; charset=utf-8',
             'Content-Disposition' => "attachment; filename=\"$filename\"",
         ]);
     }

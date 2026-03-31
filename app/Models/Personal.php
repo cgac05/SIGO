@@ -27,4 +27,9 @@ class Personal extends Model
     {
         return $this->belongsTo(User::class, 'fk_id_usuario', 'id_usuario');
     }
+
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'fk_rol', 'id_rol');
+    }
 }
