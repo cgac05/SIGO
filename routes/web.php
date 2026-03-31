@@ -1,7 +1,5 @@
 <?php
 
-use App\Http\Controllers\CambioPasswordController;
-use App\Http\Controllers\PersonalController;
 use App\Http\Controllers\SolicitudController;
 use App\Http\Controllers\SolicitudProcesoController;
 use App\Http\Controllers\DocumentVerificationController;
@@ -29,19 +27,10 @@ Route::get('/dashboard', function () {
     ]);
 })->middleware('auth')->name('dashboard');
 
-Route::get('/test-personal', function () {
-    return view('test-personal');
-})->middleware('auth');
-
-Route::middleware(['auth', 'forzar.cambio.password'])->group(function () {
+Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-
-    Route::get('/personal/crear',  [PersonalController::class, 'create'])->name('personal.crear');
-    Route::post('/personal/crear', [PersonalController::class, 'store'])->name('personal.store');
-
-    Route::post('/password/forzar', [CambioPasswordController::class, 'update'])->name('password.forzar.update');
 });
 
 Route::get('/Registrar-Solicitud', function () {
@@ -56,7 +45,157 @@ Route::get('/apoyos/{id}/solicitud', [SolicitudController::class, 'create'])
     ->middleware(['auth', 'beneficiario.profile'])
     ->name('solicitud.create');
 
-Route::middleware(['auth', 'forzar.cambio.password'])->group(function () {
+Route::middleware('auth')->group(function () {
+    Route::get('/apoyos-test', function() {
+        return view('apoyos.index-simple-test', [
+            'user' => auth()->user(),
+            'apoyos' => (new \App\Http\Controllers\ApoyoController())->getApoyosForDebug()
+        ]);
+    });
+    Route::get('/apoyos-direct', function() {
+        $controller = app()->make(\App\Http\Controllers\ApoyoController::class);
+        $user = auth()->user()->loadMissing(['personal', 'beneficiario']);
+        $isBeneficiario = $user->isBeneficiario();
+        
+        $apoyosQuery = \Illuminate\Support\Facades\DB::table('Apoyos')
+            ->select([
+                'id_apoyo',
+                'nombre_apoyo',
+                'tipo_apoyo',
+                'monto_maximo',
+                'activo',
+                'anio_fiscal',
+                'cupo_limite',
+                'fecha_inicio',
+                'fecha_fin',
+                'foto_ruta',
+                'descripcion',
+            ]);
+
+        if ($isBeneficiario) {
+            $hoy = \Illuminate\Support\Carbon::now()->toDateString();
+            $apoyosQuery
+                ->where('activo', 1)
+                ->where(function ($query) use ($hoy) {
+                    $query->whereNull('fecha_inicio')
+                        ->orWhereDate('fecha_inicio', '<=', $hoy);
+                })
+                ->where(function ($query) use ($hoy) {
+                    $query->whereNull('fecha_fin')
+                        ->orWhereDate('fecha_fin', '>=', $hoy);
+                });
+        }
+
+        $apoyos = $apoyosQuery->orderBy('id_apoyo', 'desc')->get();
+        
+        return view('apoyos.index-direct', compact('apoyos', 'user'));
+    });
+    Route::get('/apoyos-test-bare', function() {
+        $user = auth()->user()->loadMissing(['personal', 'beneficiario']);
+        $apoyosQuery = \Illuminate\Support\Facades\DB::table('Apoyos')
+            ->select([
+                'id_apoyo',
+                'nombre_apoyo',
+                'tipo_apoyo',
+                'monto_maximo',
+                'activo',
+                'anio_fiscal',
+                'cupo_limite',
+                'fecha_inicio',
+                'fecha_fin',
+                'foto_ruta',
+                'descripcion',
+            ])
+            ->where('activo', 1)
+            ->orderBy('id_apoyo', 'desc')
+            ->get();
+        
+        return view('apoyos.index-test-direct', compact('apoyos', 'user'));
+    });
+    Route::get('/apoyos-no-component', function() {
+        // Llama al controller index pero con vista alternativa
+        $controller = app()->make(\App\Http\Controllers\ApoyoController::class);
+        $user = auth()->user()->loadMissing(['personal', 'beneficiario']);
+        $isBeneficiario = $user->isBeneficiario();
+
+        $apoyosQuery = \Illuminate\Support\Facades\DB::table('Apoyos')
+            ->select([
+                'id_apoyo',
+                'nombre_apoyo',
+                'tipo_apoyo',
+                'monto_maximo',
+                'activo',
+                'anio_fiscal',
+                'cupo_limite',
+                'fecha_inicio',
+                'fecha_fin',
+                'foto_ruta',
+                'descripcion',
+            ]);
+
+        if ($isBeneficiario) {
+            $hoy = \Carbon\Carbon::now()->toDateString();
+            $apoyosQuery
+                ->where('activo', 1)
+                ->where(function ($query) use ($hoy) {
+                    $query->whereNull('fecha_inicio')
+                        ->orWhereDate('fecha_inicio', '<=', $hoy);
+                })
+                ->where(function ($query) use ($hoy) {
+                    $query->whereNull('fecha_fin')
+                        ->orWhereDate('fecha_fin', '>=', $hoy);
+                });
+        }
+
+        $apoyos = $apoyosQuery->orderBy('id_apoyo', 'desc')->get();
+        
+        return view('apoyos.index-no-component', compact('apoyos', 'user'));
+    });
+    Route::get('/apoyos-logs', function() {
+        $logFile = storage_path('logs/laravel.log');
+        if (!file_exists($logFile)) {
+            return response('No log file found', 404);
+        }
+        $content = file_get_contents($logFile);
+        $lines = array_slice(explode("\n", $content), -100);
+        $logs = implode("\n", $lines);
+        return '<pre style="white-space: pre-wrap; word-wrap: break-word; background: #f5f5f5; padding: 15px; overflow: auto; font-size: 12px;">' . htmlspecialchars($logs) . '</pre>';
+    });
+    Route::get('/apoyos-component-removed', function() {
+        // Same logic as ApoyoController index() but returns view without component
+        $user = auth()->user()->loadMissing(['personal', 'beneficiario']);
+        $isBeneficiario = $user->isBeneficiario();
+
+        $apoyosQuery = \Illuminate\Support\Facades\DB::table('Apoyos')
+            ->select([
+                'id_apoyo', 'nombre_apoyo', 'tipo_apoyo', 'monto_maximo', 'activo',
+                'anio_fiscal', 'cupo_limite', 'fecha_inicio', 'fecha_fin', 'foto_ruta', 'descripcion',
+            ]);
+
+        if ($isBeneficiario) {
+            $hoy = \Carbon\Carbon::now()->toDateString();
+            $apoyosQuery
+                ->where('activo', 1)
+                ->where(function ($query) use ($hoy) {
+                    $query->whereNull('fecha_inicio')->orWhereDate('fecha_inicio', '<=', $hoy);
+                })
+                ->where(function ($query) use ($hoy) {
+                    $query->whereNull('fecha_fin')->orWhereDate('fecha_fin', '>=', $hoy);
+                });
+        }
+
+        $apoyos = $apoyosQuery->orderBy('id_apoyo', 'desc')->get();
+
+        $tiposDocumentos = \Illuminate\Support\Facades\DB::table('Cat_TiposDocumento')
+            ->select('id_tipo_doc', 'nombre_documento')
+            ->orderBy('nombre_documento')
+            ->get();
+
+        $misSolicitudes = collect();
+        $solicitudesRecientes = collect();
+
+        return view('apoyos.index-component-removed', compact('apoyos', 'tiposDocumentos', 'user', 'misSolicitudes', 'solicitudesRecientes'));
+    });
     Route::get('/apoyos',                  [ApoyoController::class, 'index'])->name('apoyos.index');
     Route::get('/apoyos/imagen/{path}',    [ApoyoController::class, 'image'])->where('path', '.*')->name('apoyos.image');
     Route::get('/apoyos/{id}/comentarios', [ApoyoController::class, 'comments'])->name('apoyos.comments');
@@ -137,122 +276,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/api/google-drive/upload', [GoogleDriveController::class, 'upload'])->name('api.google-drive.upload');
     Route::get('/api/google-drive/files', [GoogleDriveController::class, 'list'])->name('api.google-drive.list');
     Route::delete('/api/google-drive/file/{fileId}', [GoogleDriveController::class, 'destroy'])->name('api.google-drive.destroy');
-});
-
-// ============= CASO A - Carga Híbrida (3 Momentos) =============
-
-// Importar controllers
-use App\Http\Controllers\CasoAController;
-use App\Http\Controllers\GoogleCalendarController;
-
-// MOMENTO 1 & 2: Beneficiario Presencial + Admin Escaneo (Protegidas - Solo Admin Rol 1-2)
-Route::middleware(['auth', 'role:1,2'])->prefix('admin/caso-a')->group(function () {
-    // Momento 1: Crear expediente presencial
-    Route::get('/momento-uno', [CasoAController::class, 'momentoUno'])
-        ->name('caso-a.momento-uno');
-    Route::post('/momento-uno/guardar', [CasoAController::class, 'guardarMomentoUno'])
-        ->name('caso-a.momento-uno.guardar');
-    Route::get('/resumen/{folio}', [CasoAController::class, 'mostrarResumenMomentoUno'])
-        ->name('caso-a.resumen-uno');
-
-    // Momento 2: Escanear documentos
-    Route::get('/momento-dos', [CasoAController::class, 'momentoDos'])
-        ->name('caso-a.momento-dos');
-    Route::post('/momento-dos/cargar', [CasoAController::class, 'cargarDocumentoMomentoDos'])
-        ->name('caso-a.momento-dos.cargar');
-    Route::post('/momento-dos/confirmar', [CasoAController::class, 'confirmarCargaMomentoDos'])
-        ->name('caso-a.momento-dos.confirmar');
-});
-
-// MOMENTO 3: Consulta Privada (Sin autenticación - público)
-Route::get('/consulta-privada', [CasoAController::class, 'momentoTresForm'])
-    ->name('caso-a.momento-tres');
-Route::post('/consulta-privada/validar', [CasoAController::class, 'validarMomentoTres'])
-    ->name('caso-a.momento-tres.validar');
-Route::get('/consulta-privada/resumen', [CasoAController::class, 'mostrarResumenMomentoTres'])
-    ->middleware('caso-a.sesion-privada')
-    ->name('caso-a.momento-tres.resumen');
-Route::post('/consulta-privada/logout', [CasoAController::class, 'cerrarSesionMomentoTres'])
-    ->name('caso-a.momento-tres.logout');
-
-// ============= GOOGLE CALENDAR INTEGRATION =============
-
-// Google Calendar Authorization + Sync (Protegidas - Solo Directivos Rol 2)
-Route::middleware(['auth', 'role:2'])->prefix('admin/calendario')->group(function () {
-    // Configuración
-    Route::get('/', [GoogleCalendarController::class, 'mostrarConfiguracion'])
-        ->name('calendario.config');
-
-    // OAuth Flow - Inicio (Protegido)
-    Route::get('/auth', [GoogleCalendarController::class, 'redirectToGoogle'])
-        ->name('calendario.auth');
-
-    // Sincronización
-    Route::post('/sync', [GoogleCalendarController::class, 'sincronizar'])
-        ->name('calendario.sync');
-
-    // Desconectar
-    Route::post('/disconnect', [GoogleCalendarController::class, 'desconectar'])
-        ->name('calendario.disconnect');
-
-    // Logs de sincronización
-    Route::get('/logs', [GoogleCalendarController::class, 'mostrarLogs'])
-        ->name('calendario.logs');
-});
-
-// OAuth Callback (Sin protección - Google no mantiene sesión de SIGO)
-Route::get('/admin/calendario/callback', [GoogleCalendarController::class, 'handleGoogleCallback'])
-    ->name('calendario.callback');
-
-// API Endpoints (JSON responses)
-Route::middleware(['auth', 'role:2'])->prefix('api/calendario')->group(function () {
-    Route::get('/status', [GoogleCalendarController::class, 'apiStatus'])
-        ->name('api.calendario.status');
-});
-
-// ============= PADRÓN DE USUARIOS =============
-
-use App\Http\Controllers\PadronController;
-
-Route::middleware(['auth', 'role:1,2,3'])->prefix('admin')->group(function () {
-    Route::get('/padron', [PadronController::class, 'index'])
-        ->name('padron.index');
-    Route::get('/padron/{id}', [PadronController::class, 'show'])
-        ->whereNumber('id')
-        ->name('padron.show');
-    Route::get('/padron/export', [PadronController::class, 'exportar'])
-        ->name('padron.exportar');
-});
-
-// ============= PRESUPUESTACIÓN (FASE 4) =============
-use App\Http\Controllers\Admin\PresupuestoController;
-
-// DEBUG: Ver información del usuario (sin protección)
-Route::get('/admin/presupuesto/debug', function () {
-    return view('admin.presupuesto.debug');
-})->middleware('auth')->name('presupuesto.debug');
-
-Route::middleware(['auth', 'role:2'])->prefix('admin/presupuesto')->group(function () {
-    // Dashboard y reportes
-    Route::get('/dashboard', [PresupuestoController::class, 'dashboard'])
-        ->name('presupuesto.dashboard');
-    Route::get('/reportes', [PresupuestoController::class, 'reportes'])
-        ->name('presupuesto.reportes');
-    
-    // Categorías y detalles
-    Route::get('/categorias/{id}', [PresupuestoController::class, 'showCategoria'])
-        ->whereNumber('id')
-        ->name('presupuesto.categorias.show');
-    
-    // Apoyos presupuestarios y movimientos
-    Route::get('/apoyos/{id}', [PresupuestoController::class, 'showApoyo'])
-        ->whereNumber('id')
-        ->name('presupuesto.apoyos.show');
-    
-    // API endpoints
-    Route::get('/api/historial/{id}', [PresupuestoController::class, 'apiHistorial'])
-        ->whereNumber('id')
-        ->name('presupuesto.api.historial');
 });
 
 require __DIR__.'/auth.php';

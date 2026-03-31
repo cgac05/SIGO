@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Rules\Recaptcha;
+use App\Services\PresupuestoService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -10,6 +11,13 @@ use Illuminate\Support\Facades\Schema;
 
 class SolicitudController extends Controller
 {
+    protected PresupuestoService $presupuestoService;
+
+    public function __construct(PresupuestoService $presupuestoService)
+    {
+        $this->presupuestoService = $presupuestoService;
+    }
+
     public function create(Request $request, int $id)
     {
         $user = $request->user()->loadMissing('beneficiario');
@@ -26,6 +34,12 @@ class SolicitudController extends Controller
         if (! $apoyo) {
             return redirect()->route('apoyos.index')->with('error', 'El apoyo seleccionado no existe.');
         }
+
+        // Cargar modelo de apoyo para acceder a relaciones de presupuesto
+        $apoyoModel = \App\Models\Apoyo::with(['categoria'])->find($id);
+
+        // Obtener información de presupuesto disponible
+        $estadoPresupuesto = $this->presupuestoService->obtenerEstadoDetalladoApoyo($apoyoModel);
 
         $requisitos = DB::table('Requisitos_Apoyo')
             ->join('Cat_TiposDocumento', 'Requisitos_Apoyo.fk_id_tipo_doc', '=', 'Cat_TiposDocumento.id_tipo_doc')
@@ -53,7 +67,7 @@ class SolicitudController extends Controller
             ])
             ->first();
 
-        return view('solicitudes.create', compact('apoyo', 'requisitos', 'solicitudActiva'));
+        return view('solicitudes.create', compact('apoyo', 'requisitos', 'solicitudActiva', 'estadoPresupuesto'));
     }
 
     public function guardar(Request $request)
@@ -77,6 +91,15 @@ class SolicitudController extends Controller
         $apoyo = DB::table('Apoyos')->where('id_apoyo', $request->apoyo)->first();
         if (! $apoyo || (int) ($apoyo->activo ?? 0) !== 1) {
             return redirect()->back()->with('error', 'El apoyo seleccionado no se encuentra disponible.');
+        }
+
+        // NUEVO: Validar que hay presupuesto disponible en la categoría
+        $apoyoModel = \App\Models\Apoyo::find($request->apoyo);
+        $estadoPresupuesto = $this->presupuestoService->obtenerEstadoDetalladoApoyo($apoyoModel);
+        
+        if ($estadoPresupuesto['estado'] === 'AGOTADO') {
+            return redirect()->back()->with('error', 
+                'No hay presupuesto disponible para el apoyo: ' . $estadoPresupuesto['disponible_formato'] . ' disponible.');
         }
 
         // Validar que no haya solicitud activa previa para este apoyo
@@ -141,6 +164,21 @@ class SolicitudController extends Controller
             }
 
             $folio = DB::table('Solicitudes')->insertGetId($payloadSolicitud, 'folio');
+
+            // NUEVO: Reservar presupuesto para la solicitud
+            $solicitud = \App\Models\Solicitud::find($folio);
+            if ($solicitud) {
+                // Obtener monto máximo del apoyo para reservar
+                $montoMaximo = (float) ($apoyoModel->monto_maximo ?? 0);
+                
+                if ($montoMaximo > 0) {
+                    // Intentar reservar presupuesto
+                    if (!$this->presupuestoService->reservarPresupuesto($solicitud, $montoMaximo, $user->id_usuario ?? null)) {
+                        // Si falla la reserva, cancelar la solicitud
+                        throw new \RuntimeException('No fue posible reservar presupuesto para la solicitud. Presupuesto insuficiente en la categoría.');
+                    }
+                }
+            }
 
             $requisitos = DB::table('Requisitos_Apoyo')
                 ->join('Cat_TiposDocumento', 'Requisitos_Apoyo.fk_id_tipo_doc', '=', 'Cat_TiposDocumento.id_tipo_doc')

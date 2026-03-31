@@ -46,14 +46,6 @@ class Solicitud extends Model
     }
 
     /**
-     * Relación con Estado
-     */
-    public function estado(): BelongsTo
-    {
-        return $this->belongsTo(Estado::class, 'fk_id_estado', 'id_estado');
-    }
-
-    /**
      * Relación con Documentos
      */
     public function documentos(): HasMany
@@ -67,5 +59,64 @@ class Solicitud extends Model
     public function documentosPendientes(): HasMany
     {
         return $this->documentos()->where('admin_status', 'pendiente');
+    }
+
+    /**
+     * Obtener los movimientos presupuestarios asociados a esta solicitud
+     */
+    public function movimientosPresupuestarios(): HasMany
+    {
+        return $this->hasMany(MovimientoPresupuestario::class, 'folio_solicitud', 'folio');
+    }
+
+    /**
+     * Obtener el presupuesto reservado/aprobado para esta solicitud
+     * (através del movimiento presupuestario)
+     */
+    public function getPresupuestoAsignado()
+    {
+        // Buscar el movimiento presupuestario de tipo RESERVA o ASIGNACION
+        $movimiento = $this->movimientosPresupuestarios()
+            ->whereIn('tipo', ['RESERVA_SOLICITUD', 'ASIGNACION_DIRECTIVO'])
+            ->orderBy('fecha_cambio', 'desc')
+            ->first();
+
+        if ($movimiento && $movimiento->id_presupuesto_apoyo) {
+            return PresupuestoApoyo::find($movimiento->id_presupuesto_apoyo);
+        }
+
+        return null;
+    }
+
+    /**
+     * Verificar si la solicitud tiene presupuesto reservado/aprobado
+     */
+    public function tienePresupuestoAsignado(): bool
+    {
+        return !is_null($this->getPresupuestoAsignado());
+    }
+
+    /**
+     * Obtener el monto presupuestario de la solicitud
+     */
+    public function getMontoPresupuestario()
+    {
+        $presupuesto = $this->getPresupuestoAsignado();
+        if ($presupuesto) {
+            return (float) $presupuesto->costo_estimado;
+        }
+        return 0;
+    }
+
+    /**
+     * Obtener el estado presupuestario de la solicitud
+     */
+    public function getEstadoPresupuestario()
+    {
+        $presupuesto = $this->getPresupuestoAsignado();
+        if ($presupuesto) {
+            return $presupuesto->estado;
+        }
+        return null;
     }
 }

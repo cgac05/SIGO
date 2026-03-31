@@ -28,11 +28,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'google_refresh_token',
         'google_token_expires_at',
         'google_avatar',
-        'foto_ruta',
         'activo',
         'ultima_conexion',
         'remember_token',
-        'debe_cambiar_password',
     ];
 
     protected $hidden = [
@@ -49,25 +47,6 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'ultima_conexion' => 'datetime',
         'google_token_expires_at' => 'datetime',
     ];
-
-
-    /**
-     * Obtener URL de la foto del usuario
-     */
-    public function getFotoUrl(): string
-    {
-        // Prioridad: foto local > google avatar > avatar por defecto
-        if ($this->foto_ruta && file_exists(storage_path('app/public/' . $this->foto_ruta))) {
-            // Usar ruta directa sin asset() para evitar problemas de configuración
-            return '/storage/' . str_replace('\\', '/', $this->foto_ruta);
-        }
-
-        if ($this->google_avatar) {
-            return $this->google_avatar;
-        }
-
-        return '/images/avatar-default.png';
-    }
 
     public function getAuthPassword(): string
     {
@@ -182,13 +161,5 @@ class User extends Authenticatable implements MustVerifyEmailContract
     public function googleDriveFiles()
     {
         return $this->hasMany(GoogleDriveFile::class, 'user_id', 'id_usuario');
-    }
-
-    /**
-     * Relación hasOne con permisos de Google Calendar
-     */
-    public function calendarioPermiso()
-    {
-        return $this->hasOne(DirectivoCalendarioPermiso::class, 'fk_id_directivo', 'id_usuario');
     }
 }

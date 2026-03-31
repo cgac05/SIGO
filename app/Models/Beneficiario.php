@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 
 class Beneficiario extends Model
@@ -38,14 +37,6 @@ class Beneficiario extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'fk_id_usuario', 'id_usuario');
-    }
-
-    /**
-     * Relación con solicitudes de apoyo
-     */
-    public function solicitudes(): HasMany
-    {
-        return $this->hasMany(Solicitud::class, 'fk_curp', 'curp');
     }
 
     public function getNombreCompletoAttribute(): string

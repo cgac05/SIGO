@@ -15,14 +15,7 @@
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-        <body class="font-sans antialiased">
-        @if (session('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        @endif
-
+    <body class="font-sans antialiased">
         <div class="min-h-screen bg-gray-100">
             @include('layouts.navigation')
 
@@ -40,9 +33,5 @@
                 @yield('content')
             </main>
         </div>
-
-        {{-- Modal cambio de contraseña obligatorio --}}
-        @include('components.modal-cambio-password')
-
     </body>
 </html>
