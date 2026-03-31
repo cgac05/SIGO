@@ -54,42 +54,616 @@
 
 > "¿Qué sigue? Podemos hacer desarrollo del área económica y la bolsa acumulada para aplicar cambios al área de apoyos y cómo se asigna el presupuesto"
 
-**COMPONENTES A DESARROLLAR EN FASE 4:**
+---
 
-1. **Presupuestación por Categoría**
-   - Tabla: presupuesto_categorías (monto total, reservado, consumido, disponible)
-   - Categorías: Educación, Salud, Vivienda, Deporte, Otro
-   - Validaciones: No permitir exceeder presupuesto
+## FASE 4: SISTEMA DE PRESUPUESTACIÓN Y ASIGNACIÓN DE RECURSOS
 
-2. **Bolsa Acumulada (Saldo Presupuestario)**
-   - Seguimiento de dinero por categoría
-   - Saldo inicial de cada convocatoria
-   - Movimientos: Ingresos, Egresos, Reservas
+### 4.1 Arquitectura de Presupuestación (2 Niveles)
 
-3. **Asignación de Presupuesto a Apoyos**
-   - Análisis: ¿Cuánto presupuesto reservar por apoyo?
-   - Cálculo: Monto máximo × cantidad beneficiarios = presupuesto requerido
-   - Relación Apoyo ↔ Categoría ↔ Presupuesto
+```
+NIVEL 1: PRESUPUESTO POR CATEGORÍA (Anual - Año Fiscal)
+│
+├─ Categoría: "Educación"
+│  ├─ Presupuesto Inicial: $5,000,000
+│  ├─ Reservado (en apoyos): $2,500,000
+│  ├─ Aprobado (por Directivo): $1,800,000
+│  ├─ Disponible: $700,000
+│  └─ % Utilización: 86%
+│
+├─ Categoría: "Salud"
+│  ├─ Presupuesto Inicial: $800,000
+│  ├─ Reservado: $300,000
+│  ├─ Aprobado: $200,000
+│  ├─ Disponible: $300,000
+│  └─ % Utilización: 62.5%
+│
+└─ Categoría: "Vivienda"
+   ├─ Presupuesto Inicial: $2,000,000
+   ├─ Reservado: $1,500,000
+   ├─ Aprobado: $900,000
+   ├─ Disponible: $400,000
+   └─ % Utilización: 80%
 
-4. **Validaciones de Flujo**
-   - Verificar disponibilidad antes de aprobar solicitud
-   - Bloquear solicitud si presupuesto insuficiente
-   - Generar alertas cuando saldo ≤ umbral (15%)
 
-5. **Reportes Económicos**
-   - Dashboard de presupuesto (% consumido, disponible, por aprobar)
-   - Auditoría de movimientos financieros
-   - Análisis por categoría, período, directivo
+NIVEL 2: SUB-ASIGNACIÓN A APOYOS ESPECÍFICOS
+│
+├─ Categoría: "Educación" → Presupuesto categoría: $5M
+│  │
+│  ├─ Apoyo: "Becas Universitarias"
+│  │  ├─ Sub-presupuesto: $2,000,000 (40% de categoría)
+│  │  ├─ Monto máximo/beneficiario: $50,000
+│  │  ├─ Cantidad planificada: 40 beneficiarios
+│  │  ├─ Costo estimado: $2,000,000
+│  │  ├─ Aprobado hasta ahora: 25 beneficiarios = $1,250,000
+│  │  ├─ Disponible (en este apoyo): $750,000
+│  │  └─ ✅ Validación: No excede categoría ($750K < $700K disponible categoría)
+│  │
+│  └─ Apoyo: "Kit de Útiles Escolares"
+│     ├─ Sub-presupuesto: $500,000 (10% de categoría)
+│     ├─ Monto máximo/beneficiario: $500
+│     ├─ Cantidad planificada: 1,000 beneficiarios
+│     ├─ Costo estimado: $500,000
+│     ├─ Aprobado hasta ahora: 400 beneficiarios = $200,000
+│     ├─ Disponible (en este apoyo): $300,000
+│     └─ ✅ Validación: No excede categoría
+```
 
-**DEPENDENCIAS (¿Bloqueadores?):**
-- ⏳ Se recomienda completar Fase 3.6 (Inventario) antes?
-- 🔄 O puede iniciar en paralelo con gestión de personal (3.7)?
-- ✅ Independencia: Sistema económico NO depende de Google Calendar (3) ni Carga Fría (3.5)
+### 4.2 Estados y Transiciones de Presupuesto
 
-**ESTIMADO DE ESFUERZO:** 6-8 días (Models + Controllers + Views + Tests)  
-**COMPLEJIDAD:** MEDIA-ALTA (validaciones financieras, auditoría, reportes)  
-**PRIORIDAD:** 🔴 ALTA (critical para funcionalidad de apoyo)  
-**IMPACTO:** CRÍTICO (núcleo del sistema de gestión de recursos)
+```
+CUANDO SE CREA UN APOYO:
+┌─────────────────────────────────────────────────────────────────┐
+│ Admin Planning → [Crear Nuevo Apoyo]                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│ Formulario:                                                     │
+│ ├─ Nombre: "Becas Universitarias 2026"                         │
+│ ├─ Categoría: "Educación" ← Determina presupuesto padre       │
+│ ├─ Monto máximo por beneficiario: $50,000                      │
+│ ├─ Cantidad planificada: 40 beneficiarios                      │
+│ ├─ Costo total estimado: $2,000,000 (auto-calculado)           │
+│ │                                                               │
+│ ├─ VALIDACIÓN AUTOMÁTICA:                                      │
+│ │  ├─ Presupuesto Categoría (Educación): $5,000,000           │
+│ │  ├─ Ya reservado en otros apoyos: $2,500,000                │
+│ │  ├─ Disponible en categoría: $2,500,000                      │
+│ │  ├─ Se solicita: $2,000,000                                  │
+│ │  │                                                           │
+│ │  ├─ ✅ OK - $2,000,000 < $2,500,000 disponible              │
+│ │  └─ SISTEMA RESERVA: $2,000,000 (status: RESERVADO)        │
+│ │                                                               │
+│ └─ [CREAR APOYO]                                               │
+│    ↓                                                            │
+│    ESTADO EN BD:                                                │
+│    ├─ presupuesto_apoyos.reservado = $2,000,000              │
+│    ├─ presupuesto_apoyos.aprobado = $0                        │
+│    ├─ presupuesto_apoyos.disponible = $2,000,000             │
+│    └─ presupuesto_categorías:                                  │
+│       ├─ reservado += $2,000,000 (ahora: $4,500,000)         │
+│       └─ disponible = $500,000 (ALERTA: Casi lleno)          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+
+CUANDO ADMIN APRUEBA UNA SOLICITUD:
+┌─────────────────────────────────────────────────────────────────┐
+│ ✅ Admin verifica documentación → Aprueba solicitud             │
+│    (Admin NO afecta presupuesto - solo valida docs)            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│ ESTADO: "DOCUMENTOS_VERIFICADOS"                               │
+│ Presupuesto NO está afectado aún                               │
+│ Pasa a Directivo para decisión                                 │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+
+CUANDO DIRECTIVO AUTORIZA SOLICITUD:
+┌─────────────────────────────────────────────────────────────────┐
+│ 🔐 Directivo firma digitalmente → Autoriza apoyo               │
+│    (AQUÍ es donde se "gasta" el presupuesto)                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│ SOLICITUD: SIGO-2026-TEP-0050 (Juan Pérez - Becas)            │
+│ ├─ Monto a aprobar: $50,000                                    │
+│ ├─ Apoyo: "Becas Universitarias" (presupuesto: $2M)           │
+│ │                                                               │
+│ ├─ VALIDACIÓN PRE-FIRMA:                                       │
+│ │  ├─ Presupuesto disponible en apoyo: $2,000,000             │
+│ │  ├─ Presupuesto disponible en categoría: $500,000           │
+│ │  ├─ Se requiere: $50,000                                    │
+│ │  │                                                           │
+│ │  ├─ ✅ OK - $50,000 < $500,000 disponible                   │
+│ │  ├─ ✅ OK - $50,000 < $2,000,000 disponible                 │
+│ │  └─ Permitir firma                                           │
+│ │                                                               │
+│ ├─ [FIRMAR DIGITALMENTE] ← PUNTO DE NO RETORNO               │
+│    ↓                                                            │
+│    TRANSACCIONES EN BD:                                         │
+│    ├─ solicitud.estado = "APROBADA"                            │
+│    ├─ presupuesto_apoyos (Becas Universitarias):              │
+│    │  ├─ aprobado += $50,000 (ahora: $1,250,000)             │
+│    │  ├─ disponible -= $50,000 (ahora: $750,000)             │
+│    │  └─ reservado -= $50,000 (ahora: $1,950,000)            │
+│    │                                                           │
+│    ├─ presupuesto_categorías (Educación):                      │
+│    │  ├─ aprobado += $50,000 (ahora: $1,850,000)             │
+│    │  ├─ disponible -= $50,000 (ahora: $650,000)             │
+│    │  └─ reservado -= $50,000 (ahora: $2,450,000)            │
+│    │                                                           │
+│    └─ movimientos_presupuestarios (auditoría):                 │
+│       ├─ tipo: "ASIGNACION_DIRECTIVO"                         │
+│       ├─ solicitud_id: SIGO-2026-TEP-0050                    │
+│       ├─ monto: $50,000                                        │
+│       ├─ directivo_id: 5 (Directivo que autorizó)            │
+│       ├─ categoria: "Educación"                                │
+│       ├─ apoyo: "Becas Universitarias"                        │
+│       ├─ timestamp: 2026-03-31 16:45:22                       │
+│       └─ estado: "CONFIRMADO" (NO reversible)                 │
+│                                                                 │
+│ ✅ RESULTADO: Presupuesto "GASTADO" y NO disponible para otro │
+│               beneficiario (garantiza no overbooking)          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+
+CUANDO DIRECTIVO RECHAZA SOLICITUD:
+┌─────────────────────────────────────────────────────────────────┐
+│ ❌ Directivo rechaza → Presupuesto se LIBERA                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│ solicitud.estado = "RECHAZADA"                                 │
+│ (Presupuesto NO se modifica - nunca fue asignado)             │
+│ Queda disponible para otro beneficiario                        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 4.3 Ciclo de Presupuesto: AÑO FISCAL
+
+```
+CICLO OPERATIVO: 1 enero - 31 diciembre (año fiscal)
+
+ENERO 1:
+├─ Director general carga presupuesto por categoría
+│  ├─ Categoría "Educación": $5,000,000
+│  ├─ Categoría "Salud": $800,000
+│  ├─ Categoría "Vivienda": $2,000,000
+│  └─ Total: $7,800,000
+│
+├─ Sistema crea tabla presupuesto_anual_2026:
+│  ├─ año_fiscal: 2026
+│  ├─ estado: "ABIERTO"
+│  ├─ fecha_inicio: 2026-01-01
+│  └─ fecha_cierre: NULL (se llena el 31-dic)
+│
+└─ Cada categoría inicia con:
+   ├─ presupuesto_inicial = $X
+   ├─ reservado = $0
+   ├─ aprobado = $0
+   ├─ disponible = $X
+   └─ % utilización = 0%
+
+
+DURANTE EL AÑO:
+├─ Admin crea apoyos → Sistema RESERVA presupuesto
+├─ Beneficiarios hacen solicitudes → Admin valida docs
+├─ Directivo aprueba solicitudes → Presupuesto se CONVIERTE en APROBADO
+│                                   (transacción irreversible)
+├─ Dashboard muestra en tiempo real:
+│  ├─ Por categoría: Reservado / Aprobado / Disponible
+│  ├─ Por apoyo: Ídem
+│  ├─ Alertas: Si disponible < 15% del presupuesto
+│  └─ Proyecciones: "Si continúa este ritmo, dinero se agota en..."
+│
+└─ Sistema genera alertas:
+   ├─ ⚠️ AMARILLA: Cuando disponible = 30%
+   ├─ 🔴 ROJA: Cuando disponible = 15%
+   └─ ⛔ CRÍTICA: Cuando disponible = 0% (no se pueden crear apoyos)
+
+
+DICIEMBRE 31 - CIERRE DE EJERCICIO FISCAL:
+├─ Sistema genera reporte final:
+│  ├─ Total presupuestado: $7,800,000
+│  ├─ Total aprobado: $7,200,000 (92% utilización)
+│  ├─ Total rechazado: $600,000 (8%)
+│  ├─ Beneficiarios atendidos: 8,950
+│  └─ Presupuesto por atender (pendiente): $0
+│
+├─ Archivo: reporte_cierre_fiscal_2026.pdf (para auditoría)
+│
+├─ Estado presupuesto cambia: "ABIERTO" → "CERRADO"
+│  ├─ fecha_cierre = 2026-12-31 23:59:59
+│  ├─ No se pueden hacer más cambios
+│  └─ Solo lectura para auditoría
+│
+└─ Enero 1, 2027:
+   └─ Director carga nuevo presupuesto 2027 (ciclo se repite)
+```
+
+### 4.4 FLUJO DE VALIDACIÓN DE PRESUPUESTO
+
+```
+PUNTO 1: AL CREAR APOYO (Planning Admin)
+┌─────────────────────────────────────────────────────────────────┐
+│ Admin ingresa: Nombre, Categoría, Monto máx, Cantidad plan.    │
+│                                                                  │
+│ SISTEMA VALIDA:                                                 │
+│ if (presupuesto_categoria.disponible >= costo_total_estimado)  │
+│    ✅ Permitir creación                                        │
+│    RESERVAR: presupuesto_apoyo.reservado = costo estimado      │
+│ else                                                             │
+│    ❌ BLOQUEAR con mensaje:                                    │
+│    "Presupuesto insuficiente en categoría Educación.           │
+│     Disponible: $500K | Se solicita: $2M"                      │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+PUNTO 2: AL CREAR SOLICITUD (Planeo Beneficiario)
+┌─────────────────────────────────────────────────────────────────┐
+│ Beneficiario selecciona apoyo → Crea solicitud                 │
+│                                                                  │
+│ SISTEMA VALIDA:                                                 │
+│ (Independencia: No bloquea aquí, solo marca para revisión)     │
+│                                                                  │
+│ if (presupuesto_apoyo.disponible >= monto_apoyo)              │
+│    ✅ Permitir solicitud con label "DENTRO PRESUPUESTO"       │
+│ else                                                             │
+│    ⚠️ Permitir solicitud PERO con banner NARANJA:              │
+│    "ATENCIÓN: Este apoyo está SOBRE presupuesto por $X.        │
+│     La aprobación final dependerá de decisión de Directivo"    │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+PUNTO 3: AL VERIFICAR DOCUMENTACIÓN (Admin)
+┌─────────────────────────────────────────────────────────────────┐
+│ Admin solo verifica documentos → NO toca presupuesto            │
+│ = "DOCUMENTOS_VERIFICADOS" (estado intermedio)                 │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+PUNTO 4: AL FIRMAR SOLICITUD (Directivo) ← PUNTO CRÍTICO
+┌─────────────────────────────────────────────────────────────────┐
+│ Directivo presenta solicitud para decisión final                │
+│                                                                  │
+│ SISTEMA VALIDA EN TIEMPO REAL:                                 │
+│                                                                  │
+│ if (presupuesto_categoria.disponible >= monto_solicitud) &&    │
+│    (presupuesto_apoyo.disponible >= monto_solicitud)           │
+│    {                                                            │
+│       ✅ Mostrar botón [AUTORIZAR] habilitado                 │
+│    }                                                             │
+│ else if (presupuesto_categoria.disponible < monto) OR          │
+│        (presupuesto_apoyo.disponible < monto)                  │
+│    {                                                            │
+│       ❌ Mostrar botón [AUTORIZAR] DESHABILITADO              │
+│       Mensaje: "Presupuesto insuficiente:                      │
+│                Requerido: $X | Disponible: $Y"                 │
+│    }                                                             │
+│                                                                  │
+│ Si directivo clickea FIRMAR DIGITALMENTE:                       │
+│    ├─ DB transaction BEGIN                                      │
+│    ├─ Validar NUEVAMENTE (por si otro directivo aprobó)       │
+│    ├─ Si OK: Transferir presupuesto:                           │
+│    │  ├─ presupuesto_apoyo.disponible -= monto                │
+│    │  ├─ presupuesto_apoyo.aprobado += monto                  │
+│    │  ├─ presupuesto_categoria.disponible -= monto            │
+│    │  ├─ presupuesto_categoria.aprobado += monto              │
+│    ├─ Registrar movimiento_presupuestario (auditoría)         │
+│    ├─ Cambiar estado solicitud: "APROBADA"                    │
+│    ├─ DB transaction COMMIT                                    │
+│    └─ ✅ "Solicitud autorizada - Presupuesto confirmado"      │
+│                                                                  │
+│ Si directivo rechaza:                                           │
+│    ├─ Cambiar estado: "RECHAZADA"                              │
+│    └─ SIN modificar presupuesto (sigue disponible)             │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 4.5 TABLAS DE BASE DE DATOS (Presupuestación)
+
+```sql
+-- Tabla 1: Presupuesto por Categoría (Anual)
+CREATE TABLE presupuesto_categorias (
+    id_presupuesto INT PRIMARY KEY IDENTITY(1,1),
+    año_fiscal INT NOT NULL,                      -- 2026, 2027, etc.
+    nombre_categoria VARCHAR(100) NOT NULL,       -- "Educación", "Salud"
+    presupuesto_inicial MONEY NOT NULL,           -- $5,000,000
+    reservado MONEY DEFAULT 0,                    -- $ asignado a apoyos (no gastado)
+    aprobado MONEY DEFAULT 0,                     -- $ autorizado por directivo (GASTADO)
+    disponible MONEY,                             -- = inicial - aprobado (calculado)
+    porcentaje_utilizacion DECIMAL(5,2),          -- 92.5%
+    fecha_creacion DATETIME DEFAULT GETDATE(),
+    estado VARCHAR(50),                           -- ABIERTO, CERRADO
+    CONSTRAINT FK_presupuesto_año UNIQUE (año_fiscal, nombre_categoria)
+);
+
+-- Tabla 2: Presupuesto por Apoyo (Sub-asignación)
+CREATE TABLE presupuesto_apoyos (
+    id_presupuesto_apoyo INT PRIMARY KEY IDENTITY(1,1),
+    fk_id_apoyo INT NOT NULL,                     -- Apoyo específico
+    fk_id_categoria INT NOT NULL,                 -- Categoría padre
+    año_fiscal INT NOT NULL,                      -- 2026
+    presupuesto_total MONEY NOT NULL,             -- $2,000,000 (monto máx * cantidad)
+    reservado MONEY DEFAULT 0,                    -- Presupuesto sin gastar aún
+    aprobado MONEY DEFAULT 0,                     -- Presupuesto GASTADO (irrevocable)
+    disponible MONEY,                             -- = presupuesto - aprobado
+    monto_maximo_beneficiario MONEY,              -- $50,000 por persona
+    cantidad_beneficiarios_planificada INT,       -- 40 personas
+    cantidad_beneficiarios_aprobada INT DEFAULT 0,-- Cuántos ya autorizados
+    fecha_creacion DATETIME DEFAULT GETDATE(),
+    CONSTRAINT FK_presupuesto_apoyo_fk FOREIGN KEY (fk_id_apoyo) REFERENCES apoyos(id_apoyo),
+    CONSTRAINT FK_presupuesto_apoyo_cat FOREIGN KEY (fk_id_categoria) REFERENCES presupuesto_categorias(id_presupuesto)
+);
+
+-- Tabla 3: Movimientos Presupuestarios (Auditoría)
+CREATE TABLE movimientos_presupuestarios (
+    id_movimiento INT PRIMARY KEY IDENTITY(1,1),
+    fk_id_solicitud INT,                          -- Solicitud que generó movimiento
+    fk_id_apoyo INT NOT NULL,                     -- Apoyo
+    fk_id_categoria INT NOT NULL,                 -- Categoría
+    tipo_movimiento VARCHAR(50) NOT NULL,         -- RESERVA, ASIGNACION, LIBERACION
+    monto_movimiento MONEY NOT NULL,
+    año_fiscal INT,
+    directivo_id INT,                             -- Quién autorizó
+    fecha_movimiento DATETIME DEFAULT GETDATE(),
+    estado_movimiento VARCHAR(50),                -- PENDIENTE, CONFIRMADO, REVERTIDO
+    observaciones TEXT,
+    CONSTRAINT FK_movimiento_solicitud FOREIGN KEY (fk_id_solicitud) REFERENCES solicitudes(id_solicitud),
+    CONSTRAINT FK_movimiento_apoyo FOREIGN KEY (fk_id_apoyo) REFERENCES apoyos(id_apoyo),
+    CONSTRAINT FK_movimiento_categoria FOREIGN KEY (fk_id_categoria) REFERENCES presupuesto_categorias(id_presupuesto),
+    CONSTRAINT FK_movimiento_directivo FOREIGN KEY (directivo_id) REFERENCES usuarios(id_usuario)
+);
+
+-- Tabla 4: Ciclo Presupuestario Anual
+CREATE TABLE ciclos_presupuestarios (
+    id_ciclo INT PRIMARY KEY IDENTITY(1,1),
+    año_fiscal INT UNIQUE,
+    estado VARCHAR(50),                           -- ABIERTO, CERRADO
+    fecha_inicio DATETIME,                         -- 2026-01-01
+    fecha_cierre DATETIME,                         -- 2026-12-31 (NULL si aún abierto)
+    presupuesto_total_inicial MONEY,
+    presupuesto_total_aprobado MONEY,
+    cantidad_solicitudes_totales INT,
+    cantidad_solicitudes_aprobadas INT,
+    cantidad_beneficiarios_atendidos INT,
+    creada_por INT,                               -- Usuario que cargó presupuesto
+    CONSTRAINT FK_ciclo_usuario FOREIGN KEY (creada_por) REFERENCES usuarios(id_usuario)
+);
+
+-- Tabla 5: Modificación a SOLICITUDES (agregar campos presupuestarios)
+ALTER TABLE solicitudes ADD (
+    monto_solicitado MONEY,                       -- Monto específico para este beneficiario
+    presupuesto_reservado BIT DEFAULT 0,          -- ¿Está dentro presupuesto?
+    presupuesto_confirmado BIT DEFAULT 0,         -- ¿Directivo ya autorizó? (IRREVERSIBLE)
+    fecha_confirmacion_presupuesto DATETIME,      -- Cuándo se autorizó
+    directivo_autorizó INT                        -- Quién autorizó
+);
+
+-- ALTER TABLE APOYOS para vincular con presupuesto
+ALTER TABLE apoyos ADD (
+    fk_id_categoria INT,                          -- Categoría de este apoyo
+    cantidad_beneficiarios_estimada INT,
+    presupuesto_reservado_total MONEY             -- Calculado: monto_max * cantidad
+);
+```
+
+### 4.6 SERVICIOS Y LÓGICA DE NEGOCIO
+
+```php
+// app/Services/PresupuetaryControlService.php
+
+class PresupuetaryControlService {
+    
+    /**
+     * Validar si se puede crear un apoyo
+     */
+    public function validarPresupuestoParaApoyo($id_categoria, $costo_estimado, $año_fiscal = null)
+    {
+        $año = $año_fiscal ?? date('Y');
+        
+        $categoria = PresupuestoCategoria::where('año_fiscal', $año)
+                                         ->where('id_presupuesto', $id_categoria)
+                                         ->first();
+        
+        if (!$categoria) {
+            throw new Exception("Presupuesto no configurado para año $año");
+        }
+        
+        if ($categoria->disponible < $costo_estimado) {
+            throw new PresupuetaryException(
+                "Presupuesto insuficiente en categoría {$categoria->nombre_categoria}.\n" .
+                "Disponible: $" . number_format($categoria->disponible) . "\n" .
+                "Se requiere: $" . number_format($costo_estimado)
+            );
+        }
+        
+        return true;
+    }
+    
+    /**
+     * RESERVAR presupuesto al crear apoyo
+     */
+    public function reservarPresupuestoApoyo($id_apoyo, $costo_estimado, $id_categoria)
+    {
+        DB::beginTransaction();
+        try {
+            // 1. Validar antes
+            $this->validarPresupuestoParaApoyo($id_categoria, $costo_estimado);
+            
+            // 2. Crear registro en presupuesto_apoyos
+            $presupuesto_apoyo = PresupuestoApoyo::create([
+                'fk_id_apoyo' => $id_apoyo,
+                'fk_id_categoria' => $id_categoria,
+                'año_fiscal' => date('Y'),
+                'presupuesto_total' => $costo_estimado,
+                'reservado' => $costo_estimado,
+                'aprobado' => 0,
+                'disponible' => $costo_estimado
+            ]);
+            
+            // 3. Restar del presupuesto categoría
+            PresupuestoCategoria::where('id_presupuesto', $id_categoria)
+                               ->decrement('disponible', $costo_estimado)
+                               ->increment('reservado', $costo_estimado);
+            
+            // 4. Registrar movimiento (auditoría)
+            MovimientoPresupuestario::create([
+                'fk_id_apoyo' => $id_apoyo,
+                'fk_id_categoria' => $id_categoria,
+                'tipo_movimiento' => 'RESERVA',
+                'monto_movimiento' => $costo_estimado,
+                'año_fiscal' => date('Y'),
+                'estado_movimiento' => 'CONFIRMADO'
+            ]);
+            
+            DB::commit();
+            return $presupuesto_apoyo;
+            
+        } catch (\Exception $e) {
+            DB::rollback();
+            throw $e;
+        }
+    }
+    
+    /**
+     * Validar si se puede AUTORIZAR una solicitud (Directivo firma)
+     */
+    public function validarPresupuestoParaSolicitud($id_solicitud, $id_directivo)
+    {
+        $solicitud = Solicitud::with(['apoyo'])->findOrFail($id_solicitud);
+        $apoyo = $solicitud->apoyo;
+        
+        $presupuesto_apoyo = PresupuestoApoyo::where('fk_id_apoyo', $apoyo->id_apoyo)
+                                             ->where('año_fiscal', date('Y'))
+                                             ->first();
+        
+        $presupuesto_categoria = PresupuestoCategoria::find($presupuesto_apoyo->fk_id_categoria);
+        
+        // Validar a dos niveles
+        if ($presupuesto_apoyo->disponible < $solicitud->monto_solicitado) {
+            return [
+                'válido' => false,
+                'error' => "Presupuesto insuficiente en apoyo '{$apoyo->nombre}'.\n" .
+                          "Disponible: $" . number_format($presupuesto_apoyo->disponible) . "\n" .
+                          "Se requiere: $" . number_format($solicitud->monto_solicitado)
+            ];
+        }
+        
+        if ($presupuesto_categoria->disponible < $solicitud->monto_solicitado) {
+            return [
+                'válido' => false,
+                'error' => "Presupuesto insuficiente en categoría '{$presupuesto_categoria->nombre_categoria}'.\n" .
+                          "Disponible: $" . number_format($presupuesto_categoria->disponible) . "\n" .
+                          "Se requiere: $" . number_format($solicitud->monto_solicitado)
+            ];
+        }
+        
+        return ['válido' => true, 'mensaje' => 'Presupuesto OK - Puede autorizar'];
+    }
+    
+    /**
+     * ASIGNAR presupuesto cuando Directivo autoriza (PUNTO DE NO RETORNO)
+     */
+    public function asignarPresupuestoSolicitud($id_solicitud, $id_directivo)
+    {
+        DB::beginTransaction();
+        try {
+            $solicitud = Solicitud::with(['apoyo'])->findOrFail($id_solicitud);
+            $monto = $solicitud->monto_solicitado;
+            
+            // Validar nuevamente (por si otro directivo aprobó en paralelo)
+            $validación = $this->validarPresupuestoParaSolicitud($id_solicitud, $id_directivo);
+            if (!$validación['válido']) {
+                throw new PresupuetaryException($validación['error']);
+            }
+            
+            // Transacción: Convertir presupuesto "reservado" → "aprobado"
+            $presupuesto_apoyo = PresupuestoApoyo::where('fk_id_apoyo', $solicitud->apoyo->id_apoyo)
+                                                 ->where('año_fiscal', date('Y'))
+                                                 ->first();
+            
+            $presupuesto_categoria = PresupuestoCategoria::find($presupuesto_apoyo->fk_id_categoria);
+            
+            // 1. Modificar presupuesto_apoyos
+            $presupuesto_apoyo->update([
+                'disponible' => $presupuesto_apoyo->disponible - $monto,
+                'aprobado' => $presupuesto_apoyo->aprobado + $monto,
+                'cantidad_beneficiarios_aprobada' => $presupuesto_apoyo->cantidad_beneficiarios_aprobada + 1
+            ]);
+            
+            // 2. Modificar presupuesto_categorías
+            $presupuesto_categoria->update([
+                'disponible' => $presupuesto_categoria->disponible - $monto,
+                'aprobado' => $presupuesto_categoria->aprobado + $monto
+            ]);
+            
+            // 3. Marcar solicitud como presupuesto confirmado
+            $solicitud->update([
+                'presupuesto_confirmado' => 1,
+                'fecha_confirmacion_presupuesto' => now(),
+                'directivo_autorizó' => $id_directivo,
+                'estado' => 'APROBADA'
+            ]);
+            
+            // 4. Registrar movimiento (AUDITORÍA COMPLETA)
+            MovimientoPresupuestario::create([
+                'fk_id_solicitud' => $id_solicitud,
+                'fk_id_apoyo' => $solicitud->apoyo->id_apoyo,
+                'fk_id_categoria' => $presupuesto_categoria->id_presupuesto,
+                'tipo_movimiento' => 'ASIGNACION_DIRECTIVO',
+                'monto_movimiento' => $monto,
+                'año_fiscal' => date('Y'),
+                'directivo_id' => $id_directivo,
+                'estado_movimiento' => 'CONFIRMADO',
+                'observaciones' => "Solicitud $id_solicitud autorizada - Presupuesto gastado (irreversible)"
+            ]);
+            
+            DB::commit();
+            
+            // Generar alertas si presupuesto está bajo
+            $this->verificarAlertas($presupuesto_categoria->id_presupuesto);
+            
+            return ['éxito' => true, 'mensaje' => "Presupuesto asignado - $" . number_format($monto)];
+            
+        } catch (\Exception $e) {
+            DB::rollback();
+            throw new PresupuetaryException("Error asignando presupuesto: " . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Generar alertas cuando presupuesto baja
+     */
+    private function verificarAlertas($id_categoria)
+    {
+        $categoria = PresupuestoCategoria::find($id_categoria);
+        $porcentaje = ($categoria->disponible / $categoria->presupuesto_inicial) * 100;
+        
+        if ($porcentaje <= 15) {
+            // 🔴 ALERTA CRÍTICA
+            $this->notificarAdministradores(
+                "⛔ ALERTA CRÍTICA: Presupuesto agotado",
+                "Categoría '{$categoria->nombre_categoria}' solo tiene {$porcentaje}% disponible.\n" .
+                "Quedan: $" . number_format($categoria->disponible)
+            );
+        } elseif ($porcentaje <= 30) {
+            // 🟠 ALERTA MEDIA
+            $this->notificarAdministradores(
+                "⚠️ ATENCIÓN: Presupuesto bajo",
+                "Categoría '{$categoria->nombre_categoria}' al {$porcentaje}% utilizado.\n" .
+                "Disponible: $" . number_format($categoria->disponible)
+            );
+        }
+    }
+}
+```
+
+**ESTIMADO DE ESFUERZO:** 8-10 días (Backend presupuestación + validaciones + dashboards + reportes)  
+**COMPLEJIDAD:** 🔴 ALTA (Lógica de negocio sensible, transacciones DB, auditoría)  
+**PRIORIDAD:** 🔴 CRÍTICA (Core del sistema)  
+**IMPACTO:** 🔥 CRÍTICO (Determina todo el flujo de aprobación)
 
 ---
 
