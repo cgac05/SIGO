@@ -5,6 +5,91 @@
 **Responsables:** Equipo de Desarrollo de Estudiantes del Tecnológico Nacional de México, Campus Tepic  
 **Institución Beneficiaria:** Instituto Nayarita de la Juventud (INJUVE)  
 **Fundamento Académico:** Semestre 5 - Fundamentos de Ingeniería de Software  
+**Última Actualización:** 28 de Marzo de 2026 - 15:45  
+
+---
+
+## 🔄 ACTUALIZACIONES DE ESTADO ACTUAL
+
+### Sesión de Desarrollo: 28 de Marzo de 2026
+
+**COMPLETADO ESTA SESIÓN:**
+
+✅ **Feature 1: Google Avatar Fix**
+- Creación de GoogleAvatarService para descarga automática de avatares desde Google
+- Almacenamiento local en storage/app/public/fotos/
+- Integración en flujo OAuth callback
+- Avatar visible para usuarios autenticados vía Google
+
+✅ **Feature 2: Componente Avatar Mejorado**
+- Creación de avatar-image.blade.php con ícono SVG profesional
+- Fondo gradiente azul para usuarios sin foto
+- 3 tamaños disponibles (sm: 40px, md: 64px, lg: 160px)
+- Tooltip "Usuario sin foto" al pasar ratón
+- Integración en vistas padron (index + show)
+
+✅ **Feature 3: Sección Histórico de Apoyos**
+- Modelo Estado creado para tabla Cat_EstadosSolicitud
+- Relationship: Beneficiario → solicitudes() HasMany
+- Relationship: Solicitud → estado() BelongsTo
+- Tabla con: folio, apoyo, estado (badges coloreado), fecha, monto, observaciones
+- Statistics: count aprobadas/rechazadas/pendientes con %, total monto entregado
+- Ordenamiento por fecha DESC (más reciente primero)
+- Estado vacío con mensaje amigable
+- **Todas las relaciones de BD verificadas y funcionales**
+
+**ARCHIVOS MODIFICADOS:** 3 commits a git
+- app/Models/Estado.php (NEW)
+- app/Models/Beneficiario.php (UPDATED - added relationship)
+- app/Models/Solicitud.php (UPDATED - added relationship)
+- resources/views/components/avatar-image.blade.php (NEW)
+- resources/views/admin/padron/index.blade.php (UPDATED)
+- resources/views/admin/padron/show.blade.php (UPDATED)
+
+---
+
+### 🎯 PRÓXIMA FASE: Fase 4 - ÁREA ECONÓMICA Y PRESUPUESTACIÓN
+
+**ENFOQUE SOLICITADO POR USUARIO:**
+
+> "¿Qué sigue? Podemos hacer desarrollo del área económica y la bolsa acumulada para aplicar cambios al área de apoyos y cómo se asigna el presupuesto"
+
+**COMPONENTES A DESARROLLAR EN FASE 4:**
+
+1. **Presupuestación por Categoría**
+   - Tabla: presupuesto_categorías (monto total, reservado, consumido, disponible)
+   - Categorías: Educación, Salud, Vivienda, Deporte, Otro
+   - Validaciones: No permitir exceeder presupuesto
+
+2. **Bolsa Acumulada (Saldo Presupuestario)**
+   - Seguimiento de dinero por categoría
+   - Saldo inicial de cada convocatoria
+   - Movimientos: Ingresos, Egresos, Reservas
+
+3. **Asignación de Presupuesto a Apoyos**
+   - Análisis: ¿Cuánto presupuesto reservar por apoyo?
+   - Cálculo: Monto máximo × cantidad beneficiarios = presupuesto requerido
+   - Relación Apoyo ↔ Categoría ↔ Presupuesto
+
+4. **Validaciones de Flujo**
+   - Verificar disponibilidad antes de aprobar solicitud
+   - Bloquear solicitud si presupuesto insuficiente
+   - Generar alertas cuando saldo ≤ umbral (15%)
+
+5. **Reportes Económicos**
+   - Dashboard de presupuesto (% consumido, disponible, por aprobar)
+   - Auditoría de movimientos financieros
+   - Análisis por categoría, período, directivo
+
+**DEPENDENCIAS (¿Bloqueadores?):**
+- ⏳ Se recomienda completar Fase 3.6 (Inventario) antes?
+- 🔄 O puede iniciar en paralelo con gestión de personal (3.7)?
+- ✅ Independencia: Sistema económico NO depende de Google Calendar (3) ni Carga Fría (3.5)
+
+**ESTIMADO DE ESFUERZO:** 6-8 días (Models + Controllers + Views + Tests)  
+**COMPLEJIDAD:** MEDIA-ALTA (validaciones financieras, auditoría, reportes)  
+**PRIORIDAD:** 🔴 ALTA (critical para funcionalidad de apoyo)  
+**IMPACTO:** CRÍTICO (núcleo del sistema de gestión de recursos)
 
 ---
 
