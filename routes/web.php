@@ -8,6 +8,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ApoyoController;
 use App\Http\Controllers\GoogleDriveController;
 use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\ReauthenticationController;
 use App\Models\Beneficiario;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -276,6 +277,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/api/google-drive/upload', [GoogleDriveController::class, 'upload'])->name('api.google-drive.upload');
     Route::get('/api/google-drive/files', [GoogleDriveController::class, 'list'])->name('api.google-drive.list');
     Route::delete('/api/google-drive/file/{fileId}', [GoogleDriveController::class, 'destroy'])->name('api.google-drive.destroy');
+});
+
+// Re-authentication Routes (para operaciones sensibles)
+Route::middleware('auth')->group(function () {
+    Route::post('/auth/reauth-verify', [ReauthenticationController::class, 'verify'])->name('auth.reauth-verify');
 });
 
 require __DIR__.'/auth.php';

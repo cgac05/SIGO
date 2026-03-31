@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Rules\Recaptcha;
 use App\Services\PresupuestoService;
+use App\Services\FolioService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,10 +13,12 @@ use Illuminate\Support\Facades\Schema;
 class SolicitudController extends Controller
 {
     protected PresupuestoService $presupuestoService;
+    protected FolioService $folioService;
 
-    public function __construct(PresupuestoService $presupuestoService)
+    public function __construct(PresupuestoService $presupuestoService, FolioService $folioService)
     {
         $this->presupuestoService = $presupuestoService;
+        $this->folioService = $folioService;
     }
 
     public function create(Request $request, int $id)
@@ -152,10 +155,14 @@ class SolicitudController extends Controller
         DB::beginTransaction();
 
         try {
+            // Generar folio institucional con dígito verificador
+            $folioInstitucional = $this->folioService->generarFolioInstitucional($user->id_usuario);
+
             $payloadSolicitud = [
                 'fk_curp' => $curpBeneficiario,
                 'fk_id_apoyo' => $request->apoyo,
                 'fk_id_estado' => 1,
+                'folio_institucional' => $folioInstitucional,
                 'fecha_creacion' => now(),
             ];
 
@@ -164,6 +171,11 @@ class SolicitudController extends Controller
             }
 
             $folio = DB::table('Solicitudes')->insertGetId($payloadSolicitud, 'folio');
+
+            // Registrar en auditoría que el folio institucional fue usado
+            DB::table('auditoria_folios')
+                ->where('folio_completo', $folioInstitucional)
+                ->update(['fk_folio_solicitud' => $folio]);
 
             // NUEVO: Reservar presupuesto para la solicitud
             $solicitud = \App\Models\Solicitud::find($folio);
