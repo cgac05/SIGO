@@ -5,15 +5,68 @@
 **Responsables:** Equipo de Desarrollo de Estudiantes del Tecnológico Nacional de México, Campus Tepic  
 **Institución Beneficiaria:** Instituto Nayarita de la Juventud (INJUVE)  
 **Fundamento Académico:** Semestre 5 - Fundamentos de Ingeniería de Software  
-**Última Actualización:** 28 de Marzo de 2026 - 15:45  
+**Última Actualización:** 31 de Marzo de 2026 - 18:30  
 
 ---
 
 ## 🔄 ACTUALIZACIONES DE ESTADO ACTUAL
 
-### Sesión de Desarrollo: 28 de Marzo de 2026
+### Sesión de Desarrollo: 31 de Marzo de 2026 (ACTUAL)
 
 **COMPLETADO ESTA SESIÓN:**
+
+✅ **FEATURE PRINCIPAL: Dashboard Presupuestación Doble Vista con Pestañas (Notion-Style)**
+- Implementación de doble vista con pestañas (Alpine.js) en dashboard presupuestación
+- Pestaña 1: "Distribución de Presupuesto" - Muestra cómo se repartió el presupuesto total
+- Pestaña 2: "Ejecución de Gastos" - Muestra cómo se han ejecutado los gastos realizados
+- Gráficos anillo tipo Notion: Chart.js v4.4.0 con bordes blancos 3px y hover offset
+- Colores dinámicos: Azul (#3B82F6), Naranja (#F97316), Verde (#10B981), Ámbar (#F59E0B), Púrpura (#8B5CF6)
+- Listados laterales interactivos con indicadores de color y valores monetarios
+- Cards de resumen (4 columnas): Presupuesto Total, Gastado, Disponible, % Utilizado
+- Tabla con barras de progreso y estados de ejecución
+- Diseño 100% responsivo (Mobile → Tablet → Desktop) con Tailwind CSS
+- Datos en tiempo real desde SQL Server con validaciones de BD
+
+**CORRECCIONES REALIZADAS:**
+1. ❌→✅ Error Syntax Blade: Recreación completa de dashboard.blade.php (eliminó código viejo conflictivo)
+2. ❌→✅ Error Undefined variable $ciclo: Agregado `use ($ciclo)` al map de datos
+3. ❌→✅ NaN% en tooltips: Conversión explícita a float de todos los valores presupuestarios
+4. ❌→✅ Caché Laravel: Implementado clear de config, view y route caches
+
+**DATOS DE PRUEBA POBLACIÓN (5 CATEGORÍAS - $100M TOTAL):**
+| Categoría | Presupuesto | % Distribución | Gastado | % Ejecución |
+|-----------|-------------|----------------|---------|------------|
+| Becas y Asistencia Educativa | $25M | 25% | $17.5M | 70% |
+| Programas de Empleo Joven | $35M | 35% | $15.75M | 45% |
+| Vivienda y Desarrollo Comunitario | $20M | 20% | $17M | 85% |
+| Actividades Culturales y Deportivas | $12M | 12% | $3.6M | 30% |
+| Salud y Bienestar | $8M | 8% | $4.8M | 60% |
+
+**ARCHIVOS CREADOS/MODIFICADOS (4 commits):**
+- e536b87: Implementación doble vista + gráficos Notion + datos de prueba
+- 85d9964: Documentación completa dashboard
+- 9e18e0b: Fix sintaxis Blade recreación completa
+- 5fb8da5: Comando test validación datos
+- 92b287b: Fix undefined variable $ciclo
+- 880ec78: Fix NaN% conversión a float
+
+**COMANDOS DISPONIBLES:**
+```bash
+php artisan seed:presupuesto --ciclo=2026           # Sembrar datos iniciales
+php artisan seed:reset-presupuesto --ciclo=2026    # Limpiar y resembrar
+php artisan test:presupuesto-dashboard --ciclo=2026 # Verificar datos
+```
+
+**DASHBOARD ACCESIBLE EN:**
+```
+http://localhost:8000/admin/presupuesto/dashboard
+```
+
+---
+
+### Sesión de Desarrollo: 28 de Marzo de 2026 (ANTERIOR)
+
+**COMPLETADO SESIÓN ANTERIOR:**
 
 ✅ **Feature 1: Google Avatar Fix**
 - Creación de GoogleAvatarService para descarga automática de avatares desde Google
@@ -4885,7 +4938,29 @@ CIERRE ADMINISTRATIVO (Proceso Automático):
 
 ---
 
-### FASE 4: Módulo de Apoyos (Completado)
+### FASE 4: Presupuestación y Asignación de Recursos ✅ COMPLETADO (31 MARZO 2026)
+
+#### 4.0 Dashboard de Presupuestación (Nuevo - 31 Marzo 2026)
+- ✅ **Dashboard Doble Vista con Pestañas** (Alpine.js + Chart.js v4.4.0)
+- ✅ **Pestaña 1: Distribución de Presupuesto** - Visualización de cómo se repartió el presupuesto por categoría
+- ✅ **Pestaña 2: Ejecución de Gastos** - Visualización de cómo se ejecutaron los gastos realizados
+- ✅ **Gráficos Anillo tipo Notion** con bordes blancos, hover effects y tooltips dinámicos
+- ✅ **4 Tarjetas Resumen:** Presupuesto Total ($100M), Gastado ($58.65M), Disponible ($41.35M), % Utilizado (58.65%)
+- ✅ **Listados Interactivos** con indicadores de color por categoría y valores monetarios en tiempo real
+- ✅ **Tabla de Detalle** con barras de progreso y estados de ejecución por categoría
+- ✅ **Datos de Prueba Población:** 5 categorías con $100M total distribuido
+- ✅ **Responsive Design:** Mobile-first 100% funcional en todos los devices (320px - 2560px)
+- ✅ **Todas las correcciones aplicadas:** Syntax Blade, undefined variables, type casting NaN
+
+**Archivos Creados:**
+- resources/views/admin/presupuesto/dashboard.blade.php (365 líneas, clean structure)
+- app/Console/Commands/SeedPresupuestoData.php
+- app/Console/Commands/ResetPresupuestoData.php
+- app/Console/Commands/TestPresupuestoDashboard.php
+
+**Commits de Sesión:** e536b87, 85d9964, 9e18e0b, 5fb8da5, 92b287b, 880ec78
+
+---
 
 #### 4.1 Gestión de Convocatorias
 - ✅ **CRUD completo** para crear/editar/listar apoyos
