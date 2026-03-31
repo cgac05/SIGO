@@ -96,7 +96,7 @@ class PresupuestoController extends Controller
         ];
 
         // Datos para gráfico de REPARTICIÓN (presupuesto por categoría)
-        $datosReparticion = $categorias->map(function ($cat) {
+        $datosReparticion = $categorias->map(function ($cat) use ($ciclo) {
             return [
                 'nombre' => $cat['nombre'],
                 'valor' => $cat['presupuesto_total'],
