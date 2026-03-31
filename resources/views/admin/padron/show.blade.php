@@ -202,6 +202,159 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Histórico de Apoyos (solo para beneficiarios) -->
+            @if($tipo === 'Beneficiario')
+            <div class="bg-white rounded-lg shadow mt-8">
+                <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <svg class="w-6 h-6 text-green-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"></path>
+                                <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000-2H6a6 6 0 016 6v3h3a1 1 0 01.82.4l2.601 3.42a1 1 0 01-.454 1.659.5.5 0 00-.171.95l2.16 1.08a1 1 0 11-.896 1.79L15.75 16.07a.5.5 0 00-.171.95.5.5 0 01-.454 1.659l-2.601-3.42A1 1 0 0112 15h-3v2a1 1 0 11-2 0v-2H6a2 2 0 01-2-2V5zm12-1a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd"></path>
+                            </svg>
+                            <h2 class="text-xl font-semibold text-gray-900">Histórico de Apoyos Solicitados</h2>
+                        </div>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
+                            {{ $beneficiario->solicitudes->count() }} solicitud{{ $beneficiario->solicitudes->count() !== 1 ? 'es' : '' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="px-6 py-6">
+                    @if($beneficiario->solicitudes->count() > 0)
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Folio</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Apoyo</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Estado</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Fecha Solicitud</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Monto Entregado</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Notas</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200">
+                                    @foreach($beneficiario->solicitudes()->orderBy('fecha_creacion', 'desc')->get() as $solicitud)
+                                    <tr class="hover:bg-gray-50 transition">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                                                #{{ $solicitud->folio }}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-gray-900">{{ $solicitud->apoyo->nombre_apoyo ?? 'Apoyo no disponible' }}</div>
+                                            <div class="text-xs text-gray-500">{{ $solicitud->apoyo->tipo_apoyo ?? 'N/A' }}</div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            @php
+                                                $estadoColor = match((int)$solicitud->fk_id_estado) {
+                                                    1 => 'gray',      // Pendiente
+                                                    2 => 'blue',      // Validado
+                                                    3 => 'yellow',    // En Subsanación
+                                                    4 => 'green',     // Aprobado
+                                                    5 => 'red',       // Rechazado
+                                                    default => 'gray',
+                                                };
+                                                $estadoTexto = match((int)$solicitud->fk_id_estado) {
+                                                    1 => 'Pendiente',
+                                                    2 => 'Validado',
+                                                    3 => 'En Subsanación',
+                                                    4 => 'Aprobado',
+                                                    5 => 'Rechazado',
+                                                    default => 'Desconocido',
+                                                };
+                                            @endphp
+                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-{{ $estadoColor }}-100 text-{{ $estadoColor }}-800">
+                                                @if($solicitud->fk_id_estado == 4)
+                                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                @elseif($solicitud->fk_id_estado == 5)
+                                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                @elseif($solicitud->fk_id_estado == 3)
+                                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                @endif
+                                                {{ $estadoTexto }}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                            {{ $solicitud->fecha_creacion->format('d/m/Y H:i') }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                            @if($solicitud->monto_entregado)
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                                                    $ {{ number_format($solicitud->monto_entregado, 2, '.', ',') }}
+                                                </span>
+                                            @else
+                                                <span class="text-gray-400">—</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 text-sm text-gray-600">
+                                            @if($solicitud->observaciones_internas)
+                                                <div class="max-w-xs truncate hover:text-clip" title="{{ $solicitud->observaciones_internas }}">
+                                                    {{ $solicitud->observaciones_internas }}
+                                                </div>
+                                            @else
+                                                <span class="text-gray-400">—</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Estadísticas de Apoyos -->
+                        <div class="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4 pt-8 border-t border-gray-200">
+                            @php
+                                $totalSolicitudes = $beneficiario->solicitudes->count();
+                                $aprobadas = $beneficiario->solicitudes->where('fk_id_estado', 4)->count();
+                                $rechazadas = $beneficiario->solicitudes->where('fk_id_estado', 5)->count();
+                                $pendientes = $beneficiario->solicitudes->whereIn('fk_id_estado', [1, 2, 3, 8, 9])->count();
+                                $montoTotal = $beneficiario->solicitudes->sum('monto_entregado');
+                            @endphp
+
+                            <div class="bg-green-50 rounded-lg p-4 border-l-4 border-green-500">
+                                <p class="text-gray-600 text-sm font-medium">Aprobadas</p>
+                                <p class="text-2xl font-bold text-green-700">{{ $aprobadas }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ round(($aprobadas/$totalSolicitudes)*100) }}% del total</p>
+                            </div>
+
+                            <div class="bg-red-50 rounded-lg p-4 border-l-4 border-red-500">
+                                <p class="text-gray-600 text-sm font-medium">Rechazadas</p>
+                                <p class="text-2xl font-bold text-red-700">{{ $rechazadas }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ round(($rechazadas/$totalSolicitudes)*100) }}% del total</p>
+                            </div>
+
+                            <div class="bg-yellow-50 rounded-lg p-4 border-l-4 border-yellow-500">
+                                <p class="text-gray-600 text-sm font-medium">Pendientes</p>
+                                <p class="text-2xl font-bold text-yellow-700">{{ $pendientes }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ round(($pendientes/$totalSolicitudes)*100) }}% del total</p>
+                            </div>
+
+                            <div class="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-500">
+                                <p class="text-gray-600 text-sm font-medium">Monto Entregado</p>
+                                <p class="text-2xl font-bold text-blue-700">$ {{ number_format($montoTotal, 2, '.', ',') }}</p>
+                                <p class="text-xs text-gray-500 mt-1">Total de recursos</p>
+                            </div>
+                        </div>
+                    @else
+                        <div class="py-12 text-center">
+                            <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <p class="text-gray-500 font-medium">No hay solicitudes de apoyo registradas</p>
+                            <p class="text-sm text-gray-400 mt-2">Este beneficiario aún no ha solicitado ningún apoyo</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+            @endif
         </main>
     </div>
 </body>

@@ -46,6 +46,14 @@ class Solicitud extends Model
     }
 
     /**
+     * Relación con Estado
+     */
+    public function estado(): BelongsTo
+    {
+        return $this->belongsTo(Estado::class, 'fk_id_estado', 'id_estado');
+    }
+
+    /**
      * Relación con Documentos
      */
     public function documentos(): HasMany
