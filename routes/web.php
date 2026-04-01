@@ -282,27 +282,27 @@ Route::middleware('auth')->group(function () {
     // ====================================================================
     Route::prefix('admin/calendario')->group(function () {
         Route::get('', [GoogleCalendarController::class, 'mostrarConfiguracion'])
-            ->middleware('role:3')
+            ->middleware('role:2,3')
             ->name('admin.calendario.config');
         
         Route::get('auth', [GoogleCalendarController::class, 'redirectToGoogle'])
-            ->middleware('role:3')
+            ->middleware('role:2,3')
             ->name('admin.calendario.auth');
         
         Route::get('callback', [GoogleCalendarController::class, 'handleGoogleCallback'])
-            ->middleware('role:3')
+            ->middleware('role:2,3')
             ->name('admin.calendario.callback');
         
         Route::post('sync', [GoogleCalendarController::class, 'sincronizar'])
-            ->middleware('role:3')
+            ->middleware('role:2,3')
             ->name('admin.calendario.sync');
         
         Route::post('disconnect', [GoogleCalendarController::class, 'desconectar'])
-            ->middleware('role:3')
+            ->middleware('role:2,3')
             ->name('admin.calendario.disconnect');
         
         Route::get('logs', [GoogleCalendarController::class, 'mostrarLogs'])
-            ->middleware('role:3')
+            ->middleware('role:2,3')
             ->name('admin.calendario.logs');
         
         Route::post('webhook', [GoogleCalendarController::class, 'webhookGoogleCalendar'])
@@ -310,7 +310,7 @@ Route::middleware('auth')->group(function () {
             ->name('admin.calendario.webhook');
         
         Route::get('api/status', [GoogleCalendarController::class, 'apiStatus'])
-            ->middleware('role:3')
+            ->middleware('role:2,3')
             ->name('admin.calendario.api.status');
     });
 
@@ -318,6 +318,10 @@ Route::middleware('auth')->group(function () {
     // MÓDULO ADMINISTRATIVO - PRESUPUESTACIÓN
     // ====================================================================
     Route::prefix('admin/presupuesto')->group(function () {
+        Route::get('', [PresupuestoController::class, 'dashboard'])
+            ->middleware('role:2,3')
+            ->name('admin.presupuesto.index');
+        
         Route::get('dashboard', [PresupuestoController::class, 'dashboard'])
             ->middleware('role:2,3')
             ->name('admin.presupuesto.dashboard');
