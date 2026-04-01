@@ -9,6 +9,9 @@ use App\Http\Controllers\ApoyoController;
 use App\Http\Controllers\GoogleDriveController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\ReauthenticationController;
+use App\Http\Controllers\PadronController;
+use App\Http\Controllers\GoogleCalendarController;
+use App\Http\Controllers\Admin\PresupuestoController;
 use App\Models\Beneficiario;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -255,6 +258,90 @@ Route::middleware('auth')->group(function () {
         ->name('notificaciones.marcar-leida');
     Route::post('/notificaciones/marcar-todas', [NotificacionController::class, 'marcarTodasLeidas'])
         ->name('notificaciones.marcar-todas');
+
+    // ====================================================================
+    // MÓDULO ADMINISTRATIVO - PADRÓN
+    // ====================================================================
+    Route::prefix('admin/padron')->group(function () {
+        Route::get('', [PadronController::class, 'index'])
+            ->middleware('role:2,3')
+            ->name('admin.padron.index');
+        
+        Route::get('{id}', [PadronController::class, 'show'])
+            ->middleware('role:2,3')
+            ->whereNumber('id')
+            ->name('admin.padron.show');
+        
+        Route::get('{id}/exportar', [PadronController::class, 'exportar'])
+            ->middleware('role:2,3')
+            ->whereNumber('id')
+            ->name('admin.padron.exportar');
+    });
+
+    // ====================================================================
+    // MÓDULO ADMINISTRATIVO - CALENDARIO DE GOOGLE
+    // ====================================================================
+    Route::prefix('admin/calendario')->group(function () {
+        Route::get('', [GoogleCalendarController::class, 'mostrarConfiguracion'])
+            ->middleware('role:3')
+            ->name('admin.calendario.config');
+        
+        Route::get('auth', [GoogleCalendarController::class, 'redirectToGoogle'])
+            ->middleware('role:3')
+            ->name('admin.calendario.auth');
+        
+        Route::get('callback', [GoogleCalendarController::class, 'handleGoogleCallback'])
+            ->middleware('role:3')
+            ->name('admin.calendario.callback');
+        
+        Route::post('sync', [GoogleCalendarController::class, 'sincronizar'])
+            ->middleware('role:3')
+            ->name('admin.calendario.sync');
+        
+        Route::post('disconnect', [GoogleCalendarController::class, 'desconectar'])
+            ->middleware('role:3')
+            ->name('admin.calendario.disconnect');
+        
+        Route::get('logs', [GoogleCalendarController::class, 'mostrarLogs'])
+            ->middleware('role:3')
+            ->name('admin.calendario.logs');
+        
+        Route::post('webhook', [GoogleCalendarController::class, 'webhookGoogleCalendar'])
+            ->withoutMiddleware('auth')
+            ->name('admin.calendario.webhook');
+        
+        Route::get('api/status', [GoogleCalendarController::class, 'apiStatus'])
+            ->middleware('role:3')
+            ->name('admin.calendario.api.status');
+    });
+
+    // ====================================================================
+    // MÓDULO ADMINISTRATIVO - PRESUPUESTACIÓN
+    // ====================================================================
+    Route::prefix('admin/presupuesto')->group(function () {
+        Route::get('dashboard', [PresupuestoController::class, 'dashboard'])
+            ->middleware('role:3')
+            ->name('admin.presupuesto.dashboard');
+        
+        Route::get('categoria/{id}', [PresupuestoController::class, 'showCategoria'])
+            ->middleware('role:3')
+            ->whereNumber('id')
+            ->name('admin.presupuesto.categoria');
+        
+        Route::get('apoyo/{id}', [PresupuestoController::class, 'showApoyo'])
+            ->middleware('role:3')
+            ->whereNumber('id')
+            ->name('admin.presupuesto.apoyo');
+        
+        Route::get('reportes', [PresupuestoController::class, 'reportes'])
+            ->middleware('role:3')
+            ->name('admin.presupuesto.reportes');
+        
+        Route::get('api/historial/{id_categoria}', [PresupuestoController::class, 'apiHistorial'])
+            ->middleware('role:3')
+            ->whereNumber('id_categoria')
+            ->name('admin.presupuesto.api.historial');
+    });
 });
 
 // Validación pública de solicitudes (sin autenticación)
