@@ -5,13 +5,65 @@
 **Responsables:** Equipo de Desarrollo de Estudiantes del Tecnológico Nacional de México, Campus Tepic  
 **Institución Beneficiaria:** Instituto Nayarita de la Juventud (INJUVE)  
 **Fundamento Académico:** Semestre 5 - Fundamentos de Ingeniería de Software  
-**Última Actualización:** 31 de Marzo de 2026 - 18:30  
+**Última Actualización:** 31 de Marzo de 2026 - 19:30  
 
 ---
 
 ## 🔄 ACTUALIZACIONES DE ESTADO ACTUAL
 
-### Sesión de Desarrollo: 31 de Marzo de 2026 (ACTUAL)
+### Sesión de Desarrollo: 31 de Marzo de 2026 (ACTUAL) - CONTINUACIÓN
+
+**BUG FIXES Y MEJORAS DE INFRAESTRUCTURA:**
+
+✅ **ISSUE #1: Corrección de Ruta de Cambio de Contraseña**
+- Problema: Route binding error "Target class [forzar.cambio.password] does not exist"
+- Causa Raíz: Campo en BD es `debe_cambiar_password` pero ruta fue nombrada con pattern diferente
+- Solución:
+  - ✅ routes/auth.php: Agregada ruta `Route::post('debe-cambiar-password', ...)->name('debe-cambiar-password.update')`
+  - ✅ ForzarCambioPassword middleware: Actualizado para validar ruta correcta
+  - ✅ modal-cambio-password.blade.php: Actualizado nombre de ruta a `debe-cambiar-password.update`
+  - ✅ Caches limpiados
+- Git: Commit 9f098e2
+
+✅ **ISSUE #2: Rutas Admin Faltantes (404 Errors)**
+- Problema: Errores 404 en `/admin/padron`, `/admin/presupuesto/reportes`, `/admin/calendario`
+- Causa Raíz: Controllers existían (PadronController, PresupuestoController, GoogleCalendarController) pero rutas no definidas en routes/web.php
+- Solución:
+  - ✅ routes/web.php: Agregadas 3 prefixed route groups con 15+ rutas
+  - ✅ Rutas padron: 3 endpoints (index, show, exportar)
+  - ✅ Rutas calendario: 8 endpoints (config, auth, callback, sync, disconnect, logs, webhook, api.status)
+  - ✅ Rutas presupuesto: 5 endpoints (dashboard, categoria, apoyo, reportes, api.historial)
+  - ✅ bootstrap/app.php: Registrado CheckRole middleware para role-based access control
+  - ✅ Middleware pattern: `middleware('role:2,3')` para admin y directivo
+  - ✅ Verificación: `php artisan route:list` confirma todas las rutas registradas
+  - ✅ Caches limpiados
+- Git: Commit fb9632d
+
+✅ **ISSUE #3 & #4: Inconsistencia de Nombres de Rutas en Vistas**
+- Problema: Vistas usando `route('padron.index')` pero rutas definidas como `route('admin.padron.index')`
+- Causa Raíz: Pattern de convención no aplicado uniformemente en todas las vistas
+- Solución - Padron views (2 archivos, 5 replacements):
+  - ✅ resources/views/admin/padron/index.blade.php - 3 rutas actualizadas
+  - ✅ resources/views/admin/padron/show.blade.php - 2 rutas actualizadas
+- Solución - Presupuesto views (3 archivos, 9 replacements):
+  - ✅ resources/views/admin/presupuesto/categoria.blade.php - 3 rutas actualizadas
+  - ✅ resources/views/admin/presupuesto/apoyo.blade.php - 4 rutas actualizadas
+  - ✅ resources/views/admin/presupuesto/reportes.blade.php - 3 rutas actualizadas
+- Solución - Calendario views (2 archivos, 5 replacements):
+  - ✅ resources/views/admin/calendario/configuracion.blade.php - 4 rutas actualizadas
+  - ✅ resources/views/admin/calendario/logs.blade.php - 1 ruta actualizada
+- Convención establecida: `admin.[module].[action]` (e.g., admin.padron.index)
+- Git: Commit 52dd69b
+
+✅ **VERIFICACIÓN FINAL DE RUTAS**
+- Comando: `php artisan route:list | Select-String "admin"`
+- Resultado: 20+ rutas registradas correctamente con nombres admin.*
+- Estado: Todas las rutas listeadas, controladores mapeados correctamente
+- Caches despejados: Route cache + Application cache
+
+---
+
+### CONTINUACIÓN - Sesión de Desarrollo: 31 de Marzo de 2026 (ANTERIOR)
 
 **COMPLETADO ESTA SESIÓN:**
 
