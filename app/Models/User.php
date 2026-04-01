@@ -162,4 +162,25 @@ class User extends Authenticatable implements MustVerifyEmailContract
     {
         return $this->hasMany(GoogleDriveFile::class, 'user_id', 'id_usuario');
     }
+
+    /**
+     * Obtener URL de la foto del usuario
+     * Retorna URL de Google Avatar si existe, sino retorna URL de almacenamiento local
+     */
+    public function getFotoUrl(): string
+    {
+        // Si tiene avatar de Google, retornar esa URL
+        if ($this->google_avatar) {
+            return $this->google_avatar;
+        }
+        
+        // Si no, intentar obtener desde almacenamiento local
+        $localPhotoPath = "storage/fotos/{$this->id_usuario}.jpg";
+        if (file_exists(public_path($localPhotoPath))) {
+            return asset($localPhotoPath);
+        }
+        
+        // Si no tiene foto, retornar una URL vacía o placeholder
+        return '';
+    }
 }
