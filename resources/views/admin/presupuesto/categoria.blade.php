@@ -9,7 +9,7 @@
                 <a href="{{ route('dashboard') }}">Inicio</a>
             </li>
             <li class="breadcrumb-item">
-                <a href="{{ route('presupuesto.dashboard') }}">Presupuestación</a>
+                <a href="{{ route('admin.presupuesto.dashboard') }}">Presupuestación</a>
             </li>
             <li class="breadcrumb-item active" aria-current="page">{{ $categoria->nombre }}</li>
         </ol>
@@ -173,7 +173,7 @@
                                     <span class="badge bg-info">{{ $apoyo['num_movimientos'] }}</span>
                                 </td>
                                 <td>
-                                    <a href="{{ route('presupuesto.apoyos.show', $apoyo['id_presupuesto']) }}"
+                                    <a href="{{ route('admin.presupuesto.apoyo', $apoyo['id_presupuesto']) }}"
                                        class="btn btn-sm btn-outline-primary">
                                         <i class="fas fa-eye me-1"></i>
                                         Ver
@@ -197,7 +197,7 @@
     <!-- Botones de Navegación -->
     <div class="row mt-4 mb-4">
         <div class="col-md-12">
-            <a href="{{ route('presupuesto.dashboard') }}" class="btn btn-lg btn-secondary">
+            <a href="{{ route('admin.presupuesto.dashboard') }}" class="btn btn-lg btn-secondary">
                 <i class="fas fa-arrow-left me-2"></i>
                 Volver al Dashboard
             </a>

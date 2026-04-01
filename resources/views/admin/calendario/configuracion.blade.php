@@ -50,7 +50,7 @@
 
                     <!-- Acciones -->
                     <div class="space-y-3 mb-6">
-                        <form action="{{ route('calendario.sync') }}" method="POST">
+                        <form action="{{ route('admin.calendario.sync') }}" method="POST">
                             @csrf
                             <button 
                                 type="submit"
@@ -63,7 +63,7 @@
                             </button>
                         </form>
                         
-                        <form action="{{ route('calendario.disconnect') }}" method="POST">
+                        <form action="{{ route('admin.calendario.disconnect') }}" method="POST">
                             @csrf
                             <button 
                                 type="submit"
@@ -90,7 +90,7 @@
 
                     <!-- Botón de Conexión -->
                     <a 
-                        href="{{ route('calendario.auth') }}"
+                        href="{{ route('admin.calendario.auth') }}"
                         class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center gap-2 mb-6"
                     >
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -105,7 +105,7 @@
                     <p class="text-sm font-semibold text-gray-700 mb-3">Enlaces Rápidos</p>
                     <ul class="space-y-2">
                         <li>
-                            <a href="{{ route('calendario.logs') }}" class="text-indigo-600 hover:underline text-sm flex items-center gap-2">
+                            <a href="{{ route('admin.calendario.logs') }}" class="text-indigo-600 hover:underline text-sm flex items-center gap-2">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
                                 </svg>

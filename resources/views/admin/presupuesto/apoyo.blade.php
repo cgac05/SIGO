@@ -9,10 +9,10 @@
                 <a href="{{ route('dashboard') }}">Inicio</a>
             </li>
             <li class="breadcrumb-item">
-                <a href="{{ route('presupuesto.dashboard') }}">Presupuestación</a>
+                <a href="{{ route('admin.presupuesto.dashboard') }}">Presupuestación</a>
             </li>
             <li class="breadcrumb-item">
-                <a href="{{ route('presupuesto.categorias.show', $categoria->id_categoria) }}">
+                <a href="{{ route('admin.presupuesto.categoria', $categoria->id_categoria) }}">
                     {{ $categoria->nombre }}
                 </a>
             </li>
@@ -238,7 +238,7 @@
                 <i class="fas fa-arrow-left me-2"></i>
                 Volver a la Categoría
             </a>
-            <a href="{{ route('presupuesto.dashboard') }}" class="btn btn-lg btn-outline-secondary">
+            <a href="{{ route('admin.presupuesto.dashboard') }}" class="btn btn-lg btn-outline-secondary">
                 <i class="fas fa-home me-2"></i>
                 Volver al Dashboard
             </a>

@@ -9,7 +9,7 @@
                 <a href="{{ route('dashboard') }}">Inicio</a>
             </li>
             <li class="breadcrumb-item">
-                <a href="{{ route('presupuesto.dashboard') }}">Presupuestación</a>
+                <a href="{{ route('admin.presupuesto.dashboard') }}">Presupuestación</a>
             </li>
             <li class="breadcrumb-item active" aria-current="page">Reportes</li>
         </ol>
@@ -41,7 +41,7 @@
         <!-- Selector de Año -->
         <div class="card shadow mb-4">
             <div class="card-body">
-                <form method="GET" action="{{ route('presupuesto.reportes') }}" class="d-flex align-items-end gap-2">
+                <form method="GET" action="{{ route('admin.presupuesto.reportes') }}" class="d-flex align-items-end gap-2">
                     <div class="flex-grow-1">
                         <label for="año" class="form-label">Seleccionar Año Fiscal:</label>
                         <input
@@ -285,7 +285,7 @@
         <!-- Botones de Acción -->
         <div class="row mb-4">
             <div class="col-md-12">
-                <a href="{{ route('presupuesto.dashboard') }}" class="btn btn-lg btn-secondary">
+                <a href="{{ route('admin.presupuesto.dashboard') }}" class="btn btn-lg btn-secondary">
                     <i class="fas fa-arrow-left me-2"></i>
                     Volver al Dashboard
                 </a>

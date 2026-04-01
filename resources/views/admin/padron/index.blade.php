@@ -95,7 +95,7 @@
                             Filtros
                         </h3>
 
-                        <form method="GET" action="{{ route('padron.index') }}" class="space-y-6">
+                        <form method="GET" action="{{ route('admin.padron.index') }}" class="space-y-6">
                             <!-- Búsqueda -->
                             <div>
                                 <label for="busqueda" class="block text-sm font-semibold text-gray-700 mb-2">Buscar</label>
@@ -167,7 +167,7 @@
                                 <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
                                     Filtrar
                                 </button>
-                                <a href="{{ route('padron.index') }}" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg transition text-center">
+                                <a href="{{ route('admin.padron.index') }}" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg transition text-center">
                                     Limpiar
                                 </a>
                             </div>
@@ -186,7 +186,7 @@
                                     <span class="font-semibold">{{ $usuarios->total() }}</span> usuarios
                                 </p>
                             </div>
-                            <a href="{{ route('padron.exportar', request()->query()) }}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition">
+                            <a href="{{ route('admin.padron.exportar', request()->query()) }}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition">
                                 <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path>
                                 </svg>
@@ -257,7 +257,7 @@
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <div class="flex gap-2">
-                                                <a href="{{ route('padron.show', $usuario->id_usuario) }}" class="text-blue-600 hover:text-blue-900 transition" title="Ver detalles">
+                                                <a href="{{ route('admin.padron.show', $usuario->id_usuario) }}" class="text-blue-600 hover:text-blue-900 transition" title="Ver detalles">
                                                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                                         <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
                                                         <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"></path>

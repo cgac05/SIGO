@@ -12,7 +12,7 @@
             <p class="text-lg text-gray-600 mt-2">Google Calendar - Historial de cambios</p>
         </div>
         <a 
-            href="{{ route('calendario.config') }}"
+            href="{{ route('admin.calendario.config') }}"
             class="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition"
         >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
