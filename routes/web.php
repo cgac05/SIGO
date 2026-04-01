@@ -267,15 +267,14 @@ Route::middleware('auth')->group(function () {
             ->middleware('role:2,3')
             ->name('admin.padron.index');
         
+        Route::get('exportar', [PadronController::class, 'exportar'])
+            ->middleware('role:2,3')
+            ->name('admin.padron.exportar');
+        
         Route::get('{id}', [PadronController::class, 'show'])
             ->middleware('role:2,3')
             ->whereNumber('id')
             ->name('admin.padron.show');
-        
-        Route::get('{id}/exportar', [PadronController::class, 'exportar'])
-            ->middleware('role:2,3')
-            ->whereNumber('id')
-            ->name('admin.padron.exportar');
     });
 
     // ====================================================================
