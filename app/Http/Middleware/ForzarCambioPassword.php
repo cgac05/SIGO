@@ -17,7 +17,7 @@ class ForzarCambioPassword
             $user &&
             $user->tipo_usuario === 'personal' &&
             $user->debe_cambiar_password &&
-            !$request->routeIs('password.forzar.update') &&
+            !$request->routeIs('debe-cambiar-password.update') &&
             !$request->routeIs('personal.crear') &&
             !$request->routeIs('personal.store') &&
             !$request->routeIs('test-personal') &&

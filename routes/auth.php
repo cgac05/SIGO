@@ -50,6 +50,10 @@ Route::middleware('auth')->group(function () {
     Route::post('registro/completar-perfil', [CompleteBeneficiarioProfileController::class, 'store'])
         ->name('registro.completar-perfil.store');
 
+    // Ruta para cambio de contraseña forzado (campos debe_cambiar_password)
+    Route::post('debe-cambiar-password', [\App\Http\Controllers\CambioPasswordController::class, 'update'])
+        ->name('debe-cambiar-password.update');
+
     Route::get('verify-email', EmailVerificationPromptController::class)
         ->name('verification.notice');
 

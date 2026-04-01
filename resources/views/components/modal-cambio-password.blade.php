@@ -40,7 +40,7 @@
                 Por seguridad, es necesario que establezcas una nueva contraseña para tu cuenta antes de usar el sistema.
             </p>
 
-            <form action="{{ route('password.forzar.update') }}" method="POST">
+            <form action="{{ route('debe-cambiar-password.update') }}" method="POST">
                 @csrf
 
                 {{-- Nueva contraseña --}}
