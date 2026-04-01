@@ -171,7 +171,7 @@
                             @forelse($categorias as $categoria)
                                 <tr class="hover:bg-gray-50 transition">
                                     <td class="px-6 py-4">
-                                        <a href="{{ route('admin.presupuesto.categoria', $categoria['id']) }}" class="font-semibold text-gray-900 hover:text-indigo-600 transition">
+                                        <a href="{{ route('admin.presupuesto.categoria', $categoria['id_categoria']) }}" class="font-semibold text-gray-900 hover:text-indigo-600 transition">
                                             {{ $categoria['nombre'] }}
                                         </a>
                                     </td>

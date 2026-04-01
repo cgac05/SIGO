@@ -232,6 +232,7 @@ class PresupuestoController extends Controller
                 $gastado = (float) $cat->presupuesto_anual - (float) $cat->disponible;
 
                 return [
+                    'id_categoria' => $cat->id_categoria,
                     'nombre' => $cat->nombre,
                     'presupuesto' => $cat->presupuesto_anual,
                     'gastado' => $gastado,
