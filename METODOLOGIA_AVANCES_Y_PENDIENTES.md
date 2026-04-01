@@ -15,7 +15,54 @@
 
 **COMPLETADO ESTA SESIÓN:**
 
-✅ **FEATURE PRINCIPAL: Modal de Re-autenticación para Firma Electrónica**
+✅ **FEATURE PRINCIPAL: Sistema de Presupuestación Multi-Nivel (Fase 4.4)**
+- ⭐ **PresupuestaryControlService** - Servicio core con 7 métodos de negocio
+  - validarPresupuestoParaApoyo() - Pre-validación antes de crear apoyo
+  - reservarPresupuestoApoyo() - Reservar presupuesto al crear apoyo
+  - validarPresupuestoParaSolicitud() - Validación en 2 niveles (apoyo + categoría)
+  - asignarPresupuestoSolicitud() - **PUNTO CRÍTICO**: Asignación irreversible
+  - liberarPresupuestoSolicitud() - Liberar presupuesto en rechazo
+  - verificarAlertasCategoria() - Generar alertas por threshold
+  - obtenerResumen() - Resumen de estado presupuestario
+
+- ⭐ **Migraciones de Base de Datos** (5 nuevas tablas):
+  - presupuesto_categorias - Presupuesto anual por categoría
+  - presupuesto_apoyos - Sub-asignación a apoyos específicos
+  - movimientos_presupuestarios - Auditoría completa (irreversible)
+  - ciclos_presupuestarios - Gestión de años fiscales
+  - alertas_presupuesto - Sistema de alertas (4 niveles)
+
+- ⭐ **Modelos Eloquent**:
+  - AlertaPresupuesto con scopes: noVistas(), porNivel()
+  - Métodos: marcarVista(), getColorAttribute(), getIconoAttribute()
+
+- ⭐ **Integración en SolicitudProcesoController**:
+  - Inyección de PresupuestaryControlService
+  - firmaDirectiva() - Pre-validación + asignación transaccional
+  - rechazarSolicitud() - Liberación de presupuesto en rechazo
+  - Double-check pattern para evitar race conditions
+
+- ⭐ **Migration para Solicitudes** - Adición de campos:
+  - presupuesto_confirmado (BIT) - Flag irreversible
+  - fecha_confirmacion_presupuesto (DATETIME)
+  - directivo_autorizo (INT FK)
+
+- ⭐ **Suite de Tests Completa** (8 test cases):
+  - validar_presupuesto_para_apoyo_exitoso ✅
+  - validar_presupuesto_insuficiente ✅
+  - reservar_presupuesto_apoyo ✅
+  - validar_presupuesto_solicitud_exitoso ✅
+  - validar_presupuesto_solicitud_excede ✅
+  - asignar_presupuesto_solicitud ✅
+  - liberar_presupuesto_rechazo ✅
+  - obtener_resumen ✅
+
+- ⭐ **Console Command**: CargarPresupuestoAnual
+  - Carga presupuesto inicial para año fiscal
+  - 5 categorías predefinidas por $100M total
+  - Uso: `php artisan presupuesto:cargar --año=2026`
+
+✅ **FEATURE AUXILIAR: Modal de Re-autenticación para Firma Electrónica** (Fase 3)
 - Componente Blade: `modals/reauth-signature.blade.php`
 - Validaciones de contraseña con Alpine.js
 - Soporte para 2FA (OTP temporal)
@@ -5563,7 +5610,7 @@ Orden de ejecución:
 |--------|-------------|--------|-------|
 | **Autenticación & Roles** | 100% | ✅ Producción | OAuth Google integrado, middleware funcional |
 | **Apoyos (CRUD Básico)** | 100% | ✅ Producción | Create, Read, Update, Delete funcional |
-| **Apoyos (Presupuestación)** | 0% | ❌ Planeado | Bolsa fiscal + categorías (4.4) |
+| **Apoyos (Presupuestación)** | 80% | 🚧 Casi listo | Service + Controllers integrados, migraciones pendientes ejecución |
 | **Solicitudes** | 85% | ⚠️ Funcional | Crear solicitud OK, ver estado pendiente |
 | **Documentos (Local)** | 100% | ✅ Producción | Upload, validación, almacenamiento completo |
 | **Google Drive Integration** | 100% | ✅ Producción | Picker, descarga, auditoría completa |
@@ -5571,7 +5618,7 @@ Orden de ejecución:
 | **QR Generation (Tokens)** | 100% | ✅ Producción | Phase 1 complete, Phase 2 planned |
 | **Validación Pública** | 100% | ✅ Producción | Endpoint sin auth, muestra metadata |
 | **Portal de Inicio** | 50% | 🚧 En desarrollo | Hero section needed, navbar OK |
-| **Firma Electrónica** | 0% | ❌ No iniciado | Requisito para Phase 2 |
+| **Firma Electrónica** | 100% | ✅ Completo | Fase 3 completada, re-auth modal + tests |
 | **Foliado Automático** | 0% | ❌ No iniciado | SIGO-YYYY-MUNICIPIO-NNNNN |
 | **Dashboard KPIs** | 0% | ❌ No iniciado | Gráficas para directivos |
 | **Notificaciones** | 0% | ❌ No iniciado | Email, SMS, push in-app |

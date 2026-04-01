@@ -6,6 +6,7 @@ use App\Events\NotificacionGenerada;
 use App\Jobs\CopiarDocumentoExpedienteJob;
 use App\Services\FirmaElectronicaService;
 use App\Services\PresupuetaryIntegrationService;
+use App\Services\PresupuestaryControlService;
 use App\Services\SolicitudWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +18,8 @@ class SolicitudProcesoController extends Controller
     public function __construct(
         private readonly SolicitudWorkflowService $workflow,
         private readonly PresupuetaryIntegrationService $presupuetoIntegration,
-        private readonly FirmaElectronicaService $firmaService
+        private readonly FirmaElectronicaService $firmaService,
+        private readonly PresupuestaryControlService $presupuestaryControl
     ) {
     }
 
@@ -155,9 +157,22 @@ class SolicitudProcesoController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        $folio = (int) $data['folio'];
+
+        // ⚠️ PRE-VALIDATION: Validar presupuesto ANTES de firma
+        // Esto previene que se firme una solicitud sin presupuesto disponible
+        try {
+            $validacionPresupuesto = $this->presupuestaryControl->validarPresupuestoParaSolicitud($folio);
+            if (!$validacionPresupuesto['valido']) {
+                return back()->with('error', 'Presupuesto insuficiente: ' . $validacionPresupuesto['razon']);
+            }
+        } catch (\Exception $e) {
+            return back()->with('error', 'Error validando presupuesto: ' . $e->getMessage());
+        }
+
         // Usar FirmaElectronicaService para manejar la firma
         $resultado = $this->firmaService->firmarSolicitud(
-            (int) $data['folio'],
+            $folio,
             $user,
             $data['password']
         );
@@ -166,17 +181,26 @@ class SolicitudProcesoController extends Controller
             return back()->with('error', $resultado['mensaje']);
         }
 
+        // ✅ TRANSACCIÓN: Asignar presupuesto tras firma exitosa
+        // Esta es la operación IRREVERSIBLE que marca presupuesto como confirmado
+        try {
+            $this->presupuestaryControl->asignarPresupuestoSolicitud($folio, $user->id_usuario);
+        } catch (\Exception $e) {
+            // Log error pero no revertir firma (ya está en BD)
+            \Log::error("Error asignando presupuesto para solicitud {$folio}: " . $e->getMessage());
+            // Notificar admin
+            event(new NotificacionGenerada(
+                'admin',
+                'Error presupuesto en firma',
+                "Solicitud {$folio} firmada pero presupuesto falló: " . $e->getMessage()
+            ));
+        }
+
         // Notificar beneficiario de aprobación
         $this->crearNotificacionBeneficiario(
-            (int) $data['folio'],
+            $folio,
             'Tu apoyo fue autorizado por dirección. CUV: ' . $resultado['firma']['cuv'],
             'apoyo_autorizado'
-        );
-
-        // Integración con presupuestación: Asignar presupuesto tras autorización
-        $this->presupuetoIntegration->asignarPresupuestoAlAutorizar(
-            (int) $data['folio'],
-            (int) $user->id_usuario
         );
 
         return back()->with('status', $resultado['mensaje']);
@@ -197,9 +221,11 @@ class SolicitudProcesoController extends Controller
             'motivo.required' => 'El motivo del rechazo es obligatorio.',
         ]);
 
+        $folio = (int) $data['folio'];
+
         // Usar FirmaElectronicaService para manejar el rechazo
         $resultado = $this->firmaService->rechazarSolicitud(
-            (int) $data['folio'],
+            $folio,
             $user,
             $data['password'],
             $data['motivo']
@@ -209,9 +235,18 @@ class SolicitudProcesoController extends Controller
             return back()->with('error', $resultado['mensaje']);
         }
 
+        // ✅ LIBERACIÓN DE PRESUPUESTO: Al rechazar, liberar presupuesto reservado
+        // Solo se libera si la solicitud fue previamente confirmada
+        try {
+            $this->presupuestaryControl->liberarPresupuestoSolicitud($folio);
+        } catch (\Exception $e) {
+            // Log error pero no revertir rechazo (ya está en BD)
+            \Log::warning("Error liberando presupuesto para solicitud rechazada {$folio}: " . $e->getMessage());
+        }
+
         // Notificar beneficiario de rechazo
         $this->crearNotificacionBeneficiario(
-            (int) $data['folio'],
+            $folio,
             'Tu solicitud fue rechazada. Motivo: ' . $data['motivo'],
             'apoyo_rechazado'
         );

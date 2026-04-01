@@ -22,11 +22,16 @@ class Solicitud extends Model
         'fecha_creacion',
         'fecha_actualizacion',
         'observaciones_internas',
+        'presupuesto_confirmado',
+        'fecha_confirmacion_presupuesto',
+        'directivo_autorizo',
     ];
 
     protected $casts = [
         'fecha_creacion' => 'datetime',
         'fecha_actualizacion' => 'datetime',
+        'fecha_confirmacion_presupuesto' => 'datetime',
+        'presupuesto_confirmado' => 'boolean',
     ];
 
     /**
@@ -118,5 +123,33 @@ class Solicitud extends Model
             return $presupuesto->estado;
         }
         return null;
+    }
+
+    /**
+     * Obtener el directivo que autorizó la solicitud
+     */
+    public function directivoAutoriza()
+    {
+        return $this->belongsTo(Usuario::class, 'directivo_autorizo', 'id_usuario');
+    }
+
+    /**
+     * Verificar si la solicitud tiene presupuesto confirmado
+     */
+    public function tienePresupuestoConfirmado(): bool
+    {
+        return $this->presupuesto_confirmado === true;
+    }
+
+    /**
+     * Obtener diferencia de tiempo entre confirmación de presupuesto y ahora
+     */
+    public function horasDesdeConfirmacion(): ?int
+    {
+        if (!$this->fecha_confirmacion_presupuesto) {
+            return null;
+        }
+
+        return $this->fecha_confirmacion_presupuesto->diffInHours(now());
     }
 }
