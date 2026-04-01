@@ -319,25 +319,25 @@ Route::middleware('auth')->group(function () {
     // ====================================================================
     Route::prefix('admin/presupuesto')->group(function () {
         Route::get('dashboard', [PresupuestoController::class, 'dashboard'])
-            ->middleware('role:3')
+            ->middleware('role:2,3')
             ->name('admin.presupuesto.dashboard');
         
         Route::get('categoria/{id}', [PresupuestoController::class, 'showCategoria'])
-            ->middleware('role:3')
+            ->middleware('role:2,3')
             ->whereNumber('id')
             ->name('admin.presupuesto.categoria');
         
         Route::get('apoyo/{id}', [PresupuestoController::class, 'showApoyo'])
-            ->middleware('role:3')
+            ->middleware('role:2,3')
             ->whereNumber('id')
             ->name('admin.presupuesto.apoyo');
         
         Route::get('reportes', [PresupuestoController::class, 'reportes'])
-            ->middleware('role:3')
+            ->middleware('role:2,3')
             ->name('admin.presupuesto.reportes');
         
         Route::get('api/historial/{id_categoria}', [PresupuestoController::class, 'apiHistorial'])
-            ->middleware('role:3')
+            ->middleware('role:2,3')
             ->whereNumber('id_categoria')
             ->name('admin.presupuesto.api.historial');
     });
