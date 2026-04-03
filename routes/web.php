@@ -248,17 +248,6 @@ Route::middleware('auth')->group(function () {
             ->name('admin.documentos.view');
     });
 
-    // Notificaciones 
-    Route::get('/notificaciones', [NotificacionController::class, 'index'])
-        ->name('notificaciones.index');
-    Route::get('/notificaciones/unread-count', [NotificacionController::class, 'unreadCount'])
-        ->name('notificaciones.unread-count');
-    Route::post('/notificaciones/{id}/leer', [NotificacionController::class, 'marcarLeida'])
-        ->whereNumber('id')
-        ->name('notificaciones.marcar-leida');
-    Route::post('/notificaciones/marcar-todas', [NotificacionController::class, 'marcarTodasLeidas'])
-        ->name('notificaciones.marcar-todas');
-
     // ====================================================================
     // MÓDULO ADMINISTRATIVO - PADRÓN
     // ====================================================================
@@ -431,23 +420,23 @@ Route::middleware(['auth', 'role:2,3'])->prefix('api/reporte')->group(function (
 
 // API Notificaciones (Protegidas por autenticación, solo para beneficiarios)
 Route::middleware('auth')->prefix('api/notificaciones')->group(function () {
-    Route::get('/', [\App\Http\Controllers\Api\NotificacionesController::class, 'index'])
+    Route::get('/', [\App\Http\Controllers\Api\NotificacionesApiController::class, 'index'])
         ->name('api.notificaciones.index');
     
-    Route::get('/no-leidas', [\App\Http\Controllers\Api\NotificacionesController::class, 'noLeidas'])
+    Route::get('/no-leidas', [\App\Http\Controllers\Api\NotificacionesApiController::class, 'noLeidas'])
         ->name('api.notificaciones.noLeidas');
     
-    Route::get('/conteo', [\App\Http\Controllers\Api\NotificacionesController::class, 'conteoNoLeidas'])
+    Route::get('/conteo', [\App\Http\Controllers\Api\NotificacionesApiController::class, 'conteoNoLeidas'])
         ->name('api.notificaciones.conteo');
     
-    Route::post('/{id}/marcar-leida', [\App\Http\Controllers\Api\NotificacionesController::class, 'marcarLeida'])
+    Route::post('/{id}/marcar-leida', [\App\Http\Controllers\Api\NotificacionesApiController::class, 'marcarLeida'])
         ->whereNumber('id')
         ->name('api.notificaciones.marcarLeida');
     
-    Route::post('/marcar-todas-leidas', [\App\Http\Controllers\Api\NotificacionesController::class, 'marcarTodasLeidas'])
+    Route::post('/marcar-todas-leidas', [\App\Http\Controllers\Api\NotificacionesApiController::class, 'marcarTodasLeidas'])
         ->name('api.notificaciones.marcarTodasLeidas');
     
-    Route::delete('/{id}', [\App\Http\Controllers\Api\NotificacionesController::class, 'destroy'])
+    Route::delete('/{id}', [\App\Http\Controllers\Api\NotificacionesApiController::class, 'destroy'])
         ->whereNumber('id')
         ->name('api.notificaciones.destroy');
 });
