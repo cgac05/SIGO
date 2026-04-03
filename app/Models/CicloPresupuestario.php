@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class CicloPresupuestario extends Model
 {
     protected $table = 'ciclos_presupuestarios';
-    protected $primaryKey = 'id_ciclo';
+    protected $primaryKey = 'id';
     protected $guarded = [];
     protected $casts = [
         'año_fiscal' => 'integer',

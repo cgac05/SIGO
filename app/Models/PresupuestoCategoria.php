@@ -23,7 +23,7 @@ class PresupuestoCategoria extends Model
     
     public function ciclo(): BelongsTo
     {
-        return $this->belongsTo(CicloPresupuestario::class, 'id_ciclo', 'id_ciclo');
+        return $this->belongsTo(CicloPresupuestario::class, 'id_ciclo', 'id');
     }
 
     public function apoyos(): HasMany
