@@ -48,9 +48,8 @@ class PresupuestoController extends Controller
     {
         $this->authorizeDirectivo();
 
-        // Ciclo fiscal actual
-        $año_actual = now()->year;
-        $ciclo = CicloPresupuestario::where('año_fiscal', $año_actual)
+        // Ciclo fiscal actual 2026
+        $ciclo = CicloPresupuestario::where('ano_fiscal', 2026)
             ->where('estado', 'ABIERTO')
             ->first();
 
@@ -58,70 +57,29 @@ class PresupuestoController extends Controller
             return view('admin.presupuesto.no-ciclo');
         }
 
-        // Categorías del ciclo con estadísticas
-        $categorias = PresupuestoCategoria::where('id_ciclo', $ciclo->id_ciclo)
-            ->with(['apoyos' => function ($query) {
-                $query->where('estado', 'APROBADO');
-            }])
+        // Categorías del ciclo
+        $categorias = PresupuestoCategoria::where('id_ciclo', $ciclo->id)
             ->orderBy('nombre')
-            ->get()
-            ->map(function ($cat) {
-                return [
-                    'id_categoria' => $cat->id_categoria,
-                    'nombre' => $cat->nombre,
-                    'presupuesto_total' => (float) $cat->presupuesto_anual,
-                    'disponible' => (float) $cat->disponible,
-                    'gastado' => (float) $cat->presupuesto_anual - (float) $cat->disponible,
-                    'porcentaje_utilizado' => $cat->getPorcentajeUtilizacion(),
-                    'badge_color' => $cat->getBadgeColor(),
-                    'estado_visual' => $this->getEstadoVisual($cat->getPorcentajeUtilizacion()),
-                    'apoyos_aprobados' => $cat->apoyos->count(),
-                ];
-            });
+            ->get();
 
-        // Resumen general
-        $resumen = [
-            'presupuesto_total' => (float) $ciclo->presupuesto_total,
-            'disponible_total' => (float) $categorias->sum('disponible'),
-            'gastado_total' => (float) $categorias->sum('gastado'),
-            'porcentaje_general' => $ciclo->presupuesto_total > 0 
-                ? round(($categorias->sum('gastado') / $ciclo->presupuesto_total) * 100, 2)
-                : 0,
-            'num_categorias' => $categorias->count(),
-            'num_apoyos_aprobados' => PresupuestoApoyo::where('estado', 'APROBADO')
-                ->whereHas('categoria', function ($q) use ($ciclo) {
-                    $q->where('id_ciclo', $ciclo->id_ciclo);
-                })
-                ->count(),
-        ];
+        // Cálculos agregados
+        $totalPresupuesto = (float) $ciclo->presupuesto_total_inicial;
+        $presupuestoReservado = (float) $categorias->sum(function ($cat) {
+            return $cat->presupuesto_anual - $cat->disponible;
+        });
+        $presupuestoDisponible = (float) $categorias->sum('disponible');
+        $porcentajeDisponible = $totalPresupuesto > 0 
+            ? round(($presupuestoDisponible / $totalPresupuesto) * 100, 1)
+            : 0;
 
-        // Datos para gráfico de REPARTICIÓN (presupuesto por categoría)
-        $datosReparticion = $categorias->map(function ($cat) use ($ciclo) {
-            return [
-                'nombre' => $cat['nombre'],
-                'valor' => $cat['presupuesto_total'],
-                'porcentaje' => round(($cat['presupuesto_total'] / $ciclo->presupuesto_total) * 100, 1),
-            ];
-        })->toArray();
-
-        // Datos para gráfico de GASTOS (ejecución por categoría)
-        $gastosCategoria = $categorias->map(function ($cat) use ($ciclo) {
-            $total_ciclo = $ciclo->presupuesto_total ?: 1;
-            return [
-                'nombre' => $cat['nombre'],
-                'valor' => $cat['gastado'],
-                'porcentaje' => round(($cat['gastado'] / $total_ciclo) * 100, 1),
-                'disponible' => $cat['disponible'],
-            ];
-        })->toArray();
-
-        return view('admin.presupuesto.dashboard', [
+        return view('admin.presupuesto.dashboard_v2', [
             'ciclo' => $ciclo,
             'categorias' => $categorias,
-            'resumen' => $resumen,
-            'datosReparticion' => $datosReparticion,
-            'gastosCategoria' => $gastosCategoria,
-            'totalGastosDetallado' => $resumen['gastado_total'],
+            'totalPresupuesto' => $totalPresupuesto,
+            'presupuestoReservado' => $presupuestoReservado,
+            'presupuestoDisponible' => $presupuestoDisponible,
+            'porcentajeDisponible' => $porcentajeDisponible,
+            'totalCategorias' => $categorias->count(),
         ]);
     }
 
