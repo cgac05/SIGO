@@ -64,9 +64,16 @@
                         <button @click="generarReporteMensual()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium">
                             🔄 Generar Reporte
                         </button>
-                        <button @click="exportarExcel()" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 font-medium">
-                            📥 Excel
-                        </button>
+                        <a :href="'{{ route('api.reporte.exportar.reportes-excel') }}?mes=' + mesSeleccionado + '&año=2026'" 
+                           target="_blank"
+                           class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 font-medium text-center">
+                            📊 Excel
+                        </a>
+                        <a :href="'{{ route('api.reporte.exportar.reportes-pdf') }}?mes=' + mesSeleccionado + '&año=2026'" 
+                           target="_blank"
+                           class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 font-medium text-center">
+                            📄 PDF
+                        </a>
                     </div>
                 </div>
 

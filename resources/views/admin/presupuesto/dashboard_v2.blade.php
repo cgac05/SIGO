@@ -183,7 +183,7 @@
         </div>
 
         <!-- Acciones Rápidas -->
-        <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <a href="{{ route('admin.presupuesto.reportes') }}" 
                class="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg p-4 hover:shadow-lg transition text-center font-medium">
                 📊 Ver Reportes
@@ -192,10 +192,16 @@
                class="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg p-4 hover:shadow-lg transition text-center font-medium">
                 ➕ Nuevo Apoyo
             </a>
-            <button @click="exportarPDF()" 
-                    class="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg p-4 hover:shadow-lg transition font-medium">
-                📥 Exportar PDF
-            </button>
+            <a href="{{ route('api.reporte.exportar.dashboard-pdf') }}" 
+               target="_blank"
+               class="bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg p-4 hover:shadow-lg transition text-center font-medium">
+                📄 Exportar PDF
+            </a>
+            <a href="{{ route('api.reporte.exportar.dashboard-excel') }}" 
+               target="_blank"
+               class="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg p-4 hover:shadow-lg transition text-center font-medium">
+                📊 Exportar Excel
+            </a>
         </div>
     </div>
 </div>

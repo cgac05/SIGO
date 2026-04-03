@@ -388,6 +388,25 @@ Route::middleware(['auth', 'role:2,3'])->prefix('api/reporte')->group(function (
     
     Route::get('/mensual', [\App\Http\Controllers\Api\ReporteApiController::class, 'reporteMensual'])
         ->name('api.reporte.mensual');
+
+    // Rutas de Exportación
+    Route::prefix('exportar')->group(function () {
+        Route::get('/dashboard-excel', [\App\Http\Controllers\Api\ReporteApiController::class, 'exportarDashboardExcel'])
+            ->name('api.reporte.exportar.dashboard-excel');
+        
+        Route::get('/reportes-excel', [\App\Http\Controllers\Api\ReporteApiController::class, 'exportarReportesExcel'])
+            ->name('api.reporte.exportar.reportes-excel');
+        
+        Route::get('/dashboard-pdf', [\App\Http\Controllers\Api\ReporteApiController::class, 'exportarDashboardPdf'])
+            ->name('api.reporte.exportar.dashboard-pdf');
+        
+        Route::get('/reportes-pdf', [\App\Http\Controllers\Api\ReporteApiController::class, 'exportarReportesPdf'])
+            ->name('api.reporte.exportar.reportes-pdf');
+        
+        Route::get('/categoria-pdf/{id}', [\App\Http\Controllers\Api\ReporteApiController::class, 'exportarCategoriaPdf'])
+            ->whereNumber('id')
+            ->name('api.reporte.exportar.categoria-pdf');
+    });
 });
 
 require __DIR__.'/auth.php';
