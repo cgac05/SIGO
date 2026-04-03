@@ -204,8 +204,8 @@
 
                 async fetchItems() {
                     try {
-                        const { data } = await window.axios.get('{{ route('notificaciones.index') }}');
-                        this.items = data.items || [];
+                        const { data } = await window.axios.get('{{ route('api.notificaciones.index') }}');
+                        this.items = data.data || [];
                         this.unreadCount = Number(data.unread_count || 0);
                     } catch (_) {
                         // noop
@@ -214,8 +214,8 @@
 
                 async fetchCount() {
                     try {
-                        const { data } = await window.axios.get('{{ route('notificaciones.unread-count') }}');
-                        this.unreadCount = Number(data.unread_count || 0);
+                        const { data } = await window.axios.get('{{ route('api.notificaciones.noLeidas') }}');
+                        this.unreadCount = Number(data.count || 0);
                     } catch (_) {
                         // noop
                     }
@@ -223,7 +223,7 @@
 
                 async markRead(id) {
                     try {
-                        await window.axios.post('/notificaciones/' + id + '/leer');
+                        await window.axios.post('{{ route('api.notificaciones.marcarLeida', 'ID') }}'.replace('ID', id));
                         await this.fetchItems();
                     } catch (_) {
                         // noop
@@ -232,7 +232,7 @@
 
                 async markAllRead() {
                     try {
-                        await window.axios.post('{{ route('notificaciones.marcar-todas') }}');
+                        await window.axios.post('{{ route('api.notificaciones.marcarTodasLeidas') }}');
                         await this.fetchItems();
                     } catch (_) {
                         // noop

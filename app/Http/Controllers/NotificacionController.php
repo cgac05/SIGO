@@ -95,4 +95,22 @@ class NotificacionController extends Controller
 
         return response()->json(['total' => $total]);
     }
+
+    /**
+     * Alias para conteoNoLeidas - compatibilidad con navigation.blade.php
+     */
+    public function unreadCount()
+    {
+        $usuario = Auth::user();
+        
+        if (!$usuario) {
+            return response()->json(['unread_count' => 0]);
+        }
+
+        $unreadCount = Notificacion::where('id_beneficiario', $usuario->id)
+            ->where('leida', false)
+            ->count();
+
+        return response()->json(['unread_count' => $unreadCount]);
+    }
 }

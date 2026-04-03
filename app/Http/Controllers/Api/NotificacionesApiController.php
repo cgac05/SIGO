@@ -150,4 +150,27 @@ class NotificacionesApiController extends Controller
             'message' => 'Todas las notificaciones marcadas como leídas',
         ]);
     }
+
+    /**
+     * GET /api/notificaciones/conteo
+     * Alias para obtener conteo (compatibilidad)
+     */
+    public function conteoNoLeidas(Request $request): JsonResponse
+    {
+        $beneficiario = auth()->user();
+        
+        if (!$beneficiario) {
+            return response()->json(['unread_count' => 0]);
+        }
+
+        $count = Notificacion::where('id_beneficiario', $beneficiario->id)
+            ->where('leida', false)
+            ->count();
+
+        return response()->json([
+            'success' => true,
+            'unread_count' => $count,
+            'count' => $count,
+        ]);
+    }
 }
