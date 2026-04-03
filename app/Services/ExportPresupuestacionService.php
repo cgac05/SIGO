@@ -11,6 +11,7 @@ use PhpOffice\PhpSpreadsheet\Style\Font;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Color;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ExportPresupuestacionService
@@ -70,8 +71,8 @@ class ExportPresupuestacionService
         $headers = ['Categoría', 'Presupuesto Anual', 'Utilizado', 'Disponible', 'Porcentaje Utilizado', 'Estado'];
         foreach ($headers as $col => $header) {
             $sheet->setCellValue(chr(65 + $col) . $row, $header);
-            $sheet->getStyle(chr(65 + $col) . $row)->getFont()->setBold(true)->setColor('FFFFFF');
-            $sheet->getStyle(chr(65 + $col) . $row)->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor('1F4E78');
+            $sheet->getStyle(chr(65 + $col) . $row)->getFont()->setBold(true)->setColor(new Color('FFFFFFFF'));
+            $sheet->getStyle(chr(65 + $col) . $row)->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color('FF1F4E78'));
         }
         $row++;
 
@@ -93,7 +94,7 @@ class ExportPresupuestacionService
 
             // Color por estado
             $color = $this->getColorEstado($porcentaje);
-            $sheet->getStyle('F' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor($color);
+            $sheet->getStyle('F' . $row)->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color('FF' . $color));
 
             $row++;
         }
@@ -149,8 +150,8 @@ class ExportPresupuestacionService
         $headers = ['Categoría', 'Presupuesto Anual', 'Utilizado', 'Disponible', 'Movimientos del Mes', '% Utilizado'];
         foreach ($headers as $col => $header) {
             $sheet->setCellValue(chr(65 + $col) . $row, $header);
-            $sheet->getStyle(chr(65 + $col) . $row)->getFont()->setBold(true)->setColor('FFFFFF');
-            $sheet->getStyle(chr(65 + $col) . $row)->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor('366092');
+            $sheet->getStyle(chr(65 + $col) . $row)->getFont()->setBold(true)->setColor(new Color('FFFFFFFF'));
+            $sheet->getStyle(chr(65 + $col) . $row)->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color('FF366092'));
         }
         $row++;
 
@@ -232,8 +233,8 @@ class ExportPresupuestacionService
         $headers = ['Categoría', 'Porcentaje', 'Nivel', 'Presupuesto Disponible', 'Presupuesto Utilizado'];
         foreach ($headers as $col => $header) {
             $sheet->setCellValue(chr(65 + $col) . $row, $header);
-            $sheet->getStyle(chr(65 + $col) . $row)->getFont()->setBold(true)->setColor('FFFFFF');
-            $sheet->getStyle(chr(65 + $col) . $row)->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor('C00000');
+            $sheet->getStyle(chr(65 + $col) . $row)->getFont()->setBold(true)->setColor(new Color('FFFFFFFF'));
+            $sheet->getStyle(chr(65 + $col) . $row)->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color('FFC00000'));
         }
         $row++;
 
