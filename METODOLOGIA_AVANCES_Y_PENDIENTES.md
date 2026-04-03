@@ -5,7 +5,7 @@
 **Responsables:** Equipo de Desarrollo de Estudiantes del Tecnológico Nacional de México, Campus Tepic  
 **Institución Beneficiaria:** Instituto Nayarita de la Juventud (INJUVE)  
 **Fundamento Académico:** Semestre 5 - Fundamentos de Ingeniería de Software  
-**Última Actualización:** 31 de Marzo de 2026 - 19:30  
+**Última Actualización:** 3 de Abril de 2026 - 22:30 (Presupuestación Setup Completado ✅)  
 
 ---
 
