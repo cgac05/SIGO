@@ -4,7 +4,12 @@ namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use App\Events\HitoCambiado;
+use App\Events\DocumentoRechazado;
+use App\Events\SolicitudRechazada;
 use App\Listeners\SincronizarHitoACalendario;
+use App\Listeners\EnviarNotificacionDocumentoRechazado;
+use App\Listeners\EnviarNotificacionHitoCambiado;
+use App\Listeners\EnviarNotificacionSolicitudRechazada;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -16,6 +21,13 @@ class EventServiceProvider extends ServiceProvider
     protected $listen = [
         HitoCambiado::class => [
             SincronizarHitoACalendario::class,
+            EnviarNotificacionHitoCambiado::class,
+        ],
+        DocumentoRechazado::class => [
+            EnviarNotificacionDocumentoRechazado::class,
+        ],
+        SolicitudRechazada::class => [
+            EnviarNotificacionSolicitudRechazada::class,
         ],
     ];
 

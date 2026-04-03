@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Events\NotificacionGenerada;
+use App\Events\SolicitudRechazada;
+use App\Events\HitoCambiado;
 use App\Jobs\CopiarDocumentoExpedienteJob;
 use App\Services\FirmaElectronicaService;
 use App\Services\PresupuetaryIntegrationService;
@@ -243,6 +245,13 @@ class SolicitudProcesoController extends Controller
             // Log error pero no revertir rechazo (ya está en BD)
             \Log::warning("Error liberando presupuesto para solicitud rechazada {$folio}: " . $e->getMessage());
         }
+
+        // 🔔 Disparar evento de solicitud rechazada
+        $solicitud = \App\Models\Solicitud::where('folio', $folio)->firstOrFail();
+        event(new SolicitudRechazada(
+            solicitud: $solicitud,
+            motivo: $data['motivo']
+        ));
 
         // Notificar beneficiario de rechazo
         $this->crearNotificacionBeneficiario(

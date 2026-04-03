@@ -345,6 +345,26 @@ Route::middleware('auth')->group(function () {
             ->whereNumber('id_categoria')
             ->name('admin.presupuesto.api.historial');
     });
+
+    // ====================================================================
+    // MÓDULO BENEFICIARIO - NOTIFICACIONES
+    // ====================================================================
+    Route::get('/notificaciones', [NotificacionController::class, 'index'])
+        ->name('beneficiario.notificaciones.inbox');
+    
+    Route::post('/notificaciones/{id}/marcar-leida', [NotificacionController::class, 'marcarLeida'])
+        ->whereNumber('id')
+        ->name('beneficiario.notificaciones.marcar-leida');
+    
+    Route::post('/notificaciones/marcar-todas-leidas', [NotificacionController::class, 'marcarTodasLeidas'])
+        ->name('beneficiario.notificaciones.marcar-todas-leidas');
+    
+    Route::delete('/notificaciones/{id}', [NotificacionController::class, 'destroy'])
+        ->whereNumber('id')
+        ->name('beneficiario.notificaciones.destroy');
+    
+    Route::get('/notificaciones/api/conteo', [NotificacionController::class, 'conteoNoLeidas'])
+        ->name('beneficiario.notificaciones.api.conteo');
 });
 
 // Validación pública de solicitudes (sin autenticación)
@@ -407,6 +427,29 @@ Route::middleware(['auth', 'role:2,3'])->prefix('api/reporte')->group(function (
             ->whereNumber('id')
             ->name('api.reporte.exportar.categoria-pdf');
     });
+});
+
+// API Notificaciones (Protegidas por autenticación, solo para beneficiarios)
+Route::middleware('auth')->prefix('api/notificaciones')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\NotificacionesController::class, 'index'])
+        ->name('api.notificaciones.index');
+    
+    Route::get('/no-leidas', [\App\Http\Controllers\Api\NotificacionesController::class, 'noLeidas'])
+        ->name('api.notificaciones.noLeidas');
+    
+    Route::get('/conteo', [\App\Http\Controllers\Api\NotificacionesController::class, 'conteoNoLeidas'])
+        ->name('api.notificaciones.conteo');
+    
+    Route::post('/{id}/marcar-leida', [\App\Http\Controllers\Api\NotificacionesController::class, 'marcarLeida'])
+        ->whereNumber('id')
+        ->name('api.notificaciones.marcarLeida');
+    
+    Route::post('/marcar-todas-leidas', [\App\Http\Controllers\Api\NotificacionesController::class, 'marcarTodasLeidas'])
+        ->name('api.notificaciones.marcarTodasLeidas');
+    
+    Route::delete('/{id}', [\App\Http\Controllers\Api\NotificacionesController::class, 'destroy'])
+        ->whereNumber('id')
+        ->name('api.notificaciones.destroy');
 });
 
 require __DIR__.'/auth.php';

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Documento;
 use App\Models\Solicitud;
 use App\Services\AdministrativeVerificationService;
+use App\Events\DocumentoRechazado;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
@@ -139,6 +140,16 @@ class DocumentVerificationController extends Controller
                 $validated['status'],
                 $validated['observations'] ?? ''
             );
+
+            // 🔔 Disparar evento si documento fue rechazado
+            if ($validated['status'] === 'rechazado') {
+                event(new DocumentoRechazado(
+                    beneficiario: $documento->solicitud->beneficiario,
+                    nombreDocumento: $documento->tipoDocumento->nombre,
+                    motivo: $validated['observations'] ?? 'No especificado',
+                    idSolicitud: $documento->solicitud->id
+                ));
+            }
 
             // Retornar respuesta con formato estandarizado
             return response()->json([
