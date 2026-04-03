@@ -374,4 +374,20 @@ Route::middleware('auth')->group(function () {
     Route::post('/auth/reauth-verify', [ReauthenticationController::class, 'verify'])->name('auth.reauth-verify');
 });
 
+// API Reportes Presupuestarios (Protegidas por rol)
+Route::middleware(['auth', 'role:2,3'])->prefix('api/reporte')->group(function () {
+    Route::get('/resumen-alertas', [\App\Http\Controllers\Api\ReporteApiController::class, 'resumenAlertas'])
+        ->name('api.reporte.resumen-alertas');
+    
+    Route::get('/tendencia-mensual/{año}', [\App\Http\Controllers\Api\ReporteApiController::class, 'tendenciaMensual'])
+        ->whereNumber('año')
+        ->name('api.reporte.tendencia-mensual');
+    
+    Route::get('/estadisticas-apoyos', [\App\Http\Controllers\Api\ReporteApiController::class, 'estadisticasApoyo'])
+        ->name('api.reporte.estadisticas-apoyos');
+    
+    Route::get('/mensual', [\App\Http\Controllers\Api\ReporteApiController::class, 'reporteMensual'])
+        ->name('api.reporte.mensual');
+});
+
 require __DIR__.'/auth.php';
