@@ -733,6 +733,22 @@ if ($isEditing) {
 
             console.log('✅ Presupuesto setup listo');
 
+            // Limpiar valores iniciales malformados
+            if (inputMontoMaximo && inputMontoMaximo.value) {
+                const cleanMonto = parseFloat(inputMontoMaximo.value);
+                if (cleanMonto > 0) {
+                    inputMontoMaximo.value = cleanMonto;
+                    console.log('🧹 Monto limpiado:', cleanMonto);
+                }
+            }
+            if (inputCupoLimite && inputCupoLimite.value) {
+                const cleanCupo = parseInt(inputCupoLimite.value, 10);
+                if (cleanCupo > 0) {
+                    inputCupoLimite.value = cleanCupo;
+                    console.log('🧹 Cupo limpiado:', cleanCupo);
+                }
+            }
+
             // ===== FUNCIÓN PARA FORMATEAR DINERO CON COMAS =====
             function formatCurrency(value) {
                 // Convertir a número
@@ -846,7 +862,17 @@ if ($isEditing) {
                 });
             }
             if (inputMontoMaximo) {
+                // Limpiar leading zeros mientras se escribe
                 inputMontoMaximo.addEventListener('input', function() {
+                    // Primero, limpiar cualquier cero adelante
+                    if (this.value && this.value.startsWith('0') && this.value.length > 1 && this.value[1] !== '.') {
+                        // Si empieza con 0 y hay más dígitos (y no es 0.xx), remover el 0
+                        let cleaned = this.value.replace(/^0+/, '');
+                        if (!cleaned || cleaned[0] === '.') {
+                            cleaned = '0' + cleaned;
+                        }
+                        this.value = cleaned;
+                    }
                     actualizarCalculoPresupuesto();
                 });
                 inputMontoMaximo.addEventListener('change', function() {
@@ -854,7 +880,13 @@ if ($isEditing) {
                 });
             }
             if (inputCupoLimite) {
+                // Limpiar leading zeros mientras se escribe
                 inputCupoLimite.addEventListener('input', function() {
+                    // Remover leading zeros para números enteros
+                    if (this.value && this.value.startsWith('0') && this.value.length > 1) {
+                        this.value = this.value.replace(/^0+/, '');
+                        if (!this.value) this.value = '1';
+                    }
                     actualizarCalculoPresupuesto();
                 });
                 inputCupoLimite.addEventListener('change', function() {
