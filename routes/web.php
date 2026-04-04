@@ -207,17 +207,22 @@ Route::middleware('auth')->group(function () {
     Route::put('/apoyos/{id}/comentarios/{commentId}', [ApoyoController::class, 'updateComment'])->name('apoyos.comments.update');
     Route::delete('/apoyos/{id}/comentarios/{commentId}', [ApoyoController::class, 'destroyComment'])->name('apoyos.comments.destroy');
     Route::post('/apoyos/{id}/comentarios/{commentId}/like', [ApoyoController::class, 'toggleCommentLike'])->name('apoyos.comments.like');
+    
     Route::get('/apoyos/create',           [ApoyoController::class, 'create'])->name('apoyos.create');
     Route::post('/apoyos',                 [ApoyoController::class, 'store'])->name('apoyos.store');
     Route::get('/apoyos/list',             [ApoyoController::class, 'list'])->name('apoyos.list');
-    Route::get('/apoyos/{id}/edit',        [ApoyoController::class, 'edit'])->name('apoyos.edit');
-    Route::post('/apoyos/{id}',            [ApoyoController::class, 'update'])->name('apoyos.update');
-    Route::delete('/apoyos/{id}',          [ApoyoController::class, 'destroy'])->name('apoyos.destroy');
-    Route::post('/apoyos/check-inventario',   [ApoyoController::class, 'checkInventario'])->name('apoyos.check-inventario');
-    Route::post('/apoyos/aprobar-inventario', [ApoyoController::class, 'aprobarInventario'])->name('apoyos.aprobar-inventario');
+    
+    // Specific routes BEFORE generic {id} routes to prevent mismatching
     Route::get('/apoyos/documentos',         [ApoyoController::class, 'getTiposDocumento'])->name('apoyos.documentos.index');
     Route::post('/apoyos/documentos',         [ApoyoController::class, 'storeTipoDocumento'])->name('apoyos.documentos.store');
     Route::put('/apoyos/documentos/{id}',     [ApoyoController::class, 'updateTipoDocumento'])->name('apoyos.documentos.update');
+    Route::post('/apoyos/check-inventario',   [ApoyoController::class, 'checkInventario'])->name('apoyos.check-inventario');
+    Route::post('/apoyos/aprobar-inventario', [ApoyoController::class, 'aprobarInventario'])->name('apoyos.aprobar-inventario');
+    
+    // Generic {id} routes AFTER specific routes
+    Route::get('/apoyos/{id}/edit',        [ApoyoController::class, 'edit'])->name('apoyos.edit');
+    Route::post('/apoyos/{id}',            [ApoyoController::class, 'update'])->name('apoyos.update');
+    Route::delete('/apoyos/{id}',          [ApoyoController::class, 'destroy'])->name('apoyos.destroy');
 
     // Flujo de cierre y validación de solicitudes
     Route::get('/solicitudes/proceso', [SolicitudProcesoController::class, 'index'])
