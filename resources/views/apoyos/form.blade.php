@@ -762,30 +762,29 @@ if ($isEditing) {
                 const selectedOption = selectCategoria.options[selectCategoria.selectedIndex];
                 const presupuestoDisponible = parseFloat(selectedOption.dataset.disponible) || 0;
                 
-                // Parsear valores de inputs - usar '' como fallback para valores incompletos
+                // Parsear valores de inputs - usar 0/1 como fallback
                 const montoStr = (inputMontoMaximo.value || '').trim();
                 const cupoStr = (inputCupoLimite.value || '').trim();
                 
+                // Si está vacío o es inválido, usar 0 para monto y 1 para cupo
                 const montoMaximo = montoStr ? parseFloat(montoStr) : 0;
                 const cupoLimite = cupoStr ? parseInt(cupoStr) : 1;
                 
-                // Validar que los valores parseados sean válidos
-                if (isNaN(montoMaximo) || isNaN(cupoLimite)) {
-                    console.log('  ⚠️ Valores inválidos, esperando entrada completa');
-                    return;
-                }
+                // Usar 0 si es NaN
+                const montoFinal = isNaN(montoMaximo) ? 0 : montoMaximo;
+                const cupoFinal = isNaN(cupoLimite) ? 1 : cupoLimite;
                 
-                const totalCalculado = montoMaximo * cupoLimite;
+                const totalCalculado = montoFinal * cupoFinal;
 
-                console.log('  💰 Cálculo:', { montoMaximo, cupoLimite, totalCalculado, presupuestoDisponible });
+                console.log('  💰 Cálculo:', { montoFinal, cupoFinal, totalCalculado, presupuestoDisponible });
 
                 // Actualizar campo monto_inicial_asignado automáticamente (valor crudo para guardar)
                 inputMontoInicial.value = totalCalculado.toFixed(2);
 
                 // Actualizar valores mostrados CON FORMATO DINERO
                 txtPresupuestoDisponible.textContent = formatCurrency(presupuestoDisponible);
-                txtMontoBeneficiario.textContent = formatCurrency(montoMaximo);
-                txtCantidadBeneficiarios.textContent = Math.floor(cupoLimite);
+                txtMontoBeneficiario.textContent = formatCurrency(montoFinal);
+                txtCantidadBeneficiarios.textContent = Math.floor(cupoFinal);
                 txtMontoTotal.textContent = formatCurrency(totalCalculado);
 
                 // Mostrar sección si hay categoría seleccionada
