@@ -815,7 +815,13 @@ if ($isEditing) {
 
         // Ejecutar cálculo inicial al cargar (con pequeño delay para asegurar que DOM está listo)
         setTimeout(function() {
+            console.log('Inicializando cálculo presupuesto...');
+            console.log('Tipo apoyo:', document.getElementById('tipo_apoyo')?.value);
+            console.log('Monto máximo:', inputMontoMaximo.value);
+            console.log('Cupo límite:', inputCupoLimite.value);
+            console.log('Categoría seleccionada:', selectCategoria.value);
             actualizarCalculoPresupuesto();
+            console.log('Cálculo inicial completado');
         }, 100);
 
 
