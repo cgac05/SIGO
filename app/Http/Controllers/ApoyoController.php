@@ -950,10 +950,19 @@ class ApoyoController extends Controller
                 ->where('activo', 1)
                 ->get();
         }
-$categorias = PresupuestoCategoria::select('id_categoria', 'nombre', 'disponible')->activas()->get();
+$categoriasPresupuesto = PresupuestoCategoria::select('id_categoria', 'nombre', 'disponible')->activas()->get();
+        
+        // Verificar si hay solicitudes aprobadas
+        $solicitudesAprobadas = Solicitud::where('fk_id_apoyo', $id)
+            ->whereIn('fk_id_estado', [3])
+            ->exists();
+        
+        // Cargar presupuesto actual
+        $presupuestoActual = PresupuestoApoyo::where('id_apoyo', $id)
+            ->where('estado', 'RESERVADO')
+            ->first();
 
-        return view('apoyos.form', compact('apoyo', 'tiposDocumentos', 'requisitosActuales', 'montoInicialAsignado', 'stockInicial', 'milestonesBase', 'existingMilestones', 'categoria
-        return view('apoyos.edit', compact('apoyo', 'tiposDocumentos', 'requisitosActuales', 'montoInicialAsignado', 'stockInicial', 'milestonesBase', 'existingMilestones'));
+        return view('apoyos.form', compact('apoyo', 'tiposDocumentos', 'requisitosActuales', 'montoInicialAsignado', 'stockInicial', 'milestonesBase', 'existingMilestones', 'categoriasPresupuesto', 'presupuestoActual', 'solicitudesAprobadas'));
     }
 
     /**
