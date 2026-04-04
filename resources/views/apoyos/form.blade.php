@@ -733,7 +733,13 @@ if ($isEditing) {
             const txtPresupuestoFaltante = document.getElementById('txt-presupuesto-faltante');
             const txtPresupuestoRestante = document.getElementById('txt-presupuesto-restante');
 
-            console.log('✅ Todos los elementos presupuesto localizados');
+            console.log('✅ Elementos localizados:', {
+                selectCategoria: !!selectCategoria,
+                inputMontoMaximo: !!inputMontoMaximo,
+                inputCupoLimite: !!inputCupoLimite,
+                txtMontoTotal: !!txtMontoTotal,
+                divValidacionPresupuesto: !!divValidacionPresupuesto
+            });
 
             // ===== FUNCIÓN PARA FORMATEAR DINERO CON COMAS =====
             function formatCurrency(value) {
@@ -779,13 +785,27 @@ if ($isEditing) {
                 console.log('  💰 Cálculo:', { montoFinal, cupoFinal, totalCalculado, presupuestoDisponible });
 
                 // Actualizar campo monto_inicial_asignado automáticamente (valor crudo para guardar)
-                inputMontoInicial.value = totalCalculado.toFixed(2);
+                if (inputMontoInicial) {
+                    inputMontoInicial.value = totalCalculado.toFixed(2);
+                    console.log('  ✏️ monto_inicial_asignado actualizado a:', inputMontoInicial.value);
+                }
 
                 // Actualizar valores mostrados CON FORMATO DINERO
-                txtPresupuestoDisponible.textContent = formatCurrency(presupuestoDisponible);
-                txtMontoBeneficiario.textContent = formatCurrency(montoFinal);
-                txtCantidadBeneficiarios.textContent = Math.floor(cupoFinal);
-                txtMontoTotal.textContent = formatCurrency(totalCalculado);
+                if (txtPresupuestoDisponible) {
+                    txtPresupuestoDisponible.textContent = formatCurrency(presupuestoDisponible);
+                    console.log('  💵 Presupuesto disponible mostrado:', formatCurrency(presupuestoDisponible));
+                }
+                if (txtMontoBeneficiario) {
+                    txtMontoBeneficiario.textContent = formatCurrency(montoFinal);
+                    console.log('  💵 Monto beneficiario mostrado:', formatCurrency(montoFinal));
+                }
+                if (txtCantidadBeneficiarios) {
+                    txtCantidadBeneficiarios.textContent = Math.floor(cupoFinal);
+                }
+                if (txtMontoTotal) {
+                    txtMontoTotal.textContent = formatCurrency(totalCalculado);
+                    console.log('  💵 Total mostrado:', formatCurrency(totalCalculado));
+                }
 
                 // Mostrar sección si hay categoría seleccionada
                 if (selectedOption.value) {
@@ -830,14 +850,31 @@ if ($isEditing) {
             }
 
             // Event listeners para actualizar cálculo
-            if (selectCategoria) selectCategoria.addEventListener('change', actualizarCalculoPresupuesto);
+            if (selectCategoria) {
+                selectCategoria.addEventListener('change', function() {
+                    console.log('📢 selectCategoria cambió');
+                    actualizarCalculoPresupuesto();
+                });
+            }
             if (inputMontoMaximo) {
-                inputMontoMaximo.addEventListener('input', actualizarCalculoPresupuesto);
-                inputMontoMaximo.addEventListener('change', actualizarCalculoPresupuesto);
+                inputMontoMaximo.addEventListener('input', function() {
+                    console.log('📝 inputMontoMaximo input:', this.value);
+                    actualizarCalculoPresupuesto();
+                });
+                inputMontoMaximo.addEventListener('change', function() {
+                    console.log('📝 inputMontoMaximo change:', this.value);
+                    actualizarCalculoPresupuesto();
+                });
             }
             if (inputCupoLimite) {
-                inputCupoLimite.addEventListener('input', actualizarCalculoPresupuesto);
-                inputCupoLimite.addEventListener('change', actualizarCalculoPresupuesto);
+                inputCupoLimite.addEventListener('input', function() {
+                    console.log('📝 inputCupoLimite input:', this.value);
+                    actualizarCalculoPresupuesto();
+                });
+                inputCupoLimite.addEventListener('change', function() {
+                    console.log('📝 inputCupoLimite change:', this.value);
+                    actualizarCalculoPresupuesto();
+                });
             }
 
             // Event listener para tipo_apoyo para ocultar sección en Especie
