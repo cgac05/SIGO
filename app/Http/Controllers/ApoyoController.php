@@ -536,7 +536,24 @@ class ApoyoController extends Controller
      */
     public function storeTipoDocumento(Request $request)
     {
-        $this->ensureManagerAccess();
+        // For AJAX requests, ensure we have manager access
+        $user = Auth::user()?->loadMissing('personal');
+        $isManager = $user && $user->personal && in_array((int) $user->personal->fk_rol, [1, 2], true);
+
+        if (!$isManager) {
+            $message = 'No cuentas con permisos para gestionar documentos.';
+            
+            // Return JSON for AJAX requests
+            if ($request->expectsJson() || $request->is('api/*') || $request->header('Accept') === 'application/json') {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                ], 403);
+            }
+            
+            // Return HTML error for regular requests
+            abort(403, $message);
+        }
 
         $data = $request->validate([
             'nombre_documento' => 'required|string|max:120',
@@ -601,7 +618,24 @@ class ApoyoController extends Controller
      */
     public function updateTipoDocumento(Request $request, int $id)
     {
-        $this->ensureManagerAccess();
+        // For AJAX requests, ensure we have manager access
+        $user = Auth::user()?->loadMissing('personal');
+        $isManager = $user && $user->personal && in_array((int) $user->personal->fk_rol, [1, 2], true);
+
+        if (!$isManager) {
+            $message = 'No cuentas con permisos para gestionar documentos.';
+            
+            // Return JSON for AJAX requests
+            if ($request->expectsJson() || $request->is('api/*') || $request->header('Accept') === 'application/json') {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                ], 403);
+            }
+            
+            // Return HTML error for regular requests
+            abort(403, $message);
+        }
 
         $data = $request->validate([
             'tipo_archivo_permitido' => 'required|in:pdf,image,word,excel,zip,any',

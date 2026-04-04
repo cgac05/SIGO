@@ -988,7 +988,42 @@ if ($isEditing) {
                         })
                     });
 
-                    const data = await response.json();
+                    // Check if response is not OK (e.g., 403, 500)
+                    if (!response.ok) {
+                        const contentType = response.headers.get('content-type');
+                        let errorMsg = `Server error: ${response.status} ${response.statusText}`;
+                        
+                        // Try to extract error message from HTML or JSON
+                        try {
+                            const text = await response.text();
+                            if (contentType && contentType.includes('application/json')) {
+                                const errorData = JSON.parse(text);
+                                errorMsg = errorData.message || errorMsg;
+                            } else if (text.includes('No cuentas con permisos')) {
+                                errorMsg = 'You do not have permission to manage documents';
+                            } else {
+                                errorMsg = 'Server error: Unable to process request';
+                            }
+                        } catch (e) {
+                            // Use default error message
+                        }
+                        
+                        mostrarMensaje(errorMsg, 'error');
+                        btnGuardarDocumento.disabled = false;
+                        btnGuardarDocumento.textContent = 'Guardar documento';
+                        return;
+                    }
+
+                    // Try to parse JSON response
+                    let data;
+                    try {
+                        data = await response.json();
+                    } catch (e) {
+                        mostrarMensaje('Invalid server response format', 'error');
+                        btnGuardarDocumento.disabled = false;
+                        btnGuardarDocumento.textContent = 'Guardar documento';
+                        return;
+                    }
 
                     if (data.success) {
                         mostrarMensaje('✅ Document created successfully!', 'success');
