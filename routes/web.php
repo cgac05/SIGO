@@ -215,7 +215,6 @@ Route::middleware('auth')->group(function () {
     Route::delete('/apoyos/{id}',          [ApoyoController::class, 'destroy'])->name('apoyos.destroy');
     Route::post('/apoyos/check-inventario',   [ApoyoController::class, 'checkInventario'])->name('apoyos.check-inventario');
     Route::post('/apoyos/aprobar-inventario', [ApoyoController::class, 'aprobarInventario'])->name('apoyos.aprobar-inventario');
-    Route::get('/apoyos/documentos',          [ApoyoController::class, 'getTiposDocumento'])->name('apoyos.documentos.index');
     Route::post('/apoyos/documentos',         [ApoyoController::class, 'storeTipoDocumento'])->name('apoyos.documentos.store');
     Route::put('/apoyos/documentos/{id}',     [ApoyoController::class, 'updateTipoDocumento'])->name('apoyos.documentos.update');
 
@@ -356,6 +355,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/notificaciones/api/conteo', [NotificacionController::class, 'conteoNoLeidas'])
         ->name('beneficiario.notificaciones.api.conteo');
 });
+
+// Documento tipos API (pública para AJAX calls)
+Route::get('/apoyos/documentos', [ApoyoController::class, 'getTiposDocumento'])
+    ->name('public.apoyos.documentos.index');
 
 // Validación pública de solicitudes (sin autenticación)
 Route::match(['GET', 'POST'], '/validar', [SolicitudProcesoController::class, 'validarPublico'])
