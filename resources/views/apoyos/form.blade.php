@@ -585,118 +585,137 @@ if ($isEditing) {
     <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 
     <script>
-        console.log("✅ Script iniciado");
-        
-        // Flatpickr initialization
-        flatpickr('.flatpickr', {
-            dateFormat: 'd/m/Y',
-            locale: 'es',
-            minDate: 'today'
-        });
-
-        // Quill editor
-        const quill = new Quill('#quill-editor', {
-            theme: 'snow',
-            placeholder: 'Describe el apoyo y sus alcances...',
-            modules: {
-                toolbar: [['bold', 'italic', 'underline'], ['list', 'blockquote'], ['link', 'image'], ['clean']]
+        (function() {
+            console.log("✅ Script iniciado - IIFE ejecutada");
+            
+            // Flatpickr initialization
+            try {
+                flatpickr('.flatpickr', {
+                    dateFormat: 'd/m/Y',
+                    locale: 'es',
+                    minDate: 'today'
+                });
+                console.log("✅ Flatpickr inicializado");
+            } catch (e) {
+                console.error("❌ Error en Flatpickr:", e);
             }
-        });
 
-        // Sincronizar contenido del editor
-        document.getElementById('formularioApoyo').addEventListener('submit', function () {
-            document.getElementById('descripcion-hidden').value = quill.root.innerHTML;
-        });
+            // Quill editor
+            try {
+                const quill = new Quill('#quill-editor', {
+                    theme: 'snow',
+                    placeholder: 'Describe el apoyo y sus alcances...',
+                    modules: {
+                        toolbar: [['bold', 'italic', 'underline'], ['list', 'blockquote'], ['link', 'image'], ['clean']]
+                    }
+                });
+                console.log("✅ Quill inicializado");
 
-        // Cambio de tipo de apoyo
-        document.getElementById('tipo_apoyo').addEventListener('change', function () {
-            const isEconomico = this.value === 'Económico';
-            document.getElementById('grp-economico').classList.toggle('hidden', !isEconomico);
-            document.getElementById('grp-especie').classList.toggle('hidden', isEconomico);
-            document.getElementById('panel-fin-title').textContent = isEconomico ? 'Financiamiento' : 'Inventario';
-            document.getElementById('lbl-presupuesto-seccion').textContent = isEconomico ? 'Presupuesto' : 'Gestión de Inventario';
-            document.getElementById('badge-tipo').textContent = this.value;
-        });
-
-        // Observar disponibilidad de presupuesto
-        document.getElementById('id_categoria')?.addEventListener('change', function () {
-            const option = this.options[this.selectedIndex];
-            const disponible = option.dataset.disponible || 0;
-            document.getElementById('presupuesto-info').textContent = `Presupuesto disponible: $${parseFloat(disponible).toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
-        });
-
-        // Image preview
-        document.getElementById('foto_ruta')?.addEventListener('change', function (e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function (event) {
-                    document.getElementById('img-preview').src = event.target.result;
-                    document.getElementById('img-preview').style.display = 'block';
-                    document.getElementById('img-placeholder').style.display = 'none';
-                    document.getElementById('img-name').textContent = file.name;
-                    document.getElementById('img-name').classList.remove('hidden');
-                    document.getElementById('btn-remove-img').classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
+                // Sincronizar contenido del editor
+                document.getElementById('formularioApoyo').addEventListener('submit', function () {
+                    document.getElementById('descripcion-hidden').value = quill.root.innerHTML;
+                });
+            } catch (e) {
+                console.error("❌ Error en Quill:", e);
             }
-        });
 
-        document.getElementById('btn-remove-img')?.addEventListener('click', function (e) {
-            e.preventDefault();
-            document.getElementById('foto_ruta').value = '';
-            document.getElementById('img-preview').src = '';
-            document.getElementById('img-preview').style.display = 'none';
-            document.getElementById('img-placeholder').style.display = 'block';
-            document.getElementById('img-name').classList.add('hidden');
-            this.classList.add('hidden');
-        });
+            // Cambio de tipo de apoyo
+            try {
+                document.getElementById('tipo_apoyo').addEventListener('change', function () {
+                    const isEconomico = this.value === 'Económico';
+                    document.getElementById('grp-economico').classList.toggle('hidden', !isEconomico);
+                    document.getElementById('grp-especie').classList.toggle('hidden', isEconomico);
+                    document.getElementById('panel-fin-title').textContent = isEconomico ? 'Financiamiento' : 'Inventario';
+                    document.getElementById('lbl-presupuesto-seccion').textContent = isEconomico ? 'Presupuesto' : 'Gestión de Inventario';
+                    document.getElementById('badge-tipo').textContent = this.value;
+                });
+                console.log("✅ Tipo apoyo listener agregado");
+            } catch (e) {
+                console.error("❌ Error en tipo_apoyo:", e);
+            }
 
-        // Hito management
-        let hitosCount = {{ $baseMilestonesCollection->count() + $customMilestones->count() }};
-        document.getElementById('btn-add-hito')?.addEventListener('click', function () {
-            const grid = document.getElementById('hitos-custom-grid');
-            const newHito = document.createElement('div');
-            newHito.className = 'rounded-xl border border-slate-200 p-3 bg-white grid grid-cols-1 sm:grid-cols-3 gap-3';
-            newHito.innerHTML = `
-                <input type="hidden" name="hitos[${hitosCount}][incluir]" value="1">
-                <input type="hidden" name="hitos[${hitosCount}][es_base]" value="0">
-                <div class="sm:col-span-3 flex items-center justify-between gap-2">
-                    <label class="field-label !mb-0">Hito adicional</label>
-                    <button type="button" class="text-xs font-bold text-red-600 hover:text-red-700" data-remove-hito="1">Eliminar</button>
-                </div>
-                <div class="sm:col-span-3">
-                    <input type="text" name="hitos[${hitosCount}][titulo]" class="field-input" placeholder="Ej: Evaluación de solicitudes" required>
-                </div>
-                <div>
-                    <label class="field-label">Inicio</label>
-                    <input type="date" name="hitos[${hitosCount}][fecha_inicio]" class="field-input">
-                </div>
-                <div>
-                    <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 mb-2">
-                        <input type="checkbox" name="hitos[${hitosCount}][tiene_fin]" value="1" class="hito-toggle-fin w-4 h-4 accent-blue-700">
-                        Tiene fin
-                    </label>
-                    <label class="field-label">Fin</label>
-                    <input type="date" name="hitos[${hitosCount}][fecha_fin]" class="field-input">
-                </div>
-                <div class="flex items-end text-xs text-slate-500 font-semibold">Personalizado</div>
-            `;
-            grid.appendChild(newHito);
-            hitosCount++;
-        });
+            // Observar disponibilidad de presupuesto
+            document.getElementById('id_categoria')?.addEventListener('change', function () {
+                const option = this.options[this.selectedIndex];
+                const disponible = option.dataset.disponible || 0;
+                document.getElementById('presupuesto-info').textContent = `Presupuesto disponible: $${parseFloat(disponible).toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
+            });
 
-        // Delegate click for remove buttons
-        document.addEventListener('click', function (e) {
-            if (e.target.dataset.removeHito) {
+            // Image preview
+            document.getElementById('foto_ruta')?.addEventListener('change', function (e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function (event) {
+                        document.getElementById('img-preview').src = event.target.result;
+                        document.getElementById('img-preview').style.display = 'block';
+                        document.getElementById('img-placeholder').style.display = 'none';
+                        document.getElementById('img-name').textContent = file.name;
+                        document.getElementById('img-name').classList.remove('hidden');
+                        document.getElementById('btn-remove-img').classList.remove('hidden');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            document.getElementById('btn-remove-img')?.addEventListener('click', function (e) {
                 e.preventDefault();
-                e.target.closest('[data-remove-hito]').parentElement.remove();
-            }
-        });
+                document.getElementById('foto_ruta').value = '';
+                document.getElementById('img-preview').src = '';
+                document.getElementById('img-preview').style.display = 'none';
+                document.getElementById('img-placeholder').style.display = 'block';
+                document.getElementById('img-name').classList.add('hidden');
+                this.classList.add('hidden');
+            });
 
-        // ===== CÁLCULO AUTOMÁTICO DE PRESUPUESTO REAL =====
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('✅ DOMContentLoaded triggered');
+            // Hito management
+            let hitosCount = {{ $baseMilestonesCollection->count() + $customMilestones->count() }};
+            document.getElementById('btn-add-hito')?.addEventListener('click', function () {
+                const grid = document.getElementById('hitos-custom-grid');
+                const newHito = document.createElement('div');
+                newHito.className = 'rounded-xl border border-slate-200 p-3 bg-white grid grid-cols-1 sm:grid-cols-3 gap-3';
+                newHito.innerHTML = `
+                    <input type="hidden" name="hitos[${hitosCount}][incluir]" value="1">
+                    <input type="hidden" name="hitos[${hitosCount}][es_base]" value="0">
+                    <div class="sm:col-span-3 flex items-center justify-between gap-2">
+                        <label class="field-label !mb-0">Hito adicional</label>
+                        <button type="button" class="text-xs font-bold text-red-600 hover:text-red-700" data-remove-hito="1">Eliminar</button>
+                    </div>
+                    <div class="sm:col-span-3">
+                        <input type="text" name="hitos[${hitosCount}][titulo]" class="field-input" placeholder="Ej: Evaluación de solicitudes" required>
+                    </div>
+                    <div>
+                        <label class="field-label">Inicio</label>
+                        <input type="date" name="hitos[${hitosCount}][fecha_inicio]" class="field-input">
+                    </div>
+                    <div>
+                        <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 mb-2">
+                            <input type="checkbox" name="hitos[${hitosCount}][tiene_fin]" value="1" class="hito-toggle-fin w-4 h-4 accent-blue-700">
+                            Tiene fin
+                        </label>
+                        <label class="field-label">Fin</label>
+                        <input type="date" name="hitos[${hitosCount}][fecha_fin]" class="field-input">
+                    </div>
+                    <div class="flex items-end text-xs text-slate-500 font-semibold">Personalizado</div>
+                `;
+                grid.appendChild(newHito);
+                hitosCount++;
+            });
+
+            // Delegate click for remove buttons
+            document.addEventListener('click', function (e) {
+                if (e.target.dataset.removeHito) {
+                    e.preventDefault();
+                    e.target.closest('[data-remove-hito]').parentElement.remove();
+                }
+            });
+
+            console.log("✅ Event listeners agregados");
+
+
+
+            // ===== CÁLCULO AUTOMÁTICO DE PRESUPUESTO REAL =====
+            console.log('🚀 Iniciando setup de presupuesto');
             
             const selectCategoria = document.getElementById('id_categoria');
             const inputMontoMaximo = document.getElementById('monto_maximo');
@@ -714,7 +733,7 @@ if ($isEditing) {
             const txtPresupuestoFaltante = document.getElementById('txt-presupuesto-faltante');
             const txtPresupuestoRestante = document.getElementById('txt-presupuesto-restante');
 
-            console.log('✅ All elements selected successfully');
+            console.log('✅ Todos los elementos presupuesto localizados');
 
             // ===== FUNCIÓN PARA FORMATEAR DINERO CON COMAS =====
             function formatCurrency(value) {
@@ -728,12 +747,15 @@ if ($isEditing) {
             }
 
             function actualizarCalculoPresupuesto() {
+                console.log('📊 actualizarCalculoPresupuesto llamado');
                 const tipoApoyo = document.getElementById('tipo_apoyo')?.value || 'Económico';
+                console.log('  Tipo apoyo:', tipoApoyo);
                 
                 // Solo mostrar en modo Económico
                 if (tipoApoyo !== 'Económico') {
                     sectionPresupuestoReal.classList.add('hidden');
                     divMontoInicial.classList.add('hidden');
+                    console.log('  Presupuesto oculto (tipo no es Económico)');
                     return;
                 }
 
@@ -743,7 +765,7 @@ if ($isEditing) {
                 const cupoLimite = parseFloat(inputCupoLimite.value) || 1;
                 const totalCalculado = montoMaximo * cupoLimite;
 
-                console.log('💰 Cálculo actualizado:', { montoMaximo, cupoLimite, totalCalculado, presupuestoDisponible });
+                console.log('  💰 Cálculo:', { montoMaximo, cupoLimite, totalCalculado, presupuestoDisponible });
 
                 // Actualizar campo monto_inicial_asignado automáticamente (valor crudo para guardar)
                 inputMontoInicial.value = totalCalculado.toFixed(2);
@@ -797,11 +819,15 @@ if ($isEditing) {
             }
 
             // Event listeners para actualizar cálculo
-            selectCategoria.addEventListener('change', actualizarCalculoPresupuesto);
-            inputMontoMaximo.addEventListener('input', actualizarCalculoPresupuesto);
-            inputMontoMaximo.addEventListener('change', actualizarCalculoPresupuesto);
-            inputCupoLimite.addEventListener('input', actualizarCalculoPresupuesto);
-            inputCupoLimite.addEventListener('change', actualizarCalculoPresupuesto);
+            if (selectCategoria) selectCategoria.addEventListener('change', actualizarCalculoPresupuesto);
+            if (inputMontoMaximo) {
+                inputMontoMaximo.addEventListener('input', actualizarCalculoPresupuesto);
+                inputMontoMaximo.addEventListener('change', actualizarCalculoPresupuesto);
+            }
+            if (inputCupoLimite) {
+                inputCupoLimite.addEventListener('input', actualizarCalculoPresupuesto);
+                inputCupoLimite.addEventListener('change', actualizarCalculoPresupuesto);
+            }
 
             // Event listener para tipo_apoyo para ocultar sección en Especie
             const selectTipoApoyo = document.getElementById('tipo_apoyo');
@@ -810,60 +836,65 @@ if ($isEditing) {
             }
 
             // Formatear inputs de dinero mientras se escriben
-            inputMontoMaximo.addEventListener('blur', function() {
-                if (this.value) {
-                    const numValue = parseFloat(this.value);
-                    if (!isNaN(numValue)) {
-                        this.value = numValue.toFixed(2);
-                    } else {
-                        this.value = '0.00';
+            if (inputMontoMaximo) {
+                inputMontoMaximo.addEventListener('blur', function() {
+                    if (this.value) {
+                        const numValue = parseFloat(this.value);
+                        if (!isNaN(numValue)) {
+                            this.value = numValue.toFixed(2);
+                        } else {
+                            this.value = '0.00';
+                        }
                     }
-                }
-            });
+                });
 
-            inputMontoMaximo.addEventListener('input', function() {
-                // Remover leading zeros excepto el primer dígito antes del decimal
-                let val = this.value.replace(/[^0-9.]/g, '');
-                if (val.indexOf('.') > 0) {
-                    // Si hay decimal, mantener formato
-                    const parts = val.split('.');
-                    if (parts[0] === '') parts[0] = '0';
-                    else parts[0] = String(parseInt(parts[0]));
-                    val = parts.join('.');
-                } else if (val !== '') {
-                    // Sin decimal, remover leading zeros pero mantener al menos 1 dígito
-                    val = String(parseInt(val) || 0);
-                }
-                this.value = val;
-            });
-
-            inputCupoLimite.addEventListener('blur', function() {
-                if (this.value) {
-                    const numValue = parseInt(this.value);
-                    if (!isNaN(numValue) && numValue > 0) {
-                        this.value = numValue;
-                    } else {
-                        this.value = '1';
+                inputMontoMaximo.addEventListener('input', function() {
+                    // Remover leading zeros excepto el primer dígito antes del decimal
+                    let val = this.value.replace(/[^0-9.]/g, '');
+                    if (val.indexOf('.') > 0) {
+                        // Si hay decimal, mantener formato
+                        const parts = val.split('.');
+                        if (parts[0] === '') parts[0] = '0';
+                        else parts[0] = String(parseInt(parts[0]));
+                        val = parts.join('.');
+                    } else if (val !== '') {
+                        // Sin decimal, remover leading zeros pero mantener al menos 1 dígito
+                        val = String(parseInt(val) || 0);
                     }
-                }
-            });
+                    this.value = val;
+                });
+            }
 
-            inputCupoLimite.addEventListener('input', function() {
-                // Solo números, remover leading zeros
-                let val = this.value.replace(/[^0-9]/g, '');
-                if (val !== '') {
-                    val = String(parseInt(val) || 0);
-                    if (val === '0') val = '1'; // Mínimo 1
-                }
-                this.value = val;
-            });
+            if (inputCupoLimite) {
+                inputCupoLimite.addEventListener('blur', function() {
+                    if (this.value) {
+                        const numValue = parseInt(this.value);
+                        if (!isNaN(numValue) && numValue > 0) {
+                            this.value = numValue;
+                        } else {
+                            this.value = '1';
+                        }
+                    }
+                });
 
-            // Ejecutar cálculo inicial al cargar
+                inputCupoLimite.addEventListener('input', function() {
+                    // Solo números, remover leading zeros
+                    let val = this.value.replace(/[^0-9]/g, '');
+                    if (val !== '') {
+                        val = String(parseInt(val) || 0);
+                        if (val === '0') val = '1'; // Mínimo 1
+                    }
+                    this.value = val;
+                });
+            }
+
+            // Ejecutar cálculo inicial
             console.log('🚀 Ejecutando cálculo inicial');
             actualizarCalculoPresupuesto();
-            console.log('✅ Cálculo inicial completado');
-        });
+            console.log('✅ Setup presupuesto completado');
 
+        })(); // Cierre de IIFE
+    </script>
 
 </body>
 </html>
