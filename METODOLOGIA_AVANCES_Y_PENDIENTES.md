@@ -5,7 +5,7 @@
 **Responsables:** Equipo de Desarrollo de Estudiantes del Tecnológico Nacional de México, Campus Tepic  
 **Institución Beneficiaria:** Instituto Nayarita de la Juventud (INJUVE)  
 **Fundamento Académico:** Semestre 5 - Fundamentos de Ingeniería de Software  
-**Última Actualización:** 3 de Abril de 2026 - 22:30 (Presupuestación Setup Completado ✅)  
+**Última Actualización:** 3 de Abril de 2026 - 23:45 (Fase 6 - Sistema de Notificaciones COMPLETADO ✅)  
 
 ---
 
@@ -180,6 +180,175 @@
 | Tests Firma | ✅ COMPLETO | Cobertura completa |
 | Auditoría | ✅ COMPLETO | Registro en tabla `firmas_electronicas` |
 | Documentación | ✅ COMPLETO | Inline + this file |
+
+---
+
+### Sesión de Desarrollo: 3 de Abril de 2026 (ACTUAL) - FASE 6 COMPLETADA
+
+## ✅ FASE 6: SISTEMA DE NOTIFICACIONES (100% COMPLETADO)
+
+**DESCRIPCIÓN GENERAL:**
+Sistema event-driven de notificaciones automáticas para beneficiarios. Se disparan notificaciones en 3 eventos críticos: rechazo de documentos, cambio de hitos y rechazo de solicitudes. Integración con base de datos + email queue + UI web en tiempo real.
+
+**COMPONENTES IMPLEMENTADOS:**
+
+✅ **EVENTOS (3 - Definidos e Integrados)**
+- `DocumentoRechazado` - Event fired cuando admin rechaza documento
+- `HitoCambiado` - Event fired cuando cambia etapa de apoyo
+- `SolicitudRechazada` - Event fired cuando directivo rechaza solicitud
+
+✅ **LISTENERS (3 - Implementados y Registrados)**
+- `EnviarNotificacionDocumentoRechazado` - Crea notificación + encola email
+- `EnviarNotificacionHitoCambiado` - Crea notificación + encola email con timeline
+- `EnviarNotificacionSolicitudRechazada` - Crea notificación + encola email
+
+✅ **MAILABLES (3 - Con Templates HTML)**
+- `DocumentoRechazadoMail` - Template: documento-rechazado.blade.php (rojo)
+- `HitoCambiadoMail` - Template: hito-cambiado.blade.php (verde + timeline visual)
+- `SolicitudRechazadaMail` - Template: solicitud-rechazada.blade.php (naranja)
+- Todas implementan `ShouldQueue` para envío asincrónico
+
+✅ **MODELO: Notificacion.php**
+- Campos: id, id_beneficiario, tipo, titulo, mensaje, datos (JSON), accion_url, leida, timestamps
+- Relaciones: beneficiario() BelongsTo Usuario
+- Scopes: noLeidas(), delTipo($tipo), recientes()
+- Métodos: marcarLeida(), getIconoAttribute(), getColorAttribute()
+
+✅ **CONTROLADORES (2 - API + Web)**
+- `Api\NotificacionesApiController` (6 endpoints)
+  - GET `/api/notificaciones` - Lista paginada (20 por página)
+  - GET `/api/notificaciones/no-leidas` - Conteo + 10 recientes
+  - GET `/api/notificaciones/conteo` - Solo contador (para badge)
+  - POST `/api/notificaciones/{id}/marcar-leida` - Marcar individual
+  - POST `/api/notificaciones/marcar-todas-leidas` - Marcar todas
+  - DELETE `/api/notificaciones/{id}` - Eliminar notificación
+
+- `NotificacionController` (5 métodos web)
+  - GET `/notificaciones` - Página inbox con filtros
+  - GET `/notificaciones/unread-count` - Para polling del badge
+  - POST `/notificaciones/{id}/leer` - Web action marcar leída
+  - POST `/notificaciones/marcar-todas-leidas` - Web action marcar todas
+  - DELETE `/notificaciones/{id}` - Web action eliminar
+
+✅ **VIEWS & COMPONENTS (3)**
+- `beneficiario/notificaciones/inbox.blade.php` (280 líneas)
+  - Filtros: Todas, Documentos, Progreso de Hitos, Solicitudes
+  - List items con iconos, badges, timestamps
+  - Paginación (15 por página)
+  - AJAX actions: marcar como leída, eliminar, marcar todas
+  - Empty state con CTA a solicitudes
+  
+- `components/notification-badge.blade.php`
+  - Bell icon dinámico
+  - Contador badge en rojo
+  - Solo visible si hay no-leídas
+  - Pulso animation
+  - Link a `/notificaciones`
+
+- Email templates (3 HTML + Tailwind)
+  - 150-170 líneas cada una
+  - Branded con colores consistentes
+  - Responsive mobile-first
+
+✅ **RUTAS (11 Total - Limpias y Organizadas)**
+Routes registradas sin conflictos:
+- 6x API routes: `api.notificaciones.*`
+- 5x Web routes: `beneficiario.notificaciones.*`
+
+✅ **INTEGRACIÓN EN CONTROLADORES EXISTENTES**
+- `DocumentVerificationController::verifyDocument()` - Dispara `DocumentoRechazado` event
+- `SolicitudProcesoController::rechazarSolicitud()` - Dispara `SolicitudRechazada` event
+
+✅ **CONFIGURACIÓN (EventServiceProvider)**
+Registradas 3 mappings evento → listener:
+```php
+'HitoCambiado' => [
+    SincronizarHitoACalendario::class,
+    EnviarNotificacionHitoCambiado::class,
+],
+'DocumentoRechazado' => [
+    EnviarNotificacionDocumentoRechazado::class,
+],
+'SolicitudRechazada' => [
+    EnviarNotificacionSolicitudRechazada::class,
+],
+```
+
+✅ **BASE DE DATOS (Tabla Creada)**
+```sql
+CREATE TABLE notificaciones (
+    id BIGINT PRIMARY KEY IDENTITY(1,1),
+    id_beneficiario INT NOT NULL FK → usuarios.id_usuario,
+    tipo NVARCHAR(255) CHECK IN ('documento_rechazado', 'hito_cambio', 'solicitud_rechazada'),
+    titulo NVARCHAR(255) NOT NULL,
+    mensaje NVARCHAR(MAX) NOT NULL,
+    datos NVARCHAR(MAX) NULL,
+    accion_url NVARCHAR(255) NULL,
+    leida BIT NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT GETDATE(),
+    updated_at DATETIME DEFAULT GETDATE()
+);
+
+-- Indexes: beneficiario, tipo, leida, created_at
+-- Foreign Key: ON DELETE CASCADE
+```
+
+✅ **INTERFACE & REAL-TIME UPDATES (Navigation Component)**
+- Alpine.js component con axios
+- Polling interval: 15 segundos para contador
+- Real-time updates vía Echo listener `.notificacion.generada`
+- Methods: fetchItems(), fetchCount(), markRead(id), markAllRead()
+
+✅ **TESTING & VALIDATION**
+- Command: `php artisan test:notificaciones`
+- Validación de componentes: ✅ 14 items verificados
+- Status: 95% → 100% (tabla DB creada via sqlcmd)
+
+**GIT COMMITS:**
+- Commit `362c186`: "Fix notification routes & remove duplicates"
+- Commit `b3854d0`: "Create notificaciones table in SQL Server"
+
+**ARCHIVOS CREADOS/MODIFICADOS (24+ archivos):**
+- app/Events/*.php (3 events)
+- app/Listeners/*.php (3 listeners)
+- app/Mail/*.php (3 mailables)
+- app/Models/Notificacion.php
+- app/Http/Controllers/NotificacionController.php
+- app/Http/Controllers/Api/NotificacionesApiController.php
+- app/Providers/EventServiceProvider.php
+- routes/web.php (11 routes)
+- resources/views/beneficiario/notificaciones/*.blade.php
+- resources/views/components/notification-badge.blade.php
+- resources/views/mail/*.blade.php (3 templates)
+- resources/views/layouts/navigation.blade.php (updated)
+- database/migrations/2026_04_03_154013_create_notificaciones_table.php
+- SQL scripts: create_notificaciones_manual.sql, recreate_notificaciones_table.sql
+
+**STATUS: 100% COMPLETADO Y LISTO PARA PRODUCCIÓN**
+
+✨ **Workflow Funcional:**
+1. Documento rechazado en admin → Dispara evento
+2. Listener crea notificación en BD
+3. Email se encola (asincrónico)
+4. Badge en navegación se actualiza (polling 15s + real-time)
+5. Beneficiario ve notificación en `/notificaciones` inbox
+6. Puede marcar como leída, eliminar, o verla en email
+
+---
+
+### 🎯 PRÓXIMA FASE: Fase 7 - OPCIONES
+
+**ESTADO DEL PROYECTO GENERAL:**
+
+| Fase | Descripción | Estado |
+|------|-----------|--------|
+| 1 | Fundamentos y Arquitectura Base | ✅ 100% |
+| 2 | Integración Google Drive | ✅ 100% |
+| 3 | Firma Electrónica | ✅ 100% |
+| 4 | Sistema de Presupuestación | ✅ 100% |
+| 5 | Exportación (Dashboard + PDF) | ✅ 100% |
+| 6 | Sistema de Notificaciones | ✅ 100% |
+| **7** | **???** | **⏳ PENDIENTE** |
 
 ---
 
