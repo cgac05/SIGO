@@ -23,9 +23,3 @@ class DocumentoRechazado
         $this->idSolicitud = $idSolicitud;
     }
 }
-    {
-        return [
-            new PrivateChannel('channel-name'),
-        ];
-    }
-}

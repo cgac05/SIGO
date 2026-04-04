@@ -19,4 +19,3 @@ class SolicitudRechazada
         $this->motivo = $motivo;
     }
 }
-}

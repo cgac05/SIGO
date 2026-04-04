@@ -14,7 +14,8 @@ try {
 
     echo "[OK] Logs cargados correctamente:\n";
     foreach ($logs as $log) {
-        echo "  - ID: {$log->id}, Apoyo: {$log->apoyo?->nombre_apoyo ?? 'N/A'}, Tipo: {$log->tipo_cambio}\n";
+        $apoyoNombre = $log->apoyo ? $log->apoyo->nombre_apoyo : 'N/A';
+        echo "  - ID: {$log->id}, Apoyo: {$apoyoNombre}, Tipo: {$log->tipo_cambio}\n";
     }
 } catch (\Exception $e) {
     echo "[ERROR] " . $e->getMessage() . "\n";

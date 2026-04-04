@@ -1,7 +1,7 @@
 @props(['folio', 'tipo' => 'aprobacion'])
 
 <!-- Modal de Re-autenticación para Firma Electrónica -->
-<div id="firma-modal-{{ $folio }}" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center" x-data="firmaModalData()">
+<div id="firma-modal-{{ $folio }}" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 items-center justify-center" style="display: none;">
     <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
         <!-- Header -->
         <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">

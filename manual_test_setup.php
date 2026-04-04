@@ -33,7 +33,7 @@ try {
         'cambios_locales_pendientes'
     ];
     
-    $apoyo Columns = [
+    $apoyoColumns = [
         'sincronizar_calendario',
         'recordatorio_dias',
         'google_group_email'
