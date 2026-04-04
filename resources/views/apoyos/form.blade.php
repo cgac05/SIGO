@@ -514,26 +514,77 @@ if ($isEditing) {
 
                         {{-- Panel: Documentos requeridos --}}
                         <div class="panel">
-                            <div class="panel-title">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
-                                </svg>
-                                Documentación requerida
+                            <div class="panel-title flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
+                                    </svg>
+                                    Documentación requerida
+                                </div>
+                                <button type="button" id="btn-new-documento" class="px-2 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">+ Agregar Tipo</button>
                             </div>
-                            <div class="panel-body">
-                                @if(isset($tiposDocumentos) && $tiposDocumentos->count())
-                                    <div class="grid grid-cols-1 gap-2">
-                                        @foreach($tiposDocumentos as $td)
-                                            <label class="flex items-center gap-2 p-2 rounded-lg border border-gray-200 hover:border-blue-300 transition cursor-pointer">
-                                                <input type="checkbox" name="documentos_requeridos[]" value="{{ $td->id_tipo_doc }}" class="w-4 h-4 accent-blue-700"
-                                                    {{ in_array($td->id_tipo_doc, old('documentos_requeridos', $requisitosActuales ?? []), false) ? 'checked' : '' }}>
-                                                <span class="text-xs text-gray-700">{{ $td->nombre_documento }}</span>
-                                            </label>
-                                        @endforeach
+                            <div class="panel-body space-y-4">
+                                {{-- Modal para crear nuevo tipo de documento --}}
+                                <div id="modal-nuevo-documento" style="display: none;" class="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3">
+                                    <div class="font-semibold text-sm text-gray-700">Crear nuevo tipo de documento</div>
+                                    <div class="space-y-2">
+                                        <label class="block text-xs font-medium text-gray-600">Nombre del documento</label>
+                                        <input id="new-doc-nombre" type="text" placeholder="Ej: Cédula de Identidad" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-500 focus:border-transparent">
                                     </div>
-                                @else
-                                    <p class="text-xs text-gray-500">Sin documentos configurados.</p>
-                                @endif
+                                    <div class="space-y-2">
+                                        <label class="block text-xs font-medium text-gray-600">Tipo de archivos permitidos</label>
+                                        <select id="new-doc-tipo" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-500">
+                                            <option value="pdf">PDF</option>
+                                            <option value="image">Imágenes (JPG, PNG, WebP)</option>
+                                            <option value="word">Documentos Word (.docx)</option>
+                                            <option value="excel">Hojas de Cálculo (.xlsx)</option>
+                                            <option value="zip">Archivos comprimidos (.zip)</option>
+                                            <option value="any">Cualquier tipo</option>
+                                        </select>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="block text-xs font-medium text-gray-600">Peso máximo (MB) — 0 para sin límite</label>
+                                        <input id="new-doc-peso" type="number" min="0" max="500" value="5" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-500 focus:border-transparent">
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center gap-2 text-xs">
+                                            <input id="new-doc-validar" type="checkbox" checked class="w-4 h-4">
+                                            <span class="text-gray-600">Validar tipo de archivo</span>
+                                        </label>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button type="button" id="btn-guardar-documento" class="flex-1 px-3 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition">Guardar documento</button>
+                                        <button type="button" id="btn-cancelar-documento" class="flex-1 px-3 py-2 bg-gray-300 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-400 transition">Cancelar</button>
+                                    </div>
+                                    <div id="msg-nuevo-doc" class="text-xs hidden"></div>
+                                </div>
+
+                                {{-- Listado de documentos --}}
+                                <div id="lista-documentos">
+                                    @if(isset($tiposDocumentos) && $tiposDocumentos->count())
+                                        <div class="grid grid-cols-1 gap-2">
+                                            @foreach($tiposDocumentos as $td)
+                                                <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition cursor-pointer" data-doc-id="{{ $td->id_tipo_doc }}">
+                                                    <input type="checkbox" name="documentos_requeridos[]" value="{{ $td->id_tipo_doc }}" class="w-4 h-4 accent-blue-700"
+                                                        {{ in_array($td->id_tipo_doc, old('documentos_requeridos', $requisitosActuales ?? []), false) ? 'checked' : '' }}>
+                                                    <div class="flex-1 min-w-0">
+                                                        <div class="text-xs font-medium text-gray-800">{{ $td->nombre_documento }}</div>
+                                                        <div class="text-xs text-gray-500 mt-0.5">
+                                                            {{ ucfirst($td->tipo_archivo_permitido ?? 'Cualquier tipo') }} 
+                                                            @if($td->peso_maximo_mb ?? false)
+                                                                • Máx: {{ $td->peso_maximo_mb }} MB
+                                                            @else
+                                                                • Sin límite de peso
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <p class="text-xs text-gray-500 text-center py-4">Sin documentos configurados. Crea uno nuevo para empezar.</p>
+                                    @endif
+                                </div>
                             </div>
                         </div>
 
@@ -900,6 +951,134 @@ if ($isEditing) {
             actualizarCalculoPresupuesto();
 
         })(); // Cierre de IIFE
+    </script>
+
+    {{-- Script para gestionar tipos de documentos --}}
+    <script>
+        (function() {
+            // Elementos del DOM
+            const btnNewDocumento = document.getElementById('btn-new-documento');
+            const modalNuevoDocumento = document.getElementById('modal-nuevo-documento');
+            const btnGuardarDocumento = document.getElementById('btn-guardar-documento');
+            const btnCancelarDocumento = document.getElementById('btn-cancelar-documento');
+            const newDocNombre = document.getElementById('new-doc-nombre');
+            const newDocTipo = document.getElementById('new-doc-tipo');
+            const newDocPeso = document.getElementById('new-doc-peso');
+            const newDocValidar = document.getElementById('new-doc-validar');
+            const msgNuevoDoc = document.getElementById('msg-nuevo-doc');
+            const listaDocumentos = document.getElementById('lista-documentos');
+
+            // Mostrar/ocultar modal
+            btnNewDocumento?.addEventListener('click', () => {
+                modalNuevoDocumento.style.display = 'block';
+                newDocNombre.focus();
+                newDocNombre.value = '';
+                newDocTipo.value = 'pdf';
+                newDocPeso.value = 5;
+                newDocValidar.checked = true;
+                msgNuevoDoc.textContent = '';
+                msgNuevoDoc.className = 'text-xs hidden';
+            });
+
+            btnCancelarDocumento?.addEventListener('click', () => {
+                modalNuevoDocumento.style.display = 'none';
+            });
+
+            // Guardar nuevo documento
+            btnGuardarDocumento?.addEventListener('click', async () => {
+                const nombre = newDocNombre.value.trim();
+                if (!nombre) {
+                    mostrarMensaje('Please enter a document name', 'error');
+                    return;
+                }
+
+                btnGuardarDocumento.disabled = true;
+                btnGuardarDocumento.textContent = 'Guardando...';
+
+                try {
+                    const response = await fetch('{{ route("apoyos.documentos.store") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                        },
+                        body: JSON.stringify({
+                            nombre_documento: nombre,
+                            tipo_archivo_permitido: newDocTipo.value,
+                            peso_maximo_mb: parseInt(newDocPeso.value) || 5,
+                            validar_tipo_archivo: newDocValidar.checked
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        mostrarMensaje('✅ Document created successfully!', 'success');
+                        setTimeout(() => {
+                            modalNuevoDocumento.style.display = 'none';
+                            recargarDocumentos();
+                        }, 1200);
+                    } else {
+                        mostrarMensaje(data.message || 'Error creating document', 'error');
+                    }
+                } catch (error) {
+                    mostrarMensaje('Network error: ' + error.message, 'error');
+                } finally {
+                    btnGuardarDocumento.disabled = false;
+                    btnGuardarDocumento.textContent = 'Guardar documento';
+                }
+            });
+
+            // Recargar lista de documentos
+            async function recargarDocumentos() {
+                try {
+                    const response = await fetch('{{ route("apoyos.documentos.index") }}', {
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    const data = await response.json();
+                    if (data.success && data.datos) {
+                        actualizarListaDocumentos(data.datos);
+                    }
+                } catch (error) {
+                    console.error('Error reloading documents:', error);
+                }
+            }
+
+            // Actualizar lista en la UI
+            function actualizarListaDocumentos(documentos) {
+                let html = '';
+                if (documentos.length === 0) {
+                    html = '<p class="text-xs text-gray-500 text-center py-4">Sin documentos configurados.</p>';
+                } else {
+                    html = '<div class="grid grid-cols-1 gap-2">';
+                    documentos.forEach(doc => {
+                        html += `
+                            <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition cursor-pointer">
+                                <input type="checkbox" name="documentos_requeridos[]" value="${doc.id_tipo_doc}" class="w-4 h-4 accent-blue-700">
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-xs font-medium text-gray-800">${doc.nombre_documento}</div>
+                                    <div class="text-xs text-gray-500 mt-0.5">
+                                        ${doc.tipo_archivo_permitido ? doc.tipo_archivo_permitido.charAt(0).toUpperCase() + doc.tipo_archivo_permitido.slice(1) : 'Cualquier tipo'} 
+                                        ${doc.peso_maximo_mb ? `• Máx: ${doc.peso_maximo_mb} MB` : '• Sin límite de peso'}
+                                    </div>
+                                </div>
+                            </label>
+                        `;
+                    });
+                    html += '</div>';
+                }
+                listaDocumentos.innerHTML = html;
+            }
+
+            // Mostrar mensajes
+            function mostrarMensaje(texto, tipo) {
+                msgNuevoDoc.textContent = texto;
+                msgNuevoDoc.className = `text-xs ${tipo === 'success' ? 'text-green-600' : 'text-red-600'}`;
+            }
+        })();
     </script>
 
 </body>

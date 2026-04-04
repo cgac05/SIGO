@@ -550,6 +550,7 @@ class ApoyoController extends Controller
             'nombre_documento' => 'required|string|max:120',
             'tipo_archivo_permitido' => 'required|in:pdf,image,word,excel,zip,any',
             'validar_tipo_archivo' => 'nullable|boolean',
+            'peso_maximo_mb' => 'nullable|integer|min:1|max:500',
         ]);
 
         $nombre = trim($data['nombre_documento']);
@@ -583,16 +584,21 @@ class ApoyoController extends Controller
             $insertData['validar_tipo_archivo'] = filter_var($request->input('validar_tipo_archivo', true), FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
         }
 
+        if (Schema::hasColumn('Cat_TiposDocumento', 'peso_maximo_mb')) {
+            $insertData['peso_maximo_mb'] = $data['peso_maximo_mb'] ?? 5;
+        }
+
         $id = DB::table('Cat_TiposDocumento')->insertGetId($insertData);
 
         return response()->json([
             'success' => true,
-            'message' => 'Documento agregado al catÃ¡logo.',
+            'message' => 'Documento agregado al catálogo.',
             'documento' => [
                 'id_tipo_doc' => $id,
                 'nombre_documento' => $nombre,
                 'tipo_archivo_permitido' => $data['tipo_archivo_permitido'],
                 'validar_tipo_archivo' => filter_var($request->input('validar_tipo_archivo', true), FILTER_VALIDATE_BOOLEAN),
+                'peso_maximo_mb' => $data['peso_maximo_mb'] ?? 5,
             ],
         ]);
     }
@@ -608,6 +614,7 @@ class ApoyoController extends Controller
         $data = $request->validate([
             'tipo_archivo_permitido' => 'required|in:pdf,image,word,excel,zip,any',
             'validar_tipo_archivo' => 'nullable|boolean',
+            'peso_maximo_mb' => 'nullable|integer|min:1|max:500',
         ]);
 
         $doc = DB::table('Cat_TiposDocumento')->where('id_tipo_doc', $id)->first();
@@ -625,6 +632,9 @@ class ApoyoController extends Controller
         if (Schema::hasColumn('Cat_TiposDocumento', 'validar_tipo_archivo')) {
             $payload['validar_tipo_archivo'] = filter_var($request->input('validar_tipo_archivo', true), FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
         }
+        if (Schema::hasColumn('Cat_TiposDocumento', 'peso_maximo_mb')) {
+            $payload['peso_maximo_mb'] = $data['peso_maximo_mb'] ?? 5;
+        }
 
         if (! empty($payload)) {
             DB::table('Cat_TiposDocumento')->where('id_tipo_doc', $id)->update($payload);
@@ -632,13 +642,37 @@ class ApoyoController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'ConfiguraciÃ³n del documento actualizada.',
+            'message' => 'Configuración del documento actualizada.',
             'documento' => [
                 'id_tipo_doc' => $id,
                 'nombre_documento' => $doc->nombre_documento,
                 'tipo_archivo_permitido' => $data['tipo_archivo_permitido'],
                 'validar_tipo_archivo' => filter_var($request->input('validar_tipo_archivo', true), FILTER_VALIDATE_BOOLEAN),
+                'peso_maximo_mb' => $data['peso_maximo_mb'] ?? 5,
             ],
+        ]);
+    }
+
+    /**
+     * Obtiene la lista de todos los tipos de documentos disponibles.
+     * GET /apoyos/documentos
+     */
+    public function getTiposDocumento()
+    {
+        $this->ensureManagerAccess();
+
+        $query = DB::table('Cat_TiposDocumento')
+            ->select('id_tipo_doc', 'nombre_documento', 'tipo_archivo_permitido', 'validar_tipo_archivo');
+
+        if (Schema::hasColumn('Cat_TiposDocumento', 'peso_maximo_mb')) {
+            $query->addSelect('peso_maximo_mb');
+        }
+
+        $documentos = $query->orderBy('nombre_documento')->get();
+
+        return response()->json([
+            'success' => true,
+            'datos' => $documentos,
         ]);
     }
 

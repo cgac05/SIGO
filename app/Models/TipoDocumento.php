@@ -15,9 +15,11 @@ class TipoDocumento extends Model
         'tipo_archivo_permitido',
         'validar_tipo_archivo',
         'descripcion',
+        'peso_maximo_mb',
     ];
 
     protected $casts = [
         'validar_tipo_archivo' => 'boolean',
+        'peso_maximo_mb' => 'integer',
     ];
 }
