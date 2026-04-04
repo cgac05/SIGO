@@ -709,6 +709,17 @@ if ($isEditing) {
         const txtPresupuestoFaltante = document.getElementById('txt-presupuesto-faltante');
         const txtPresupuestoRestante = document.getElementById('txt-presupuesto-restante');
 
+        // ===== FUNCIÓN PARA FORMATEAR DINERO CON COMAS =====
+        function formatCurrency(value) {
+            // Convertir a número
+            const num = parseFloat(value) || 0;
+            // Formato: 1,000,000.00
+            return num.toLocaleString('es-MX', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
         function actualizarCalculoPresupuesto() {
             const tipoApoyo = document.getElementById('tipo_apoyo')?.value || 'Económico';
             
@@ -725,14 +736,14 @@ if ($isEditing) {
             const cupoLimite = parseFloat(inputCupoLimite.value) || 1;
             const totalCalculado = montoMaximo * cupoLimite;
 
-            // Actualizar campo monto_inicial_asignado automáticamente
+            // Actualizar campo monto_inicial_asignado automáticamente (valor crudo para guardar)
             inputMontoInicial.value = totalCalculado.toFixed(2);
 
-            // Actualizar valores mostrados
-            txtPresupuestoDisponible.textContent = presupuestoDisponible.toFixed(2);
-            txtMontoBeneficiario.textContent = montoMaximo.toFixed(2);
+            // Actualizar valores mostrados CON FORMATO DINERO
+            txtPresupuestoDisponible.textContent = formatCurrency(presupuestoDisponible);
+            txtMontoBeneficiario.textContent = formatCurrency(montoMaximo);
             txtCantidadBeneficiarios.textContent = Math.floor(cupoLimite);
-            txtMontoTotal.textContent = totalCalculado.toFixed(2);
+            txtMontoTotal.textContent = formatCurrency(totalCalculado);
 
             // Mostrar sección si hay categoría seleccionada
             if (selectedOption.value) {
@@ -752,7 +763,7 @@ if ($isEditing) {
                 divValidacionPresupuesto.classList.remove('hidden');
                 divResumenFinal.classList.add('hidden');
                 const faltante = totalCalculado - presupuestoDisponible;
-                txtPresupuestoFaltante.textContent = faltante.toFixed(2);
+                txtPresupuestoFaltante.textContent = formatCurrency(faltante);
                 
                 // Marcar input como inválido
                 inputMontoMaximo.classList.add('border-red-500', 'bg-red-50');
@@ -762,7 +773,7 @@ if ($isEditing) {
                 divValidacionPresupuesto.classList.add('hidden');
                 divResumenFinal.classList.remove('hidden');
                 const restante = presupuestoDisponible - totalCalculado;
-                txtPresupuestoRestante.textContent = restante.toFixed(2);
+                txtPresupuestoRestante.textContent = formatCurrency(restante);
                 
                 // Quitar marcado de inválido
                 inputMontoMaximo.classList.remove('border-red-500', 'bg-red-50');
@@ -789,8 +800,24 @@ if ($isEditing) {
             selectTipoApoyo.addEventListener('change', actualizarCalculoPresupuesto);
         }
 
-        // Ejecutar cálculo inicial al cargar
-        actualizarCalculoPresupuesto();
+        // Formatear inputs de dinero mientras se escriben
+        inputMontoMaximo.addEventListener('blur', function() {
+            if (this.value) {
+                this.value = parseFloat(this.value).toFixed(2);
+            }
+        });
+
+        inputCupoLimite.addEventListener('blur', function() {
+            if (this.value) {
+                this.value = Math.floor(parseFloat(this.value));
+            }
+        });
+
+        // Ejecutar cálculo inicial al cargar (con pequeño delay para asegurar que DOM está listo)
+        setTimeout(function() {
+            actualizarCalculoPresupuesto();
+        }, 100);
+
 
 </body>
 </html>
