@@ -715,8 +715,6 @@ if ($isEditing) {
 
 
             // ===== CÁLCULO AUTOMÁTICO DE PRESUPUESTO REAL =====
-            console.log('🚀 Iniciando setup de presupuesto');
-            
             const selectCategoria = document.getElementById('id_categoria');
             const inputMontoMaximo = document.getElementById('monto_maximo');
             const inputCupoLimite = document.getElementById('cupo_limite');
@@ -733,13 +731,7 @@ if ($isEditing) {
             const txtPresupuestoFaltante = document.getElementById('txt-presupuesto-faltante');
             const txtPresupuestoRestante = document.getElementById('txt-presupuesto-restante');
 
-            console.log('✅ Elementos localizados:', {
-                selectCategoria: !!selectCategoria,
-                inputMontoMaximo: !!inputMontoMaximo,
-                inputCupoLimite: !!inputCupoLimite,
-                txtMontoTotal: !!txtMontoTotal,
-                divValidacionPresupuesto: !!divValidacionPresupuesto
-            });
+            console.log('✅ Presupuesto setup listo');
 
             // ===== FUNCIÓN PARA FORMATEAR DINERO CON COMAS =====
             function formatCurrency(value) {
@@ -753,15 +745,12 @@ if ($isEditing) {
             }
 
             function actualizarCalculoPresupuesto() {
-                console.log('📊 actualizarCalculoPresupuesto llamado');
                 const tipoApoyo = document.getElementById('tipo_apoyo')?.value || 'Económico';
-                console.log('  Tipo apoyo:', tipoApoyo);
                 
                 // Solo mostrar en modo Económico
                 if (tipoApoyo !== 'Económico') {
                     sectionPresupuestoReal.classList.add('hidden');
                     divMontoInicial.classList.add('hidden');
-                    console.log('  Presupuesto oculto (tipo no es Económico)');
                     return;
                 }
 
@@ -782,66 +771,67 @@ if ($isEditing) {
                 
                 const totalCalculado = montoFinal * cupoFinal;
 
-                console.log('  💰 Cálculo:', { montoFinal, cupoFinal, totalCalculado, presupuestoDisponible });
+                console.log('💰 Cálculo:', { montoFinal, cupoFinal, totalCalculado });
 
                 // Actualizar campo monto_inicial_asignado automáticamente (valor crudo para guardar)
                 if (inputMontoInicial) {
                     inputMontoInicial.value = totalCalculado.toFixed(2);
-                    console.log('  ✏️ monto_inicial_asignado actualizado a:', inputMontoInicial.value);
                 }
 
                 // Actualizar valores mostrados CON FORMATO DINERO
                 if (txtPresupuestoDisponible) {
                     txtPresupuestoDisponible.textContent = formatCurrency(presupuestoDisponible);
-                    console.log('  💵 Presupuesto disponible mostrado:', formatCurrency(presupuestoDisponible));
                 }
                 if (txtMontoBeneficiario) {
                     txtMontoBeneficiario.textContent = formatCurrency(montoFinal);
-                    console.log('  💵 Monto beneficiario mostrado:', formatCurrency(montoFinal));
                 }
                 if (txtCantidadBeneficiarios) {
                     txtCantidadBeneficiarios.textContent = Math.floor(cupoFinal);
                 }
                 if (txtMontoTotal) {
                     txtMontoTotal.textContent = formatCurrency(totalCalculado);
-                    console.log('  💵 Total mostrado:', formatCurrency(totalCalculado));
                 }
 
-                // Mostrar sección si hay categoría seleccionada
-                if (selectedOption.value) {
-                    sectionPresupuestoReal.classList.remove('hidden');
-                    divMontoInicial.classList.remove('hidden');
-                } else {
-                    sectionPresupuestoReal.classList.add('hidden');
-                    divMontoInicial.classList.add('hidden');
-                    divValidacionPresupuesto.classList.add('hidden');
-                    divResumenFinal.classList.add('hidden');
-                    return;
-                }
+                // Mostrar sección SIEMPRE (no depende de categoría)
+                sectionPresupuestoReal.classList.remove('hidden');
+                divMontoInicial.classList.remove('hidden');
 
-                // Validar presupuesto
-                if (totalCalculado > presupuestoDisponible) {
-                    // Mostrar alerta
-                    divValidacionPresupuesto.classList.remove('hidden');
-                    divResumenFinal.classList.add('hidden');
-                    const faltante = totalCalculado - presupuestoDisponible;
-                    txtPresupuestoFaltante.textContent = formatCurrency(faltante);
-                    
-                    // Marcar input como inválido
-                    inputMontoMaximo.classList.add('border-red-500', 'bg-red-50');
-                    inputCupoLimite.classList.add('border-red-500', 'bg-red-50');
-                } else if (totalCalculado > 0) {
-                    // Mostrar resumen válido
-                    divValidacionPresupuesto.classList.add('hidden');
-                    divResumenFinal.classList.remove('hidden');
-                    const restante = presupuestoDisponible - totalCalculado;
-                    txtPresupuestoRestante.textContent = formatCurrency(restante);
-                    
-                    // Quitar marcado de inválido
-                    inputMontoMaximo.classList.remove('border-red-500', 'bg-red-50');
-                    inputCupoLimite.classList.remove('border-red-500', 'bg-red-50');
+                // Validar presupuesto SOLO si hay categoría seleccionada
+                if (selectedOption.value && presupuestoDisponible > 0) {
+                    // Validar presupuesto
+                    if (totalCalculado > presupuestoDisponible) {
+                        // Mostrar alerta
+                        divValidacionPresupuesto.classList.remove('hidden');
+                        divResumenFinal.classList.add('hidden');
+                        const faltante = totalCalculado - presupuestoDisponible;
+                        if (txtPresupuestoFaltante) {
+                            txtPresupuestoFaltante.textContent = formatCurrency(faltante);
+                        }
+                        
+                        // Marcar input como inválido
+                        inputMontoMaximo.classList.add('border-red-500', 'bg-red-50');
+                        inputCupoLimite.classList.add('border-red-500', 'bg-red-50');
+                    } else if (totalCalculado > 0) {
+                        // Mostrar resumen válido
+                        divValidacionPresupuesto.classList.add('hidden');
+                        divResumenFinal.classList.remove('hidden');
+                        const restante = presupuestoDisponible - totalCalculado;
+                        if (txtPresupuestoRestante) {
+                            txtPresupuestoRestante.textContent = formatCurrency(restante);
+                        }
+                        
+                        // Quitar marcado de inválido
+                        inputMontoMaximo.classList.remove('border-red-500', 'bg-red-50');
+                        inputCupoLimite.classList.remove('border-red-500', 'bg-red-50');
+                    } else {
+                        // Total es cero
+                        divValidacionPresupuesto.classList.add('hidden');
+                        divResumenFinal.classList.add('hidden');
+                        inputMontoMaximo.classList.remove('border-red-500', 'bg-red-50');
+                        inputCupoLimite.classList.remove('border-red-500', 'bg-red-50');
+                    }
                 } else {
-                    // Total es cero
+                    // Sin categoría seleccionada - ocultar validación, solo mostrar cálculo
                     divValidacionPresupuesto.classList.add('hidden');
                     divResumenFinal.classList.add('hidden');
                     inputMontoMaximo.classList.remove('border-red-500', 'bg-red-50');
@@ -852,27 +842,22 @@ if ($isEditing) {
             // Event listeners para actualizar cálculo
             if (selectCategoria) {
                 selectCategoria.addEventListener('change', function() {
-                    console.log('📢 selectCategoria cambió');
                     actualizarCalculoPresupuesto();
                 });
             }
             if (inputMontoMaximo) {
                 inputMontoMaximo.addEventListener('input', function() {
-                    console.log('📝 inputMontoMaximo input:', this.value);
                     actualizarCalculoPresupuesto();
                 });
                 inputMontoMaximo.addEventListener('change', function() {
-                    console.log('📝 inputMontoMaximo change:', this.value);
                     actualizarCalculoPresupuesto();
                 });
             }
             if (inputCupoLimite) {
                 inputCupoLimite.addEventListener('input', function() {
-                    console.log('📝 inputCupoLimite input:', this.value);
                     actualizarCalculoPresupuesto();
                 });
                 inputCupoLimite.addEventListener('change', function() {
-                    console.log('📝 inputCupoLimite change:', this.value);
                     actualizarCalculoPresupuesto();
                 });
             }
@@ -884,9 +869,8 @@ if ($isEditing) {
             }
 
             // Ejecutar cálculo inicial
-            console.log('🚀 Ejecutando cálculo inicial');
             actualizarCalculoPresupuesto();
-            console.log('✅ Setup presupuesto completado');
+            console.log('✅ Cálculo presupuesto inicializado');
 
         })(); // Cierre de IIFE
     </script>
