@@ -761,8 +761,20 @@ if ($isEditing) {
 
                 const selectedOption = selectCategoria.options[selectCategoria.selectedIndex];
                 const presupuestoDisponible = parseFloat(selectedOption.dataset.disponible) || 0;
-                const montoMaximo = parseFloat(inputMontoMaximo.value) || 0;
-                const cupoLimite = parseFloat(inputCupoLimite.value) || 1;
+                
+                // Parsear valores de inputs - usar '' como fallback para valores incompletos
+                const montoStr = (inputMontoMaximo.value || '').trim();
+                const cupoStr = (inputCupoLimite.value || '').trim();
+                
+                const montoMaximo = montoStr ? parseFloat(montoStr) : 0;
+                const cupoLimite = cupoStr ? parseInt(cupoStr) : 1;
+                
+                // Validar que los valores parseados sean válidos
+                if (isNaN(montoMaximo) || isNaN(cupoLimite)) {
+                    console.log('  ⚠️ Valores inválidos, esperando entrada completa');
+                    return;
+                }
+                
                 const totalCalculado = montoMaximo * cupoLimite;
 
                 console.log('  💰 Cálculo:', { montoMaximo, cupoLimite, totalCalculado, presupuestoDisponible });
@@ -833,33 +845,6 @@ if ($isEditing) {
             const selectTipoApoyo = document.getElementById('tipo_apoyo');
             if (selectTipoApoyo) {
                 selectTipoApoyo.addEventListener('change', actualizarCalculoPresupuesto);
-            }
-
-            // Formatear inputs de dinero mientras se escriben (en tiempo real)
-            if (inputMontoMaximo) {
-                inputMontoMaximo.addEventListener('input', function() {
-                    if (this.value) {
-                        const numValue = parseFloat(this.value);
-                        if (!isNaN(numValue) && numValue >= 0) {
-                            this.value = numValue.toFixed(2);
-                        } else {
-                            this.value = '0.00';
-                        }
-                    }
-                });
-            }
-
-            if (inputCupoLimite) {
-                inputCupoLimite.addEventListener('input', function() {
-                    if (this.value) {
-                        const numValue = parseInt(this.value, 10);
-                        if (!isNaN(numValue) && numValue > 0) {
-                            this.value = numValue;
-                        } else {
-                            this.value = '1';
-                        }
-                    }
-                });
             }
 
             // Ejecutar cálculo inicial
