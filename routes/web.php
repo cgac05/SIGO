@@ -216,6 +216,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/apoyos/documentos',         [ApoyoController::class, 'getTiposDocumento'])->name('apoyos.documentos.index');
     Route::post('/apoyos/documentos',         [ApoyoController::class, 'storeTipoDocumento'])->name('apoyos.documentos.store');
     Route::put('/apoyos/documentos/{id}',     [ApoyoController::class, 'updateTipoDocumento'])->name('apoyos.documentos.update');
+    Route::delete('/apoyos/documentos/{id}',  [ApoyoController::class, 'deleteTipoDocumento'])->name('apoyos.documentos.destroy');
     Route::post('/apoyos/check-inventario',   [ApoyoController::class, 'checkInventario'])->name('apoyos.check-inventario');
     Route::post('/apoyos/aprobar-inventario', [ApoyoController::class, 'aprobarInventario'])->name('apoyos.aprobar-inventario');
     

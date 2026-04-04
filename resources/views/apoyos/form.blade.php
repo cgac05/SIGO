@@ -451,10 +451,21 @@ if ($isEditing) {
                                             </div>
 
                                             @if(!$tienePeriodo)
-                                                <div class="sm:col-span-1" data-hito-content="1">
-                                                    <label class="field-label">Fecha</label>
-                                                    <input type="date" name="hitos[{{ $i }}][fecha_inicio]" class="field-input hito-fecha-inicio" value="{{ old('hitos.' . $i . '.fecha_inicio', !empty($saved?->fecha_inicio) ? Carbon::parse($saved->fecha_inicio)->toDateString() : '') }}">
-                                                </div>
+                                                {{-- Ocultar campos de fecha para inicio_publicacion y proceso_cerrado --}}
+                                                {{-- Las fechas se sincronizan automáticamente desde fecha_inicio/fin del apoyo --}}
+                                                @if(!$isMandatoryBase)
+                                                    <div class="sm:col-span-1" data-hito-content="1">
+                                                        <label class="field-label">Fecha</label>
+                                                        <input type="date" name="hitos[{{ $i }}][fecha_inicio]" class="field-input hito-fecha-inicio" value="{{ old('hitos.' . $i . '.fecha_inicio', !empty($saved?->fecha_inicio) ? Carbon::parse($saved->fecha_inicio)->toDateString() : '') }}">
+                                                    </div>
+                                                @else
+                                                    {{-- Para iniciopublicacion y proceso_cerrado: campo oculto, se sincroniza automáticamente --}}
+                                                    <input type="hidden" name="hitos[{{ $i }}][fecha_inicio]" class="hito-fecha-inicio-hidden" value="">
+                                                    <input type="hidden" name="hitos[{{ $i }}][fecha_fin]" class="hito-fecha-fin-hidden" value="">
+                                                    <div class="sm:col-span-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                                                        <strong>ℹ️ Sincronización automática:</strong> Esta fecha se sincroniza con el período de vigencia del apoyo
+                                                    </div>
+                                                @endif
                                             @else
                                                 <div class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3" data-hito-content="1">
                                                     <div>
@@ -559,6 +570,38 @@ if ($isEditing) {
                                     <div id="msg-nuevo-doc" class="text-xs hidden"></div>
                                 </div>
 
+                                {{-- Modal para editar tipo de documento --}}
+                                <div id="modalEditarDocumento" style="display: none;" class="bg-gray-50 p-4 rounded-lg border border-blue-200 space-y-3">
+                                    <input id="editDocId" type="hidden">
+                                    <div class="font-semibold text-sm text-gray-700">Editar: <span id="editDocName">Documento</span></div>
+                                    <div class="space-y-2">
+                                        <label class="block text-xs font-medium text-gray-600">Tipo de archivos permitidos</label>
+                                        <select id="editDocTipo" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-500">
+                                            <option value="pdf">PDF</option>
+                                            <option value="image">Imágenes (JPG, PNG, WebP)</option>
+                                            <option value="word">Documentos Word (.docx)</option>
+                                            <option value="excel">Hojas de Cálculo (.xlsx)</option>
+                                            <option value="zip">Archivos comprimidos (.zip)</option>
+                                            <option value="any">Cualquier tipo</option>
+                                        </select>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="block text-xs font-medium text-gray-600">Peso máximo (MB)</label>
+                                        <input id="editDocPeso" type="number" min="1" max="500" value="5" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-1 focus:ring-blue-500 focus:border-transparent">
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center gap-2 text-xs">
+                                            <input id="editDocValidar" type="checkbox" class="w-4 h-4">
+                                            <span class="text-gray-600">Validar tipo de archivo</span>
+                                        </label>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button type="button" id="btn-guardar-edicion" class="flex-1 px-3 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition">Guardar cambios</button>
+                                        <button type="button" id="btn-cancelar-edicion" class="flex-1 px-3 py-2 bg-gray-300 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-400 transition">Cancelar</button>
+                                    </div>
+                                    <div id="msg-edicion-doc" class="text-xs"></div>
+                                </div>
+
                                 {{-- Listado de documentos --}}
                                 <div id="lista-documentos" class="text-xs text-gray-500 text-center py-4">
                                     <p>Cargando documentos...</p>
@@ -594,6 +637,42 @@ if ($isEditing) {
                                 <button type="button" id="btn-remove-img" class="hidden w-full text-xs text-red-500 font-semibold hover:text-red-700 transition">
                                     Remover imagen
                                 </button>
+                            </div>
+                        </div>
+
+                        {{-- Panel: Validación / Checklist --}}
+                        <div class="panel">
+                            <div class="panel-title">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
+                                </svg>
+                                Checklist de completitud
+                            </div>
+                            <div class="panel-body space-y-2 text-xs" id="check-list">
+                                <div class="check-item flex items-center gap-2" id="chk-nombre">
+                                    <span class="chk-icon w-4 h-4 rounded-full bg-gray-200 flex-shrink-0"></span>
+                                    <span>Nombre del apoyo</span>
+                                </div>
+                                <div class="check-item flex items-center gap-2" id="chk-tipo">
+                                    <span class="chk-icon w-4 h-4 rounded-full bg-green-400 flex-shrink-0"></span>
+                                    <span>Tipo de apoyo</span>
+                                </div>
+                                <div class="check-item flex items-center gap-2" id="chk-fechas">
+                                    <span class="chk-icon w-4 h-4 rounded-full bg-gray-200 flex-shrink-0"></span>
+                                    <span>Fechas de vigencia</span>
+                                </div>
+                                <div class="check-item flex items-center gap-2" id="chk-monto">
+                                    <span class="chk-icon w-4 h-4 rounded-full bg-gray-200 flex-shrink-0"></span>
+                                    <span id="chk-monto-lbl">Monto máximo</span>
+                                </div>
+                                <div class="check-item flex items-center gap-2" id="chk-cupo">
+                                    <span class="chk-icon w-4 h-4 rounded-full bg-gray-200 flex-shrink-0"></span>
+                                    <span>Cupo definido</span>
+                                </div>
+                                <div class="check-item flex items-center gap-2" id="chk-presupuesto">
+                                    <span class="chk-icon w-4 h-4 rounded-full bg-gray-200 flex-shrink-0"></span>
+                                    <span id="chk-presupuesto-lbl">Presupuesto asignado</span>
+                                </div>
                             </div>
                         </div>
 
@@ -923,10 +1002,71 @@ if ($isEditing) {
             const selectTipoApoyo = document.getElementById('tipo_apoyo');
             if (selectTipoApoyo) {
                 selectTipoApoyo.addEventListener('change', actualizarCalculoPresupuesto);
+                selectTipoApoyo.addEventListener('change', updateChecklist);
             }
 
             // Ejecutar cálculo inicial
             actualizarCalculoPresupuesto();
+
+            /* ── HELPERS ──────────────────────────────────────── */
+            function fmt(n) {
+                return '$' + parseFloat(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            function setChk(el, ok, na = false) {
+                const dot = el.querySelector('.chk-icon');
+                dot.className = 'chk-icon w-4 h-4 rounded-full flex-shrink-0 ' +
+                    (na ? 'bg-gray-200' : ok ? 'bg-green-400' : 'bg-red-400');
+            }
+
+            /* ── CHECKLIST / VALIDACIÓN ──────────────────────────── */
+            function updateChecklist() {
+                const tipo   = (document.getElementById('tipo_apoyo')?.value || 'Económico');
+                const isEco  = tipo === 'Económico';
+                const nombre = document.getElementById('nombre_apoyo')?.value.trim() || '';
+                const inicio = document.getElementById('fechaInicio')?.value || '';
+                const fin    = document.getElementById('fechafin')?.value || '';
+                const monto  = parseFloat(document.getElementById('monto_maximo')?.value) || 0;
+                const cupo   = parseInt(document.getElementById('cupo_limite')?.value, 10);
+                const presup = isEco ? (parseFloat(document.getElementById('monto_inicial_asignado')?.value) || 0)
+                                     : (parseInt(document.getElementById('stock_inicial')?.value, 10) || 0);
+
+                // Get checklist elements
+                const chkNombre = document.getElementById('chk-nombre');
+                const chkFechas = document.getElementById('chk-fechas');
+                const chkMonto  = document.getElementById('chk-monto');
+                const chkCupo   = document.getElementById('chk-cupo');
+                const chkPresupuesto = document.getElementById('chk-presupuesto');
+
+                // Update labels dinámicamente
+                const lblMonto = document.getElementById('chk-monto-lbl');
+                if (lblMonto) lblMonto.textContent = isEco ? 'Monto máximo' : 'Precio unitario';
+                const lblPresupuesto = document.getElementById('chk-presupuesto-lbl');
+                if (lblPresupuesto) lblPresupuesto.textContent = isEco ? 'Presupuesto asignado' : 'Stock inicial';
+
+                // Update checklist
+                setChk(chkNombre, nombre.length > 0);
+                setChk(chkFechas, inicio && fin && (new Date(fin) >= new Date(inicio)));
+                setChk(chkMonto,  isEco ? (monto > 0) : true, false);
+                setChk(chkCupo,   !isNaN(cupo) && cupo > 0);
+                setChk(chkPresupuesto, presup > 0);
+            }
+
+            // Event listeners para actualizar checklist
+            const updateChecklistFields = [
+                'nombre_apoyo', 'tipo_apoyo', 'fechaInicio', 'fechafin',
+                'monto_maximo', 'cupo_limite', 'monto_inicial_asignado', 'stock_inicial'
+            ];
+
+            updateChecklistFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.addEventListener('input', updateChecklist);
+                    field.addEventListener('change', updateChecklist);
+                }
+            });
+
+            // Ejecutar checklist inicial
+            updateChecklist();
 
         })(); // Cierre de IIFE
     </script>
@@ -1078,10 +1218,10 @@ if ($isEditing) {
                 if (documentos.length === 0) {
                     html = '<p class="text-xs text-gray-500 text-center py-4">Sin documentos configurados.</p>';
                 } else {
-                    html = '<div class="grid grid-cols-1 gap-2">';
+                    html = '<div class="space-y-2">';
                     documentos.forEach(doc => {
                         html += `
-                            <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition cursor-pointer">
+                            <div class="flex items-center gap-2 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition">
                                 <input type="checkbox" name="documentos_requeridos[]" value="${doc.id_tipo_doc}" class="w-4 h-4 accent-blue-700">
                                 <div class="flex-1 min-w-0">
                                     <div class="text-xs font-medium text-gray-800">${doc.nombre_documento}</div>
@@ -1090,12 +1230,162 @@ if ($isEditing) {
                                         ${doc.peso_maximo_mb ? `• Máx: ${doc.peso_maximo_mb} MB` : '• Sin límite de peso'}
                                     </div>
                                 </div>
-                            </label>
+                                <button type="button" class="btn-editar-doc px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition" data-doc-id="${doc.id_tipo_doc}" data-doc-name="${doc.nombre_documento}" data-doc-type="${doc.tipo_archivo_permitido || 'any'}" data-doc-validate="${doc.validar_tipo_archivo ? 1 : 0}" data-doc-peso="${doc.peso_maximo_mb || 5}">
+                                    Editar
+                                </button>
+                                <button type="button" class="btn-eliminar-doc px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition" data-doc-id="${doc.id_tipo_doc}" data-doc-name="${doc.nombre_documento}">
+                                    Eliminar
+                                </button>
+                            </div>
                         `;
                     });
                     html += '</div>';
                 }
                 listaDocumentos.innerHTML = html;
+
+                // Agregar event listeners a los botones
+                document.querySelectorAll('.btn-editar-doc').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const docId = btn.getAttribute('data-doc-id');
+                        const docName = btn.getAttribute('data-doc-name');
+                        const docType = btn.getAttribute('data-doc-type');
+                        const docValidate = btn.getAttribute('data-doc-validate') === '1';
+                        const docPeso = btn.getAttribute('data-doc-peso');
+                        
+                        // Llenar el modal de edición
+                        document.getElementById('editDocId').value = docId;
+                        document.getElementById('editDocName').textContent = docName;
+                        document.getElementById('editDocTipo').value = docType;
+                        document.getElementById('editDocValidar').checked = docValidate;
+                        document.getElementById('editDocPeso').value = docPeso;
+                        document.getElementById('modalEditarDocumento').style.display = 'block';
+                    });
+                });
+
+                document.querySelectorAll('.btn-eliminar-doc').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        e.preventDefault();
+                        const docId = btn.getAttribute('data-doc-id');
+                        const docName = btn.getAttribute('data-doc-name');
+                        
+                        if (confirm(`¿Estás seguro de que deseas eliminar el tipo de documento "${docName}"?`)) {
+                            try {
+                                const response = await fetch(`/apoyos/documentos/${docId}`, {
+                                    method: 'DELETE',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                                    }
+                                });
+
+                                if (!response.ok) {
+                                    const contentType = response.headers.get('content-type');
+                                    let errorMsg = `Error: ${response.status}`;
+                                    try {
+                                        const text = await response.text();
+                                        if (contentType && contentType.includes('application/json')) {
+                                            const errorData = JSON.parse(text);
+                                            errorMsg = errorData.message || errorMsg;
+                                        }
+                                    } catch (e) {}
+                                    mostrarMensaje(errorMsg, 'error');
+                                    return;
+                                }
+
+                                const data = await response.json();
+                                if (data.success) {
+                                    mostrarMensaje(`✅ "${docName}" eliminado correctamente`, 'success');
+                                    setTimeout(() => recargarDocumentos(), 800);
+                                } else {
+                                    mostrarMensaje(data.message || 'Error al eliminar', 'error');
+                                }
+                            } catch (error) {
+                                mostrarMensaje('Error: ' + error.message, 'error');
+                            }
+                        }
+                    });
+                });
+            }
+
+            // Event listeners para el modal de edición
+            const btnCancelarEdicion = document.getElementById('btn-cancelar-edicion');
+            const btnGuardarEdicion = document.getElementById('btn-guardar-edicion');
+            const msgEdicionDoc = document.getElementById('msg-edicion-doc');
+            
+            if (btnCancelarEdicion) {
+                btnCancelarEdicion.addEventListener('click', () => {
+                    document.getElementById('modalEditarDocumento').style.display = 'none';
+                });
+            }
+
+            if (btnGuardarEdicion) {
+                btnGuardarEdicion.addEventListener('click', async () => {
+                    const docId = document.getElementById('editDocId').value;
+                    const docTipo = document.getElementById('editDocTipo').value;
+                    const docPeso = parseInt(document.getElementById('editDocPeso').value) || 0;
+                    const docValidar = document.getElementById('editDocValidar').checked;
+
+                    // Validar campos
+                    if (!docId || !docTipo || docPeso < 1 || docPeso > 500) {
+                        if (msgEdicionDoc) msgEdicionDoc.textContent = '⚠️ Valores inválidos. Peso debe ser entre 1 y 500 MB';
+                        if (msgEdicionDoc) msgEdicionDoc.className = 'text-xs text-red-600 mt-2';
+                        return;
+                    }
+
+                    btnGuardarEdicion.disabled = true;
+                    btnGuardarEdicion.textContent = 'Guardando...';
+                    if (msgEdicionDoc) msgEdicionDoc.textContent = '';
+
+                    try {
+                        const response = await fetch(`/apoyos/documentos/${docId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                            },
+                            body: JSON.stringify({
+                                tipo_archivo_permitido: docTipo,
+                                peso_maximo_mb: docPeso,
+                                validar_tipo_archivo: docValidar ? 1 : 0
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const contentType = response.headers.get('content-type');
+                            let errorMsg = `Error: ${response.status}`;
+                            try {
+                                const text = await response.text();
+                                if (contentType && contentType.includes('application/json')) {
+                                    const errorData = JSON.parse(text);
+                                    errorMsg = errorData.message || errorMsg;
+                                }
+                            } catch (e) {}
+                            if (msgEdicionDoc) msgEdicionDoc.textContent = `❌ ${errorMsg}`;
+                            if (msgEdicionDoc) msgEdicionDoc.className = 'text-xs text-red-600 mt-2';
+                            return;
+                        }
+
+                        const data = await response.json();
+                        if (data.success) {
+                            if (msgEdicionDoc) msgEdicionDoc.textContent = '✅ Documento actualizado correctamente';
+                            if (msgEdicionDoc) msgEdicionDoc.className = 'text-xs text-green-600 mt-2';
+                            setTimeout(() => {
+                                document.getElementById('modalEditarDocumento').style.display = 'none';
+                                recargarDocumentos();
+                            }, 1200);
+                        } else {
+                            if (msgEdicionDoc) msgEdicionDoc.textContent = `❌ ${data.message || 'Error al actualizar'}`;
+                            if (msgEdicionDoc) msgEdicionDoc.className = 'text-xs text-red-600 mt-2';
+                        }
+                    } catch (error) {
+                        if (msgEdicionDoc) msgEdicionDoc.textContent = `❌ Error: ${error.message}`;
+                        if (msgEdicionDoc) msgEdicionDoc.className = 'text-xs text-red-600 mt-2';
+                    } finally {
+                        btnGuardarEdicion.disabled = false;
+                        btnGuardarEdicion.textContent = 'Guardar cambios';
+                    }
+                });
             }
 
             // Mostrar mensajes

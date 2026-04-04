@@ -75,6 +75,36 @@ class ApoyoController extends Controller
         return trim($clean);
     }
 
+    /**
+     * Auto-sincroniza fechas de vigencia con hitos base (inicio_publicacion y proceso_cerrado)
+     * para evitar duplicidad visual pero mantener integridad de datos en BD.
+     */
+    private function syncVigenciaDatesToBaseMilestones(array &$milestones, string $fechaInicio, string $fechaFin): void
+    {
+        // Buscar y actualizar los hitos base
+        foreach ($milestones as &$milestone) {
+            if (empty($milestone['es_base']) || empty($milestone['slug'])) {
+                continue;
+            }
+
+            $slug = trim($milestone['slug']);
+
+            // Sincronizar inicio_publicacion con fecha_inicio del apoyo
+            if ($slug === 'inicio_publicacion') {
+                $milestone['fecha_inicio'] = $fechaInicio;
+                // Sin fecha_fin para este hito puntual
+                unset($milestone['fecha_fin']);
+            }
+
+            // Sincronizar proceso_cerrado con fecha_fin del apoyo
+            if ($slug === 'proceso_cerrado') {
+                $milestone['fecha_inicio'] = $fechaFin;
+                // Sin fecha_fin para este hito puntual
+                unset($milestone['fecha_fin']);
+            }
+        }
+    }
+
     private function syncApoyoMilestones(int $apoyoId, array $milestones): void
     {
         if (! Schema::hasTable('Hitos_Apoyo')) {
@@ -680,7 +710,50 @@ class ApoyoController extends Controller
     }
 
     /**
-     * Obtiene la lista de todos los tipos de documentos disponibles.
+     * Elimina un tipo de documento
+     * DELETE /apoyos/documentos/{id}
+     */
+    public function deleteTipoDocumento(Request $request, int $id)
+    {
+        // For AJAX requests, ensure we have manager access
+        $user = Auth::user()?->loadMissing('personal');
+        $isManager = $user && $user->personal && in_array((int) $user->personal->fk_rol, [1, 2], true);
+
+        if (!$isManager) {
+            $message = 'No cuentas con permisos para gestionar documentos.';
+            
+            // Return JSON for AJAX requests
+            if ($request->expectsJson() || $request->is('api/*') || $request->header('Accept') === 'application/json') {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                ], 403);
+            }
+            
+            // Return HTML error for regular requests
+            abort(403, $message);
+        }
+
+        $doc = DB::table('Cat_TiposDocumento')->where('id_tipo_doc', $id)->first();
+        if (!$doc) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se encontró el tipo de documento.',
+            ], 404);
+        }
+
+        // Delete the document type
+        DB::table('Cat_TiposDocumento')->where('id_tipo_doc', $id)->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tipo de documento eliminado correctamente.',
+            'deleted_id' => $id,
+        ]);
+    }
+
+    /**
+     * Obtiene la lista de todos los tipos de documentos disponibles
      * GET /apoyos/documentos
      */
     public function getTiposDocumento()
@@ -969,7 +1042,15 @@ class ApoyoController extends Controller
                 }
             }
 
-            $this->syncApoyoMilestones((int) $apoyo->id_apoyo, $data['hitos'] ?? []);
+            // Auto-sincronizar fechas de vigencia con hitos base (invisible para usuario)
+            $hitosProcessed = $data['hitos'] ?? [];
+            $this->syncVigenciaDatesToBaseMilestones(
+                $hitosProcessed,
+                $fechaInicio->toDateString(),
+                $fechaFin->toDateString()
+            );
+
+            $this->syncApoyoMilestones((int) $apoyo->id_apoyo, $hitosProcessed);
 
             DB::commit();
 
@@ -1077,14 +1158,17 @@ $categoriasPresupuesto = PresupuestoCategoria::select('id_categoria', 'nombre', 
         DB::beginTransaction();
 
         try {
+            $fechaInicio = Carbon::parse($data['fechaInicio']);
+            $fechaFin = Carbon::parse($data['fechafin']);
+
             $payload = [
                 'nombre_apoyo' => $data['nombre_apoyo'],
                 'tipo_apoyo' => $data['tipo_apoyo'],
                 'monto_maximo' => $data['monto_maximo'] ?? ($data['monto_inicial_asignado'] ?? 0),
                 'cupo_limite' => $data['cupo_limite'] ?? null,
                 'activo' => filter_var($request->input('activo'), FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
-                'fecha_inicio' => Carbon::parse($data['fechaInicio']),
-                'fecha_fin' => Carbon::parse($data['fechafin']),
+                'fecha_inicio' => $fechaInicio,
+                'fecha_fin' => $fechaFin,
             ];
 
             if ($request->hasFile('foto_ruta')) {
@@ -1142,7 +1226,15 @@ $categoriasPresupuesto = PresupuestoCategoria::select('id_categoria', 'nombre', 
                 }
             }
 
-            $this->syncApoyoMilestones((int) $id, $data['hitos'] ?? []);
+            // Auto-sincronizar fechas de vigencia con hitos base (invisible para usuario)
+            $hitosProcessed = $data['hitos'] ?? [];
+            $this->syncVigenciaDatesToBaseMilestones(
+                $hitosProcessed,
+                $fechaInicio->toDateString(),
+                $fechaFin->toDateString()
+            );
+
+            $this->syncApoyoMilestones((int) $id, $hitosProcessed);
 
             DB::commit();
 
