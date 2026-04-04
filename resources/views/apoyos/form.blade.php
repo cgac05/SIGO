@@ -365,7 +365,7 @@ if ($isEditing) {
                                             </div>
                                         </div>
 
-                                        <div id="div-monto-inicial">
+                                        <div id="div-monto-inicial" class="hidden">
                                             <label class="field-label" for="monto_inicial_asignado">Monto reservado (automático) <span class="req">*</span></label>
                                             <div class="prefix-wrap">
                                                 <span class="prefix">$</span>
