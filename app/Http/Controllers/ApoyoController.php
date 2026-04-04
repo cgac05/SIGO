@@ -651,7 +651,7 @@ class ApoyoController extends Controller
      */
     public function getTiposDocumento()
     {
-        $this->ensureManagerAccess();
+        // No requiere autenticación - es una lista pública de tipos de documentos
 
         $query = DB::table('Cat_TiposDocumento')
             ->select('id_tipo_doc', 'nombre_documento', 'tipo_archivo_permitido', 'validar_tipo_archivo');

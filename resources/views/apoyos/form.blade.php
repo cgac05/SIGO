@@ -1016,12 +1016,24 @@ if ($isEditing) {
                         }
                     });
 
+                    if (!response.ok) {
+                        throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+                    }
+
                     const data = await response.json();
-                    if (data.success && data.datos) {
+                    
+                    if (data.success && data.datos && Array.isArray(data.datos)) {
                         actualizarListaDocumentos(data.datos);
+                    } else if (data.datos && Array.isArray(data.datos)) {
+                        // Si viene datos pero sin success flag, igual lo procesamos
+                        actualizarListaDocumentos(data.datos);
+                    } else {
+                        console.warn('Unexpected response format:', data);
+                        listaDocumentos.innerHTML = '<p class="text-xs text-red-500 text-center py-4">Error al cargar documentos. Respuesta inesperada.</p>';
                     }
                 } catch (error) {
-                    console.error('Error reloading documents:', error);
+                    console.error('Error loading documents:', error);
+                    listaDocumentos.innerHTML = `<p class="text-xs text-red-500 text-center py-4">Error: ${error.message}</p>`;
                 }
             }
 
