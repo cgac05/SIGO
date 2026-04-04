@@ -522,7 +522,7 @@ class ApoyoController extends Controller
         // Load categories and milestones, but fetch documents via AJAX later
         $milestonesBase = $this->getBaseMilestonesTemplate();
         $categorias = PresupuestoCategoria::select('id_categoria', 'nombre', 'disponible')
-            ->where('estado', 'ABIERTO')
+            ->where('activo', true)
             ->limit(100)
             ->get();
 
