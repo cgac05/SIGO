@@ -126,9 +126,9 @@ if ($isEditing) {
                 .prefix-wrap {
                     position: relative;
                     display: flex;
-                    font-size: .85rem; font-weight: 600; color: #6b7280; pointer-events: none;
+                    font-size: .85rem; font-weight: 600; color: #6b7280;
                 }
-                .prefix { position: absolute; left: .75rem; top: 50%; transform: translateY(-50%); }
+                .prefix { position: absolute; left: .75rem; top: 50%; transform: translateY(-50%); pointer-events: none; }
                 .prefix-wrap .field-input { padding-left: 1.75rem; }
                 .submit-bar {
                     position: fixed; bottom: 0; left: 0; right: 0;
