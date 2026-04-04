@@ -259,13 +259,13 @@ if ($isEditing) {
                                             <label class="field-label" for="monto_maximo">Monto máximo por beneficiario <span class="req">*</span></label>
                                             <div class="prefix-wrap">
                                                 <span class="prefix">$</span>
-                                                <input id="monto_maximo" name="monto_maximo" type="text" inputmode="decimal" class="field-input" placeholder="0.00" value="{{ old('monto_maximo', $apoyo->monto_maximo ?? 0) }}">
+                                                <input id="monto_maximo" name="monto_maximo" type="number" step="0.01" min="0" class="field-input" placeholder="0.00" value="{{ old('monto_maximo', $apoyo->monto_maximo ?? 0) }}">
                                             </div>
                                         </div>
 
                                         <div>
                                             <label class="field-label" for="cupo_limite">Cupo máximo de beneficiarios <span class="req">*</span></label>
-                                            <input id="cupo_limite" name="cupo_limite" type="text" inputmode="numeric" class="field-input" value="{{ old('cupo_limite', $apoyo->cupo_limite ?? 1) }}">
+                                            <input id="cupo_limite" name="cupo_limite" type="number" min="1" step="1" class="field-input" value="{{ old('cupo_limite', $apoyo->cupo_limite ?? 1) }}">
                                         </div>
                                     </div>
                                 </div>
@@ -840,51 +840,25 @@ if ($isEditing) {
                 inputMontoMaximo.addEventListener('blur', function() {
                     if (this.value) {
                         const numValue = parseFloat(this.value);
-                        if (!isNaN(numValue)) {
+                        if (!isNaN(numValue) && numValue >= 0) {
                             this.value = numValue.toFixed(2);
                         } else {
                             this.value = '0.00';
                         }
                     }
                 });
-
-                inputMontoMaximo.addEventListener('input', function() {
-                    // Remover leading zeros excepto el primer dígito antes del decimal
-                    let val = this.value.replace(/[^0-9.]/g, '');
-                    if (val.indexOf('.') > 0) {
-                        // Si hay decimal, mantener formato
-                        const parts = val.split('.');
-                        if (parts[0] === '') parts[0] = '0';
-                        else parts[0] = String(parseInt(parts[0]));
-                        val = parts.join('.');
-                    } else if (val !== '') {
-                        // Sin decimal, remover leading zeros pero mantener al menos 1 dígito
-                        val = String(parseInt(val) || 0);
-                    }
-                    this.value = val;
-                });
             }
 
             if (inputCupoLimite) {
                 inputCupoLimite.addEventListener('blur', function() {
                     if (this.value) {
-                        const numValue = parseInt(this.value);
+                        const numValue = parseInt(this.value, 10);
                         if (!isNaN(numValue) && numValue > 0) {
                             this.value = numValue;
                         } else {
                             this.value = '1';
                         }
                     }
-                });
-
-                inputCupoLimite.addEventListener('input', function() {
-                    // Solo números, remover leading zeros
-                    let val = this.value.replace(/[^0-9]/g, '');
-                    if (val !== '') {
-                        val = String(parseInt(val) || 0);
-                        if (val === '0') val = '1'; // Mínimo 1
-                    }
-                    this.value = val;
                 });
             }
 
