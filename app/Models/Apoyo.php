@@ -45,6 +45,8 @@ class Apoyo extends Model
         'activo' => 'boolean',
         'sincronizar_calendario' => 'boolean',
         'recordatorio_dias' => 'integer',
+        'monto_maximo' => 'float',
+        'cupo_limite' => 'integer',
         'fecha_inicio' => 'datetime',
         'fecha_fin' => 'datetime',
     ];

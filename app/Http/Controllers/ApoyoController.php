@@ -768,10 +768,10 @@ class ApoyoController extends Controller
         $data = $request->validate([
             'nombre_apoyo' => 'required|string|max:100',
             'tipo_apoyo' => 'required|in:Económico,Especie',
-            'monto_maximo' => 'required|numeric|min:0',
-            'cupo_limite' => 'required|integer|min:1',
+            'monto_maximo' => 'required|numeric|min:0|max:999999999.99',
+            'cupo_limite' => 'required|integer|min:1|max:1000000',
             'descripcion' => 'required|string',
-            'monto_inicial_asignado' => 'nullable|required_if:tipo_apoyo,Económico|numeric|min:0',
+            'monto_inicial_asignado' => 'nullable|required_if:tipo_apoyo,Económico|numeric|min:0|max:999999999999.99',
             'stock_inicial' => 'nullable|required_if:tipo_apoyo,Especie|integer|min:0',
             'id_categoria' => 'nullable|required_if:tipo_apoyo,Económico|integer|exists:presupuesto_categorias,id_categoria',
             'unidad_medida' => 'nullable|string|max:30',
