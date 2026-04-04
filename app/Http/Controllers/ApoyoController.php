@@ -768,7 +768,8 @@ class ApoyoController extends Controller
         $data = $request->validate([
             'nombre_apoyo' => 'required|string|max:100',
             'tipo_apoyo' => 'required|in:Económico,Especie',
-            'monto_maximo' => 'nullable|numeric|min:0',
+            'monto_maximo' => 'required|numeric|min:0',
+            'cupo_limite' => 'required|integer|min:1',
             'descripcion' => 'required|string',
             'monto_inicial_asignado' => 'nullable|required_if:tipo_apoyo,Económico|numeric|min:0',
             'stock_inicial' => 'nullable|required_if:tipo_apoyo,Especie|integer|min:0',
@@ -792,15 +793,21 @@ class ApoyoController extends Controller
 
         // Validar presupuesto disponible si es económico
         if ($data['tipo_apoyo'] === 'Económico' && $data['id_categoria']) {
+            // Calcular total: monto_máximo × cupo_límite
+            $totalNecesario = ($data['monto_maximo'] ?? 0) * ($data['cupo_limite'] ?? 1);
+            
             $inventarioService = new GestionInventarioService();
             $validacion = $inventarioService->validarPresupuestoDisponible(
                 $data['id_categoria'],
-                $data['monto_inicial_asignado'] ?? 0
+                $totalNecesario
             );
             if (!$validacion['valido']) {
                 return response()->json([
                     'success' => false,
-                    'message' => $validacion['razon'],
+                    'message' => "Presupuesto insuficiente. Necesita: $" . 
+                                number_format($totalNecesario, 2) . 
+                                " pero disponible es: $" . 
+                                number_format($validacion['disponible'] ?? 0, 2),
                 ], 422);
             }
         }
@@ -848,20 +855,22 @@ class ApoyoController extends Controller
 
             if ($data['tipo_apoyo'] === 'Económico') {
                 // Crear registro en BD_Finanzas
+                $montoAsignado = $data['monto_inicial_asignado'] ?? 0;
                 DB::table('BD_Finanzas')->insert([
                     'fk_id_apoyo' => $apoyo->id_apoyo,
-                    'monto_asignado' => $data['monto_inicial_asignado'] ?? 0,
+                    'monto_asignado' => $montoAsignado,
                     'monto_ejercido' => 0,
                 ]);
 
-                // Reservar presupuesto en la categoría
+                // Reservar presupuesto en la categoría (total: monto_máximo × cupo_límite)
                 if ($data['id_categoria']) {
+                    $totalAReservar = ($data['monto_maximo'] ?? 0) * ($data['cupo_limite'] ?? 1);
                     $inventarioService = new GestionInventarioService();
                     try {
                         $inventarioService->reservarPresupuestoApoyo(
                             $apoyo->id_apoyo,
                             $data['id_categoria'],
-                            $data['monto_inicial_asignado'] ?? 0,
+                            $totalAReservar,
                             Auth::user()->id_usuario ?? Auth::id()
                         );
                     } catch (\Exception $e) {

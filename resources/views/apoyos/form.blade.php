@@ -297,13 +297,81 @@ if ($isEditing) {
                                             <small class="text-gray-500" id="presupuesto-info">Selecciona una categoría para ver presupuesto disponible</small>
                                         </div>
 
-                                        <div>
-                                            <label class="field-label" for="monto_inicial_asignado">Monto asignado a este apoyo <span class="req">*</span></label>
+                                        {{-- SECCIÓN: Presupuesto Real (Cálculo Automático) --}}
+                                        <div id="presupuesto-real-section" class="hidden bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-300 rounded-lg p-4 space-y-4">
+                                            <div class="flex items-center gap-2 mb-3">
+                                                <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+                                                </svg>
+                                                <h4 class="font-bold text-blue-900">Cálculo de Presupuesto Real</h4>
+                                            </div>
+
+                                            {{-- Fila 1: Presupuesto Disponible --}}
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div class="bg-white rounded p-3 border border-blue-200">
+                                                    <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Presupuesto Disponible</p>
+                                                    <p class="text-2xl font-bold text-blue-600 mt-1">$<span id="txt-presupuesto-disponible">0.00</span></p>
+                                                    <p class="text-xs text-gray-500 mt-1">De categoría seleccionada</p>
+                                                </div>
+
+                                                <div class="bg-white rounded p-3 border border-orange-200">
+                                                    <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Monto por Beneficiario</p>
+                                                    <p class="text-2xl font-bold text-orange-600 mt-1">$<span id="txt-monto-beneficiario">0.00</span></p>
+                                                    <p class="text-xs text-gray-500 mt-1">Del campo monto máximo</p>
+                                                </div>
+                                            </div>
+
+                                            {{-- Fila 2: Cantidad Beneficiarios --}}
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div class="bg-white rounded p-3 border border-green-200">
+                                                    <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Cantidad Máx. Beneficiarios</p>
+                                                    <p class="text-2xl font-bold text-green-600 mt-1"><span id="txt-cantidad-beneficiarios">0</span></p>
+                                                    <p class="text-xs text-gray-500 mt-1">Del cupo límite</p>
+                                                </div>
+
+                                                <div class="bg-white rounded p-3 border-2 border-purple-400">
+                                                    <p class="text-xs font-semibold text-gray-700 uppercase tracking-wide">💰 TOTAL NECESARIO</p>
+                                                    <p class="text-3xl font-bold text-purple-600 mt-1">$<span id="txt-total-calculado">0.00</span></p>
+                                                    <p class="text-xs text-gray-600 mt-1">Monto × Cantidad</p>
+                                                </div>
+                                            </div>
+
+                                            {{-- Fila 3: Validación --}}
+                                            <div id="div-validacion-presupuesto" class="bg-white rounded p-3 border-2 border-yellow-300 hidden">
+                                                <div class="flex items-start gap-3">
+                                                    <svg class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                                    </svg>
+                                                    <div>
+                                                        <p class="font-semibold text-yellow-800">⚠️ Presupuesto Insuficiente</p>
+                                                        <p class="text-sm text-yellow-700 mt-1">El total necesario excede el presupuesto disponible en categoría.</p>
+                                                        <p class="text-xs text-yellow-600 mt-2">Faltante: <span class="font-bold">$<span id="txt-presupuesto-faltante">0.00</span></span></p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {{-- Fila 4: Resumen Disponible después de asignar --}}
+                                            <div id="div-resumen-final" class="bg-white rounded p-3 border-2 border-green-300 hidden">
+                                                <div class="flex items-start gap-3">
+                                                    <svg class="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                                    </svg>
+                                                    <div>
+                                                        <p class="font-semibold text-green-800">✅ Presupuesto Suficiente</p>
+                                                        <p class="text-sm text-green-700 mt-1">Presupuesto disponible después de esta asignación:</p>
+                                                        <p class="text-lg font-bold text-green-600 mt-2">$<span id="txt-presupuesto-restante">0.00</span></p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div id="div-monto-inicial">
+                                            <label class="field-label" for="monto_inicial_asignado">Monto reservado (automático) <span class="req">*</span></label>
                                             <div class="prefix-wrap">
                                                 <span class="prefix">$</span>
-                                                <input id="monto_inicial_asignado" name="monto_inicial_asignado" type="number" class="field-input" step="0.01" min="0" value="{{ old('monto_inicial_asignado', $montoInicialAsignado ?? 0) }}">
+                                                <input id="monto_inicial_asignado" name="monto_inicial_asignado" type="number" class="field-input bg-gray-100 border-gray-300 cursor-not-allowed" step="0.01" min="0" readonly value="{{ old('monto_inicial_asignado', 0) }}">
                                             </div>
-                                            <small class="text-gray-500">Se realizará validación de presupuesto disponible al guardar</small>
+                                            <small class="text-gray-500">Se calcula como: Monto máximo × Cantidad máxima beneficiarios</small>
                                         </div>
                                     </div>
 
@@ -623,6 +691,106 @@ if ($isEditing) {
                 e.target.closest('[data-remove-hito]').parentElement.remove();
             }
         });
-    </script>
+
+        // ===== CÁLCULO AUTOMÁTICO DE PRESUPUESTO REAL =====
+        const selectCategoria = document.getElementById('id_categoria');
+        const inputMontoMaximo = document.getElementById('monto_maximo');
+        const inputCupoLimite = document.getElementById('cupo_limite');
+        const inputMontoInicial = document.getElementById('monto_inicial_asignado');
+        const sectionPresupuestoReal = document.getElementById('presupuesto-real-section');
+        const divMontoInicial = document.getElementById('div-monto-inicial');
+        
+        const txtPresupuestoDisponible = document.getElementById('txt-presupuesto-disponible');
+        const txtMontoTotal = document.getElementById('txt-total-calculado');
+        const txtMontoBeneficiario = document.getElementById('txt-monto-beneficiario');
+        const txtCantidadBeneficiarios = document.getElementById('txt-cantidad-beneficiarios');
+        const divValidacionPresupuesto = document.getElementById('div-validacion-presupuesto');
+        const divResumenFinal = document.getElementById('div-resumen-final');
+        const txtPresupuestoFaltante = document.getElementById('txt-presupuesto-faltante');
+        const txtPresupuestoRestante = document.getElementById('txt-presupuesto-restante');
+
+        function actualizarCalculoPresupuesto() {
+            const tipoApoyo = document.getElementById('tipo_apoyo')?.value || 'Económico';
+            
+            // Solo mostrar en modo Económico
+            if (tipoApoyo !== 'Económico') {
+                sectionPresupuestoReal.classList.add('hidden');
+                divMontoInicial.classList.add('hidden');
+                return;
+            }
+
+            const selectedOption = selectCategoria.options[selectCategoria.selectedIndex];
+            const presupuestoDisponible = parseFloat(selectedOption.dataset.disponible) || 0;
+            const montoMaximo = parseFloat(inputMontoMaximo.value) || 0;
+            const cupoLimite = parseFloat(inputCupoLimite.value) || 1;
+            const totalCalculado = montoMaximo * cupoLimite;
+
+            // Actualizar campo monto_inicial_asignado automáticamente
+            inputMontoInicial.value = totalCalculado.toFixed(2);
+
+            // Actualizar valores mostrados
+            txtPresupuestoDisponible.textContent = presupuestoDisponible.toFixed(2);
+            txtMontoBeneficiario.textContent = montoMaximo.toFixed(2);
+            txtCantidadBeneficiarios.textContent = Math.floor(cupoLimite);
+            txtMontoTotal.textContent = totalCalculado.toFixed(2);
+
+            // Mostrar sección si hay categoría seleccionada
+            if (selectedOption.value) {
+                sectionPresupuestoReal.classList.remove('hidden');
+                divMontoInicial.classList.remove('hidden');
+            } else {
+                sectionPresupuestoReal.classList.add('hidden');
+                divMontoInicial.classList.add('hidden');
+                divValidacionPresupuesto.classList.add('hidden');
+                divResumenFinal.classList.add('hidden');
+                return;
+            }
+
+            // Validar presupuesto
+            if (totalCalculado > presupuestoDisponible) {
+                // Mostrar alerta
+                divValidacionPresupuesto.classList.remove('hidden');
+                divResumenFinal.classList.add('hidden');
+                const faltante = totalCalculado - presupuestoDisponible;
+                txtPresupuestoFaltante.textContent = faltante.toFixed(2);
+                
+                // Marcar input como inválido
+                inputMontoMaximo.classList.add('border-red-500', 'bg-red-50');
+                inputCupoLimite.classList.add('border-red-500', 'bg-red-50');
+            } else if (totalCalculado > 0) {
+                // Mostrar resumen válido
+                divValidacionPresupuesto.classList.add('hidden');
+                divResumenFinal.classList.remove('hidden');
+                const restante = presupuestoDisponible - totalCalculado;
+                txtPresupuestoRestante.textContent = restante.toFixed(2);
+                
+                // Quitar marcado de inválido
+                inputMontoMaximo.classList.remove('border-red-500', 'bg-red-50');
+                inputCupoLimite.classList.remove('border-red-500', 'bg-red-50');
+            } else {
+                // Total es cero
+                divValidacionPresupuesto.classList.add('hidden');
+                divResumenFinal.classList.add('hidden');
+                inputMontoMaximo.classList.remove('border-red-500', 'bg-red-50');
+                inputCupoLimite.classList.remove('border-red-500', 'bg-red-50');
+            }
+        }
+
+        // Event listeners para actualizar cálculo
+        selectCategoria.addEventListener('change', actualizarCalculoPresupuesto);
+        inputMontoMaximo.addEventListener('input', actualizarCalculoPresupuesto);
+        inputMontoMaximo.addEventListener('change', actualizarCalculoPresupuesto);
+        inputCupoLimite.addEventListener('input', actualizarCalculoPresupuesto);
+        inputCupoLimite.addEventListener('change', actualizarCalculoPresupuesto);
+
+        // Event listener para tipo_apoyo para ocultar sección en Especie
+        const selectTipoApoyo = document.getElementById('tipo_apoyo');
+        if (selectTipoApoyo) {
+            selectTipoApoyo.addEventListener('change', actualizarCalculoPresupuesto);
+        }
+
+        // Ejecutar cálculo inicial al cargar
+        actualizarCalculoPresupuesto();
+
 </body>
 </html>
