@@ -996,7 +996,7 @@ if ($isEditing) {
                 btnGuardarDocumento.textContent = 'Guardando...';
 
                 try {
-                    const response = await fetch('{{ route("apoyos.documentos.store") }}', {
+                    const response = await fetch('/apoyos/documentos', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -1032,7 +1032,7 @@ if ($isEditing) {
             // Recargar lista de documentos
             async function recargarDocumentos() {
                 try {
-                    const response = await fetch('{{ route("apoyos.documentos.index") }}', {
+                    const response = await fetch('/apoyos/documentos', {
                         headers: {
                             'Accept': 'application/json'
                         }
