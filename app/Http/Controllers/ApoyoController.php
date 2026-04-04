@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Apoyo;
+use App\Models\PresupuestoCategoria;
+use App\Services\GestionInventarioService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -531,8 +533,9 @@ class ApoyoController extends Controller
 
         $tiposDocumentos = $query->get();
         $milestonesBase = $this->getBaseMilestonesTemplate();
+        $categorias = PresupuestoCategoria::select('id_categoria', 'nombre', 'disponible')->activas()->get();
 
-        return view('apoyos.create', compact('tiposDocumentos', 'milestonesBase'));
+        return view('apoyos.form', compact('tiposDocumentos', 'milestonesBase', 'categorias'));
     }
 
     /**
@@ -769,6 +772,9 @@ class ApoyoController extends Controller
             'descripcion' => 'required|string',
             'monto_inicial_asignado' => 'nullable|required_if:tipo_apoyo,Económico|numeric|min:0',
             'stock_inicial' => 'nullable|required_if:tipo_apoyo,Especie|integer|min:0',
+            'id_categoria' => 'nullable|required_if:tipo_apoyo,Económico|integer|exists:presupuesto_categorias,id_categoria',
+            'unidad_medida' => 'nullable|string|max:30',
+            'costo_unitario' => 'nullable|numeric|min:0',
             'activo' => 'nullable|boolean',
             'fechaInicio' => 'required|date',
             'fechafin' => 'required|date|after_or_equal:fechaInicio',
@@ -783,6 +789,21 @@ class ApoyoController extends Controller
             'hitos.*.es_base' => 'nullable|boolean',
             'hitos.*.incluir' => 'nullable|boolean',
         ]);
+
+        // Validar presupuesto disponible si es económico
+        if ($data['tipo_apoyo'] === 'Económico' && $data['id_categoria']) {
+            $inventarioService = new GestionInventarioService();
+            $validacion = $inventarioService->validarPresupuestoDisponible(
+                $data['id_categoria'],
+                $data['monto_inicial_asignado'] ?? 0
+            );
+            if (!$validacion['valido']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validacion['razon'],
+                ], 422);
+            }
+        }
 
         // Validar reglas específicas de hitos (períodos obligatorios, rangos, etc.)
         $this->validateMilestonesDateRanges($data['hitos'] ?? []);
@@ -812,6 +833,7 @@ class ApoyoController extends Controller
                 'activo' => filter_var($activoRaw, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
                 'fecha_inicio' => $fechaInicio,
                 'fecha_fin' => $fechaFin,
+                'id_categoria' => $data['id_categoria'] ?? null,
             ];
 
             if (Schema::hasColumn('Apoyos', 'foto_ruta')) {
@@ -825,16 +847,47 @@ class ApoyoController extends Controller
             $apoyo = Apoyo::create($payload);
 
             if ($data['tipo_apoyo'] === 'Económico') {
+                // Crear registro en BD_Finanzas
                 DB::table('BD_Finanzas')->insert([
                     'fk_id_apoyo' => $apoyo->id_apoyo,
                     'monto_asignado' => $data['monto_inicial_asignado'] ?? 0,
                     'monto_ejercido' => 0,
                 ]);
+
+                // Reservar presupuesto en la categoría
+                if ($data['id_categoria']) {
+                    $inventarioService = new GestionInventarioService();
+                    try {
+                        $inventarioService->reservarPresupuestoApoyo(
+                            $apoyo->id_apoyo,
+                            $data['id_categoria'],
+                            $data['monto_inicial_asignado'] ?? 0,
+                            Auth::user()->id_usuario ?? Auth::id()
+                        );
+                    } catch (\Exception $e) {
+                        \Log::warning("Error reservando presupuesto: " . $e->getMessage());
+                    }
+                }
             } else {
+                // Crear registro en BD_Inventario para apoyo de Especie
                 DB::table('BD_Inventario')->insert([
                     'fk_id_apoyo' => $apoyo->id_apoyo,
                     'stock_actual' => $data['stock_inicial'] ?? 0,
                 ]);
+
+                // Crear material en inventario_material si existe la tabla
+                if (Schema::hasTable('inventario_material')) {
+                    DB::table('inventario_material')->insert([
+                        'codigo_material' => 'MAT-' . $apoyo->id_apoyo,
+                        'nombre_material' => $data['nombre_apoyo'],
+                        'fk_id_apoyo' => $apoyo->id_apoyo,
+                        'unidad_medida' => $data['unidad_medida'] ?? 'pieza',
+                        'cantidad_actual' => $data['stock_inicial'] ?? 0,
+                        'cantidad_minima' => 0,
+                        'costo_unitario' => $data['costo_unitario'] ?? 0,
+                        'activo' => 1,
+                    ]);
+                }
             }
 
             if (! empty($data['documentos_requeridos'])) {
@@ -897,7 +950,9 @@ class ApoyoController extends Controller
                 ->where('activo', 1)
                 ->get();
         }
+$categorias = PresupuestoCategoria::select('id_categoria', 'nombre', 'disponible')->activas()->get();
 
+        return view('apoyos.form', compact('apoyo', 'tiposDocumentos', 'requisitosActuales', 'montoInicialAsignado', 'stockInicial', 'milestonesBase', 'existingMilestones', 'categoria
         return view('apoyos.edit', compact('apoyo', 'tiposDocumentos', 'requisitosActuales', 'montoInicialAsignado', 'stockInicial', 'milestonesBase', 'existingMilestones'));
     }
 
