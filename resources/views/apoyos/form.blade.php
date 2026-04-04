@@ -259,13 +259,13 @@ if ($isEditing) {
                                             <label class="field-label" for="monto_maximo">Monto máximo por beneficiario <span class="req">*</span></label>
                                             <div class="prefix-wrap">
                                                 <span class="prefix">$</span>
-                                                <input id="monto_maximo" name="monto_maximo" type="number" class="field-input" step="0.01" min="0" placeholder="0.00" value="{{ old('monto_maximo', $apoyo->monto_maximo ?? 0) }}">
+                                                <input id="monto_maximo" name="monto_maximo" type="text" inputmode="decimal" class="field-input" placeholder="0.00" value="{{ old('monto_maximo', $apoyo->monto_maximo ?? 0) }}">
                                             </div>
                                         </div>
 
                                         <div>
                                             <label class="field-label" for="cupo_limite">Cupo máximo de beneficiarios <span class="req">*</span></label>
-                                            <input id="cupo_limite" name="cupo_limite" type="number" class="field-input" min="1" step="1" value="{{ old('cupo_limite', $apoyo->cupo_limite ?? 1) }}">
+                                            <input id="cupo_limite" name="cupo_limite" type="text" inputmode="numeric" class="field-input" value="{{ old('cupo_limite', $apoyo->cupo_limite ?? 1) }}">
                                         </div>
                                     </div>
                                 </div>
@@ -585,6 +585,8 @@ if ($isEditing) {
     <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 
     <script>
+        console.log("✅ Script iniciado");
+        
         // Flatpickr initialization
         flatpickr('.flatpickr', {
             dateFormat: 'd/m/Y',
@@ -693,136 +695,174 @@ if ($isEditing) {
         });
 
         // ===== CÁLCULO AUTOMÁTICO DE PRESUPUESTO REAL =====
-        const selectCategoria = document.getElementById('id_categoria');
-        const inputMontoMaximo = document.getElementById('monto_maximo');
-        const inputCupoLimite = document.getElementById('cupo_limite');
-        const inputMontoInicial = document.getElementById('monto_inicial_asignado');
-        const sectionPresupuestoReal = document.getElementById('presupuesto-real-section');
-        const divMontoInicial = document.getElementById('div-monto-inicial');
-        
-        const txtPresupuestoDisponible = document.getElementById('txt-presupuesto-disponible');
-        const txtMontoTotal = document.getElementById('txt-total-calculado');
-        const txtMontoBeneficiario = document.getElementById('txt-monto-beneficiario');
-        const txtCantidadBeneficiarios = document.getElementById('txt-cantidad-beneficiarios');
-        const divValidacionPresupuesto = document.getElementById('div-validacion-presupuesto');
-        const divResumenFinal = document.getElementById('div-resumen-final');
-        const txtPresupuestoFaltante = document.getElementById('txt-presupuesto-faltante');
-        const txtPresupuestoRestante = document.getElementById('txt-presupuesto-restante');
-
-        // ===== FUNCIÓN PARA FORMATEAR DINERO CON COMAS =====
-        function formatCurrency(value) {
-            // Convertir a número
-            const num = parseFloat(value) || 0;
-            // Formato: 1,000,000.00
-            return num.toLocaleString('es-MX', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-        }
-
-        function actualizarCalculoPresupuesto() {
-            const tipoApoyo = document.getElementById('tipo_apoyo')?.value || 'Económico';
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ DOMContentLoaded triggered');
             
-            // Solo mostrar en modo Económico
-            if (tipoApoyo !== 'Económico') {
-                sectionPresupuestoReal.classList.add('hidden');
-                divMontoInicial.classList.add('hidden');
-                return;
+            const selectCategoria = document.getElementById('id_categoria');
+            const inputMontoMaximo = document.getElementById('monto_maximo');
+            const inputCupoLimite = document.getElementById('cupo_limite');
+            const inputMontoInicial = document.getElementById('monto_inicial_asignado');
+            const sectionPresupuestoReal = document.getElementById('presupuesto-real-section');
+            const divMontoInicial = document.getElementById('div-monto-inicial');
+            
+            const txtPresupuestoDisponible = document.getElementById('txt-presupuesto-disponible');
+            const txtMontoTotal = document.getElementById('txt-total-calculado');
+            const txtMontoBeneficiario = document.getElementById('txt-monto-beneficiario');
+            const txtCantidadBeneficiarios = document.getElementById('txt-cantidad-beneficiarios');
+            const divValidacionPresupuesto = document.getElementById('div-validacion-presupuesto');
+            const divResumenFinal = document.getElementById('div-resumen-final');
+            const txtPresupuestoFaltante = document.getElementById('txt-presupuesto-faltante');
+            const txtPresupuestoRestante = document.getElementById('txt-presupuesto-restante');
+
+            console.log('✅ All elements selected successfully');
+
+            // ===== FUNCIÓN PARA FORMATEAR DINERO CON COMAS =====
+            function formatCurrency(value) {
+                // Convertir a número
+                const num = parseFloat(value) || 0;
+                // Formato: 1,000,000.00
+                return num.toLocaleString('es-MX', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
             }
 
-            const selectedOption = selectCategoria.options[selectCategoria.selectedIndex];
-            const presupuestoDisponible = parseFloat(selectedOption.dataset.disponible) || 0;
-            const montoMaximo = parseFloat(inputMontoMaximo.value) || 0;
-            const cupoLimite = parseFloat(inputCupoLimite.value) || 1;
-            const totalCalculado = montoMaximo * cupoLimite;
-
-            // Actualizar campo monto_inicial_asignado automáticamente (valor crudo para guardar)
-            inputMontoInicial.value = totalCalculado.toFixed(2);
-
-            // Actualizar valores mostrados CON FORMATO DINERO
-            txtPresupuestoDisponible.textContent = formatCurrency(presupuestoDisponible);
-            txtMontoBeneficiario.textContent = formatCurrency(montoMaximo);
-            txtCantidadBeneficiarios.textContent = Math.floor(cupoLimite);
-            txtMontoTotal.textContent = formatCurrency(totalCalculado);
-
-            // Mostrar sección si hay categoría seleccionada
-            if (selectedOption.value) {
-                sectionPresupuestoReal.classList.remove('hidden');
-                divMontoInicial.classList.remove('hidden');
-            } else {
-                sectionPresupuestoReal.classList.add('hidden');
-                divMontoInicial.classList.add('hidden');
-                divValidacionPresupuesto.classList.add('hidden');
-                divResumenFinal.classList.add('hidden');
-                return;
-            }
-
-            // Validar presupuesto
-            if (totalCalculado > presupuestoDisponible) {
-                // Mostrar alerta
-                divValidacionPresupuesto.classList.remove('hidden');
-                divResumenFinal.classList.add('hidden');
-                const faltante = totalCalculado - presupuestoDisponible;
-                txtPresupuestoFaltante.textContent = formatCurrency(faltante);
+            function actualizarCalculoPresupuesto() {
+                const tipoApoyo = document.getElementById('tipo_apoyo')?.value || 'Económico';
                 
-                // Marcar input como inválido
-                inputMontoMaximo.classList.add('border-red-500', 'bg-red-50');
-                inputCupoLimite.classList.add('border-red-500', 'bg-red-50');
-            } else if (totalCalculado > 0) {
-                // Mostrar resumen válido
-                divValidacionPresupuesto.classList.add('hidden');
-                divResumenFinal.classList.remove('hidden');
-                const restante = presupuestoDisponible - totalCalculado;
-                txtPresupuestoRestante.textContent = formatCurrency(restante);
-                
-                // Quitar marcado de inválido
-                inputMontoMaximo.classList.remove('border-red-500', 'bg-red-50');
-                inputCupoLimite.classList.remove('border-red-500', 'bg-red-50');
-            } else {
-                // Total es cero
-                divValidacionPresupuesto.classList.add('hidden');
-                divResumenFinal.classList.add('hidden');
-                inputMontoMaximo.classList.remove('border-red-500', 'bg-red-50');
-                inputCupoLimite.classList.remove('border-red-500', 'bg-red-50');
+                // Solo mostrar en modo Económico
+                if (tipoApoyo !== 'Económico') {
+                    sectionPresupuestoReal.classList.add('hidden');
+                    divMontoInicial.classList.add('hidden');
+                    return;
+                }
+
+                const selectedOption = selectCategoria.options[selectCategoria.selectedIndex];
+                const presupuestoDisponible = parseFloat(selectedOption.dataset.disponible) || 0;
+                const montoMaximo = parseFloat(inputMontoMaximo.value) || 0;
+                const cupoLimite = parseFloat(inputCupoLimite.value) || 1;
+                const totalCalculado = montoMaximo * cupoLimite;
+
+                console.log('💰 Cálculo actualizado:', { montoMaximo, cupoLimite, totalCalculado, presupuestoDisponible });
+
+                // Actualizar campo monto_inicial_asignado automáticamente (valor crudo para guardar)
+                inputMontoInicial.value = totalCalculado.toFixed(2);
+
+                // Actualizar valores mostrados CON FORMATO DINERO
+                txtPresupuestoDisponible.textContent = formatCurrency(presupuestoDisponible);
+                txtMontoBeneficiario.textContent = formatCurrency(montoMaximo);
+                txtCantidadBeneficiarios.textContent = Math.floor(cupoLimite);
+                txtMontoTotal.textContent = formatCurrency(totalCalculado);
+
+                // Mostrar sección si hay categoría seleccionada
+                if (selectedOption.value) {
+                    sectionPresupuestoReal.classList.remove('hidden');
+                    divMontoInicial.classList.remove('hidden');
+                } else {
+                    sectionPresupuestoReal.classList.add('hidden');
+                    divMontoInicial.classList.add('hidden');
+                    divValidacionPresupuesto.classList.add('hidden');
+                    divResumenFinal.classList.add('hidden');
+                    return;
+                }
+
+                // Validar presupuesto
+                if (totalCalculado > presupuestoDisponible) {
+                    // Mostrar alerta
+                    divValidacionPresupuesto.classList.remove('hidden');
+                    divResumenFinal.classList.add('hidden');
+                    const faltante = totalCalculado - presupuestoDisponible;
+                    txtPresupuestoFaltante.textContent = formatCurrency(faltante);
+                    
+                    // Marcar input como inválido
+                    inputMontoMaximo.classList.add('border-red-500', 'bg-red-50');
+                    inputCupoLimite.classList.add('border-red-500', 'bg-red-50');
+                } else if (totalCalculado > 0) {
+                    // Mostrar resumen válido
+                    divValidacionPresupuesto.classList.add('hidden');
+                    divResumenFinal.classList.remove('hidden');
+                    const restante = presupuestoDisponible - totalCalculado;
+                    txtPresupuestoRestante.textContent = formatCurrency(restante);
+                    
+                    // Quitar marcado de inválido
+                    inputMontoMaximo.classList.remove('border-red-500', 'bg-red-50');
+                    inputCupoLimite.classList.remove('border-red-500', 'bg-red-50');
+                } else {
+                    // Total es cero
+                    divValidacionPresupuesto.classList.add('hidden');
+                    divResumenFinal.classList.add('hidden');
+                    inputMontoMaximo.classList.remove('border-red-500', 'bg-red-50');
+                    inputCupoLimite.classList.remove('border-red-500', 'bg-red-50');
+                }
             }
-        }
 
-        // Event listeners para actualizar cálculo
-        selectCategoria.addEventListener('change', actualizarCalculoPresupuesto);
-        inputMontoMaximo.addEventListener('input', actualizarCalculoPresupuesto);
-        inputMontoMaximo.addEventListener('change', actualizarCalculoPresupuesto);
-        inputCupoLimite.addEventListener('input', actualizarCalculoPresupuesto);
-        inputCupoLimite.addEventListener('change', actualizarCalculoPresupuesto);
+            // Event listeners para actualizar cálculo
+            selectCategoria.addEventListener('change', actualizarCalculoPresupuesto);
+            inputMontoMaximo.addEventListener('input', actualizarCalculoPresupuesto);
+            inputMontoMaximo.addEventListener('change', actualizarCalculoPresupuesto);
+            inputCupoLimite.addEventListener('input', actualizarCalculoPresupuesto);
+            inputCupoLimite.addEventListener('change', actualizarCalculoPresupuesto);
 
-        // Event listener para tipo_apoyo para ocultar sección en Especie
-        const selectTipoApoyo = document.getElementById('tipo_apoyo');
-        if (selectTipoApoyo) {
-            selectTipoApoyo.addEventListener('change', actualizarCalculoPresupuesto);
-        }
-
-        // Formatear inputs de dinero mientras se escriben
-        inputMontoMaximo.addEventListener('blur', function() {
-            if (this.value) {
-                this.value = parseFloat(this.value).toFixed(2);
+            // Event listener para tipo_apoyo para ocultar sección en Especie
+            const selectTipoApoyo = document.getElementById('tipo_apoyo');
+            if (selectTipoApoyo) {
+                selectTipoApoyo.addEventListener('change', actualizarCalculoPresupuesto);
             }
-        });
 
-        inputCupoLimite.addEventListener('blur', function() {
-            if (this.value) {
-                this.value = Math.floor(parseFloat(this.value));
-            }
-        });
+            // Formatear inputs de dinero mientras se escriben
+            inputMontoMaximo.addEventListener('blur', function() {
+                if (this.value) {
+                    const numValue = parseFloat(this.value);
+                    if (!isNaN(numValue)) {
+                        this.value = numValue.toFixed(2);
+                    } else {
+                        this.value = '0.00';
+                    }
+                }
+            });
 
-        // Ejecutar cálculo inicial al cargar (con pequeño delay para asegurar que DOM está listo)
-        setTimeout(function() {
-            console.log('Inicializando cálculo presupuesto...');
-            console.log('Tipo apoyo:', document.getElementById('tipo_apoyo')?.value);
-            console.log('Monto máximo:', inputMontoMaximo.value);
-            console.log('Cupo límite:', inputCupoLimite.value);
-            console.log('Categoría seleccionada:', selectCategoria.value);
+            inputMontoMaximo.addEventListener('input', function() {
+                // Remover leading zeros excepto el primer dígito antes del decimal
+                let val = this.value.replace(/[^0-9.]/g, '');
+                if (val.indexOf('.') > 0) {
+                    // Si hay decimal, mantener formato
+                    const parts = val.split('.');
+                    if (parts[0] === '') parts[0] = '0';
+                    else parts[0] = String(parseInt(parts[0]));
+                    val = parts.join('.');
+                } else if (val !== '') {
+                    // Sin decimal, remover leading zeros pero mantener al menos 1 dígito
+                    val = String(parseInt(val) || 0);
+                }
+                this.value = val;
+            });
+
+            inputCupoLimite.addEventListener('blur', function() {
+                if (this.value) {
+                    const numValue = parseInt(this.value);
+                    if (!isNaN(numValue) && numValue > 0) {
+                        this.value = numValue;
+                    } else {
+                        this.value = '1';
+                    }
+                }
+            });
+
+            inputCupoLimite.addEventListener('input', function() {
+                // Solo números, remover leading zeros
+                let val = this.value.replace(/[^0-9]/g, '');
+                if (val !== '') {
+                    val = String(parseInt(val) || 0);
+                    if (val === '0') val = '1'; // Mínimo 1
+                }
+                this.value = val;
+            });
+
+            // Ejecutar cálculo inicial al cargar
+            console.log('🚀 Ejecutando cálculo inicial');
             actualizarCalculoPresupuesto();
-            console.log('Cálculo inicial completado');
-        }, 100);
+            console.log('✅ Cálculo inicial completado');
+        });
 
 
 </body>
