@@ -835,9 +835,9 @@ if ($isEditing) {
                 selectTipoApoyo.addEventListener('change', actualizarCalculoPresupuesto);
             }
 
-            // Formatear inputs de dinero mientras se escriben
+            // Formatear inputs de dinero mientras se escriben (en tiempo real)
             if (inputMontoMaximo) {
-                inputMontoMaximo.addEventListener('blur', function() {
+                inputMontoMaximo.addEventListener('input', function() {
                     if (this.value) {
                         const numValue = parseFloat(this.value);
                         if (!isNaN(numValue) && numValue >= 0) {
@@ -850,7 +850,7 @@ if ($isEditing) {
             }
 
             if (inputCupoLimite) {
-                inputCupoLimite.addEventListener('blur', function() {
+                inputCupoLimite.addEventListener('input', function() {
                     if (this.value) {
                         const numValue = parseInt(this.value, 10);
                         if (!isNaN(numValue) && numValue > 0) {
