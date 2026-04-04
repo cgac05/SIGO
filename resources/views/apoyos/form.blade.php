@@ -560,30 +560,8 @@ if ($isEditing) {
                                 </div>
 
                                 {{-- Listado de documentos --}}
-                                <div id="lista-documentos">
-                                    @if(isset($tiposDocumentos) && $tiposDocumentos->count())
-                                        <div class="grid grid-cols-1 gap-2">
-                                            @foreach($tiposDocumentos as $td)
-                                                <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition cursor-pointer" data-doc-id="{{ $td->id_tipo_doc }}">
-                                                    <input type="checkbox" name="documentos_requeridos[]" value="{{ $td->id_tipo_doc }}" class="w-4 h-4 accent-blue-700"
-                                                        {{ in_array($td->id_tipo_doc, old('documentos_requeridos', $requisitosActuales ?? []), false) ? 'checked' : '' }}>
-                                                    <div class="flex-1 min-w-0">
-                                                        <div class="text-xs font-medium text-gray-800">{{ $td->nombre_documento }}</div>
-                                                        <div class="text-xs text-gray-500 mt-0.5">
-                                                            {{ ucfirst($td->tipo_archivo_permitido ?? 'Cualquier tipo') }} 
-                                                            @if($td->peso_maximo_mb ?? false)
-                                                                • Máx: {{ $td->peso_maximo_mb }} MB
-                                                            @else
-                                                                • Sin límite de peso
-                                                            @endif
-                                                        </div>
-                                                    </div>
-                                                </label>
-                                            @endforeach
-                                        </div>
-                                    @else
-                                        <p class="text-xs text-gray-500 text-center py-4">Sin documentos configurados. Crea uno nuevo para empezar.</p>
-                                    @endif
+                                <div id="lista-documentos" class="text-xs text-gray-500 text-center py-4">
+                                    <p>Cargando documentos...</p>
                                 </div>
                             </div>
                         </div>
@@ -1078,6 +1056,9 @@ if ($isEditing) {
                 msgNuevoDoc.textContent = texto;
                 msgNuevoDoc.className = `text-xs ${tipo === 'success' ? 'text-green-600' : 'text-red-600'}`;
             }
+
+            // Cargar documentos cuando la página se carga
+            recargarDocumentos();
         })();
     </script>
 

@@ -519,23 +519,15 @@ class ApoyoController extends Controller
     {
         $this->ensureManagerAccess();
 
-        $query = DB::table('Cat_TiposDocumento')
-            ->select('id_tipo_doc', 'nombre_documento')
-            ->orderBy('nombre_documento');
-
-        if (Schema::hasColumn('Cat_TiposDocumento', 'tipo_archivo_permitido')) {
-            $query->addSelect('tipo_archivo_permitido');
-        }
-
-        if (Schema::hasColumn('Cat_TiposDocumento', 'validar_tipo_archivo')) {
-            $query->addSelect('validar_tipo_archivo');
-        }
-
-        $tiposDocumentos = $query->get();
+        // Load categories and milestones, but fetch documents via AJAX later
         $milestonesBase = $this->getBaseMilestonesTemplate();
-        $categorias = PresupuestoCategoria::select('id_categoria', 'nombre', 'disponible')->activas()->get();
+        $categorias = PresupuestoCategoria::select('id_categoria', 'nombre', 'disponible')
+            ->where('estado', 'ABIERTO')
+            ->limit(100)
+            ->get();
 
-        return view('apoyos.form', compact('tiposDocumentos', 'milestonesBase', 'categorias'));
+        // Return view without processing types here - will be loaded via AJAX
+        return view('apoyos.form', compact('milestonesBase', 'categorias'));
     }
 
     /**
