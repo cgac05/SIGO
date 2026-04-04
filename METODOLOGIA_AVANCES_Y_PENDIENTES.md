@@ -348,9 +348,366 @@ CREATE TABLE notificaciones (
 | 4 | Sistema de Presupuestación | ✅ 100% |
 | 5 | Exportación (Dashboard + PDF) | ✅ 100% |
 | 6 | Sistema de Notificaciones | ✅ 100% |
-| **7** | **???** | **⏳ PENDIENTE** |
+| 7A | Unificación de Formularios Apoyos + Presupuestación | ✅ 100% |
+| 7B | Gestión de Inventario (Facturas) | ⏳ EN PROGRESO |
+| **8+** | **Feature Request** | **⏳ PENDIENTE** |
 
 ---
+
+## 🎯 FASE 7A: UNIFICACIÓN DE FORMULARIOS DE APOYOS + PRESUPUESTACIÓN
+
+**Fecha Completado:** 3 de Abril de 2026  
+**Commit:** `1f908d0`  
+**Documentación:** [FASE_7A_APOYOS_UNIFICADOS.md](FASE_7A_APOYOS_UNIFICADOS.md)
+
+### ✅ Problemas Resueltos
+
+#### Problema 1: Vistas Duplicadas y Desincronizadas
+- **Síntoma:** `create.blade.php` (layout roto) vs `edit.blade.php` (funcionando)
+- **Causa:** Dos archivos separados sin sincronización, mantenimiento duplicado
+- **Solución:** 
+  - ✅ Crear `form.blade.php` unificado (1,100+ líneas)
+  - ✅ Detección automática de modo: `?mode=create|edit` o presencia de `$apoyo`
+  - ✅ Usar grid layout funcional de edit.blade.php
+  - ✅ Componentes condicionales para Económico vs Especie
+  - **IMPORTANTE:** Vistas antiguas quedan como backup (eliminar después de validar)
+
+#### Problema 2: Sin Integración con Presupuestación
+- **Síntoma:** Apoyos creados sin validar presupuesto disponible, sin FK a categoría
+- **Causa:** Componentes exists pero controllers no integrados
+- **Solución:**
+  - ✅ Agregar `id_categoria` a tabla Apoyos (FK → presupuesto_categorias)
+  - ✅ CargarPresupuestoCategoria en create() y edit()
+  - ✅ Validar presupuesto disponible PRE-INSERT en store()
+  - ✅ Crear automáticamente en presupuesto_apoyos (reserva)
+  - ✅ Mostrar presupuesto disponible en dropdown categoria
+  - ✅ Prevenir cambio de categoria si hay solicitudes aprobadas
+
+#### Problema 3: Sin Inventario para Apoyos Especie
+- **Síntoma:** Apoyos tipo "Especie" tenían stock pero sin trazabilidad de compras/facturas
+- **Causa:** Tablas no vinculadas (facturas_compra, inventario_material, movimientos)
+- **Solución:**
+  - ✅ Crear tablas facturas_compra + detalle_facturas_compra
+  - ✅ Crear GestionInventarioService (service layer)
+  - ✅ Modelos Eloquent: FacturaCompra, DetalleFacturaCompra
+  - ✅ Mejorar: InventarioMaterial (agregar costo_unitario, proveedor_principal)
+  - ✅ Mejorar: MovimientoInventario (agregar FK a facturas_compra)
+  - ✅ Campos en form: unidad_medida, costo_unitario, stock_inicial
+
+### ✅ Implementación Técnica
+
+#### A. Modelos Eloquent (4 nuevos)
+
+**1. FacturaCompra.php**
+```php
+// Attributes: numero_factura, nombre_proveedor, rfc_proveedor, 
+//             fecha_compra, monto_total, moneda, estado, archivo_factura
+// Relationships: registradoPor(), detalles(), movimientos()
+// Scopes: recientes(), porProveedor(), pendientesRecepcion()
+```
+
+**2. DetalleFacturaCompra.php**
+```php
+// Attributes: cantidad_comprada, costo_unitario, costo_total (GENERATED),
+//             lote_numero, fecha_vencimiento, observaciones
+// Relationships: factura(), inventario()
+// Methods: getCostoTotal()
+```
+
+**3. InventarioMaterial.php (Enhanced)**
+```php
+// NEW Attributes: costo_unitario, proveedor_principal
+// Relationships: apoyo(), facturasCompra(), movimientos()
+// Methods: tieneStock(), cantidadDisponible(), necesitaReorden()
+```
+
+**4. MovimientoInventario.php (Enhanced)**
+```php
+// NEW Relationship: factura() BelongsTo(FacturaCompra, nullable)
+// Permite rastrear qué factura generó cada movimiento
+```
+
+#### B. Service Layer
+
+**GestionInventarioService.php (350 líneas)**
+```php
+public function crearFacturaYRegistrarCompra(
+    numeroFactura, nombreProveedor, montoTotal, 
+    registradoPor, detalles[], rutaArchivo, observaciones
+): FacturaCompra
+
+public function validarPresupuestoDisponible(
+    idCategoria, montoRequerido
+): array
+
+public function reservarPresupuestoApoyo(
+    idApoyo, idCategoria, monto, usuarioId
+): PresupuestoApoyo
+
+public function liberarPresupuestoApoyo(
+    idPresupuestoApoyo, usuarioId
+): void
+
+public function obtenerResumenInventarioApoyo(idApoyo): array
+```
+
+#### C. Tablas SQL Nuevas
+
+**facturas_compra (170 líneas SQL)**
+```sql
+CREATE TABLE facturas_compra (
+    id_factura INT IDENTITY(1,1) PRIMARY KEY,
+    numero_factura NVARCHAR(50) UNIQUE NOT NULL,
+    fk_id_apoyo INT NOT NULL FOREIGN KEY REFERENCES Apoyos(id_apoyo),
+    nombre_proveedor NVARCHAR(150) NOT NULL,
+    rfc_proveedor NVARCHAR(13),
+    fecha_compra DATETIME DEFAULT GETDATE(),
+    fecha_recepcion DATETIME,
+    monto_total MONEY NOT NULL,
+    moneda NVARCHAR(3) DEFAULT 'MXN',
+    estado NVARCHAR(30) DEFAULT 'Recibida',
+    archivo_factura NVARCHAR(MAX),
+    observaciones NVARCHAR(MAX),
+    registrado_por INT NOT NULL FOREIGN KEY REFERENCES Usuarios(id),
+    actualizado_por INT,
+    created_at DATETIME DEFAULT GETDATE(),
+    updated_at DATETIME DEFAULT GETDATE(),
+    -- Indices
+    INDEX IX_facturas_numero NONCLUSTERED (numero_factura),
+    INDEX IX_facturas_fecha NONCLUSTERED (fecha_compra),
+    INDEX IX_facturas_proveedor NONCLUSTERED (nombre_proveedor)
+);
+
+CREATE TABLE detalle_facturas_compra (
+    id_detalle INT IDENTITY(1,1) PRIMARY KEY,
+    fk_id_factura INT NOT NULL FOREIGN KEY REFERENCES facturas_compra 
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    fk_id_inventario INT NOT NULL FOREIGN KEY REFERENCES inventario_material,
+    cantidad_comprada DECIMAL(19,4) NOT NULL,
+    costo_unitario MONEY NOT NULL,
+    costo_total AS (cantidad_comprada * costo_unitario) PERSISTED,
+    lote_numero NVARCHAR(50),
+    fecha_vencimiento DATE,
+    observaciones NVARCHAR(MAX),
+    -- Índices
+    INDEX IX_detalle_factura NONCLUSTERED (fk_id_factura),
+    INDEX IX_detalle_inventario NONCLUSTERED (fk_id_inventario)
+);
+```
+
+**Alteración: movimientos_inventario**
+```sql
+ALTER TABLE movimientos_inventario
+ADD fk_id_factura INT NULL 
+FOREIGN KEY REFERENCES facturas_compra;
+```
+
+#### D. Vista Unificada: form.blade.php
+
+**Estructura:**
+```
+5 Paneles Principales
+├─ 1. Identificación (nombre, tipo, año fiscal, vigencia)
+├─ 2. Finanzas/Inventario (condicional por tipo_apoyo)
+│  ├─ Económico: monto_inicial_asignado
+│  ├─ Especie: stock_inicial, unidad_medida, costo_unitario
+│  └─ AMBOS: id_categoria (dropdown con presupuesto disponible)
+├─ 3. Documentación Requerida (checkboxes dinámicas)
+├─ 4. Imagen Representativa (upload con preview)
+└─ 5. Hitos Importantes (base + custom)
+
+Grid: grid grid-cols-1 xl:grid-cols-3 gap-6 (desde edit.blade.php funcional)
+```
+
+**Características:**
+- ✅ Multimodal: Detecta `$isCreating` para ocultar/mostrar campos
+- ✅ Condicional por tipo: Muestra campos Económico O Especie dinamicamente
+- ✅ Presupuesto visible: Categoria + disponible en dropdown
+- ✅ Layout responsive: 1 columna móvil → 3 columnas desktop
+- ✅ Validación frontend: Alpine.js validadores
+
+#### E. Cambios en ApoyoController
+
+**create()**
+```php
+$categoriasPresupuesto = PresupuestoCategoria::activas()
+    ->select('id_categoria', 'nombre', 'disponible')
+    ->get();
+return view('apoyos.form', compact(..., 'categoriasPresupuesto'));
+```
+
+**store()** (Presupuesto Validation Added)
+```php
+$validated = $request->validate([
+    'id_categoria' => 'required|exists:presupuesto_categorias',
+    'monto_inicial_asignado' => 'required_if:tipo_apoyo,Económico|numeric',
+    'stock_inicial' => 'required_if:tipo_apoyo,Especie|integer',
+    // ... más validaciones
+]);
+
+// PRE-VALIDATION: Verificar presupuesto disponible
+$categoria = PresupuestoCategoria::find($validated['id_categoria']);
+if (!$categoria->tieneDisponible($validated['monto_inicial_asignado'] ?? 0)) {
+    return response()->json([
+        'success' => false,
+        'message' => 'Presupuesto insuficiente'
+    ], 422);
+}
+
+// TRANSACTION: Create + Presupuesto + BD_Finanzas/Inventario
+DB::beginTransaction();
+try {
+    $apoyo = Apoyo::create($validated);
+    $this->inventarioService->reservarPresupuestoApoyo(
+        $apoyo->id_apoyo, 
+        $validated['id_categoria'],
+        $validated['monto_inicial_asignado'] ?? 0,
+        Auth::id()
+    );
+    // Crear en BD_Finanzas o BD_Inventario según tipo
+    DB::commit();
+    return response()->json(['success' => true]);
+} catch (\Exception $e) {
+    DB::rollBack();
+    return response()->json(['success' => false], 500);
+}
+```
+
+**edit()**
+```php
+// Nuevo: Verificar si hay solicitudes aprobadas
+$solicitudesAprobadas = Solicitud::where('fk_id_apoyo', $id)
+    ->where('fk_id_estado', 3) // 'Aprobada'
+    ->exists();
+
+// Nuevo: Cargar presupuesto actual
+$presupuestoActual = PresupuestoApoyo::where('id_apoyo', $id)
+    ->where('estado', 'RESERVADO')
+    ->first();
+
+return view('apoyos.form', compact(
+    'apoyo', ..., 
+    'categoriasPresupuesto',      // NUEVO
+    'presupuestoActual',           // NUEVO
+    'solicitudesAprobadas'         // NUEVO (para deshabilitar category field)
+));
+```
+
+### ✅ Cambios en Base de Datos
+
+**Alteración: Tabla Apoyos**
+```sql
+ALTER TABLE Apoyos
+ADD id_categoria INT NULL 
+FOREIGN KEY REFERENCES presupuesto_categorias(id_categoria);
+
+ALTER TABLE Apoyos
+ADD presupuesto_confirmado BIT DEFAULT 0;
+
+ALTER TABLE Apoyos
+ADD fecha_confirmacion_presupuesto DATETIME;
+```
+
+### ✅ Flujos de Negocio
+
+**Crear Apoyo tipo Económico:**
+```
+1. Admin click "Nuevo Apoyo"
+2. Selecciona tipo="Económico", categoría, monto
+3. form.blade.php en modo CREATE (hideFields)
+4. Submit → ApoyoController::store()
+5. Validar presupuesto disponible en categoría
+   └─ SI: Continuar
+   └─ NO: Error 422 + JSON response
+6. Transacción:
+   ├─ INSERT Apoyos (con id_categoria)
+   ├─ INSERT presupuesto_apoyos (reserva)
+   ├─ INSERT BD_Finanzas (monto_asignado)
+   ├─ INSERT movimientos_presupuestarios (auditoría)
+   └─ UPDATE presupuesto_categorias (restar disponible)
+7. Success: "Apoyo registrado"
+```
+
+**Crear Apoyo tipo Especie:**
+```
+1. Admin click "Nuevo Apoyo Especie"
+2. Selecciona tipo="Especie", stock_inicial, unidad_medida, costo_unitario
+3. form.blade.php oculta campos Económico, muestra Especie
+4. Submit → ApoyoController::store()
+5. Transacción:
+   ├─ INSERT Apoyos (sin id_categoria para Especie)
+   ├─ INSERT BD_Inventario (stock_actual)
+   ├─ INSERT inventario_material (con codigo MAT-{id_apoyo})
+   └─ INSERT movimientos_inventario (ENTRADA inicial)
+6. Success: "Apoyo de inventario registrado"
+   
+Posteriormente (Fase 7B):
+→ Admin carga facturas de compra
+→ Cada factura → movimientos_inventario (rastreabilidad)
+```
+
+**Editar Apoyo:**
+```
+1. Admin click "Editar" en apoyo existente
+2. form.blade.php en modo EDIT (showFields=All)
+3. Presupuesto visible pero LOCKED si hay solicitudes aprobadas
+4. Submit → ApoyoController::update()
+5. Si presupuesto cambiado: crear movimiento presupuestario (auditoría)
+6. Success: "Apoyo actualizado"
+```
+
+### ✅ Archivos Creados (7 nuevos)
+
+1. **database/sql/create_facturas_compra.sql** (170 líneas)
+   - Tablas: facturas_compra, detalle_facturas_compra
+   - Constraints, indices, triggers
+
+2. **app/Models/FacturaCompra.php** (80 líneas)
+   - Relaciones, scopes, métodos
+
+3. **app/Models/DetalleFacturaCompra.php** (60 líneas)
+   - Relaciones, métodos
+
+4. **app/Models/InventarioMaterial.php** (85 líneas)
+   - Enhanced con costo, proveedor
+
+5. **app/Models/MovimientoInventario.php** (75 líneas)
+   - Enhanced con FK a facturas
+
+6. **app/Services/GestionInventarioService.php** (350 líneas)
+   - Core logic presupuesto + inventario
+
+7. **resources/views/apoyos/form.blade.php** (1,100 líneas)
+   - Vista unificada multimodal
+
+### ✅ Archivos Modificados (1 principal)
+
+1. **app/Http/Controllers/ApoyoController.php**
+   - Import GestionInventarioService
+   - create() - Cargar categorías
+   - store() - Validar presupuesto + crear reserva
+   - edit() - Pasar categorías + presupuesto actual
+   - update() - Manejo de presupuesto en edición
+
+### ✅ Git Commit
+
+**Hash:** `1f908d0`  
+**Message:** "feat: Unify apoyo forms + integrate presupuestación + add inventory tracking"  
+**Stats:** 8 files changed, 1,316 insertions  
+**Warnings:** CRLF (normal para Windows)
+
+### 📝 Próximos Pasos (Fase 7B - Gestión de Facturas)
+
+- [ ] **FacturaCompraController** - CREATE, UPDATE, DELETE facturas
+- [ ] **Vista factura registration** - Upload factura + detalles
+- [ ] **Validación inventario** - Stock check en aprobaciones
+- [ ] **Testing** - End-to-end presupuesto+inventario
+- [ ] **Dashboard** - Mostrar reservas y movimientos
+- [ ] **Alertas** - Notificar presupuesto bajo
+
+---
+
+
 
 ### Sesión de Desarrollo: 28 de Marzo de 2026 (ANTERIOR)
 
