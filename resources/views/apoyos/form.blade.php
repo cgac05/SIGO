@@ -792,20 +792,28 @@ if ($isEditing) {
                 // Actualizar campo monto_inicial_asignado automáticamente (valor crudo para guardar)
                 if (inputMontoInicial) {
                     inputMontoInicial.value = totalCalculado.toFixed(2);
+                    console.log('✏️ Campo monto_inicial actualizado');
                 }
 
                 // Actualizar valores mostrados CON FORMATO DINERO
                 if (txtPresupuestoDisponible) {
-                    txtPresupuestoDisponible.textContent = formatCurrency(presupuestoDisponible);
+                    const formatted1 = formatCurrency(presupuestoDisponible);
+                    txtPresupuestoDisponible.textContent = formatted1;
+                    console.log('💵 Presupuesto disponible:', formatted1);
                 }
                 if (txtMontoBeneficiario) {
-                    txtMontoBeneficiario.textContent = formatCurrency(montoFinal);
+                    const formatted2 = formatCurrency(montoFinal);
+                    txtMontoBeneficiario.textContent = formatted2;
+                    console.log('💵 Monto beneficiario:', formatted2);
                 }
                 if (txtCantidadBeneficiarios) {
                     txtCantidadBeneficiarios.textContent = Math.floor(cupoFinal);
+                    console.log('📊 Cantidad beneficiarios:', Math.floor(cupoFinal));
                 }
                 if (txtMontoTotal) {
-                    txtMontoTotal.textContent = formatCurrency(totalCalculado);
+                    const formatted3 = formatCurrency(totalCalculado);
+                    txtMontoTotal.textContent = formatted3;
+                    console.log('💵 Total:', formatted3);
                 }
 
                 // Mostrar sección SIEMPRE (no depende de categoría)
@@ -864,6 +872,7 @@ if ($isEditing) {
             if (inputMontoMaximo) {
                 // Limpiar leading zeros mientras se escribe
                 inputMontoMaximo.addEventListener('input', function() {
+                    console.log('✏️ Escribiendo en monto:', this.value);
                     // Primero, limpiar cualquier cero adelante
                     if (this.value && this.value.startsWith('0') && this.value.length > 1 && this.value[1] !== '.') {
                         // Si empieza con 0 y hay más dígitos (y no es 0.xx), remover el 0
@@ -872,21 +881,27 @@ if ($isEditing) {
                             cleaned = '0' + cleaned;
                         }
                         this.value = cleaned;
+                        console.log('🧹 Limpiado a:', this.value);
                     }
+                    console.log('🔄 Disparando actualización');
                     actualizarCalculoPresupuesto();
                 });
                 inputMontoMaximo.addEventListener('change', function() {
+                    console.log('✏️ Cambio en monto:', this.value);
                     actualizarCalculoPresupuesto();
                 });
             }
             if (inputCupoLimite) {
                 // Limpiar leading zeros mientras se escribe
                 inputCupoLimite.addEventListener('input', function() {
+                    console.log('✏️ Escribiendo en cupo:', this.value);
                     // Remover leading zeros para números enteros
                     if (this.value && this.value.startsWith('0') && this.value.length > 1) {
                         this.value = this.value.replace(/^0+/, '');
                         if (!this.value) this.value = '1';
+                        console.log('🧹 Limpiado a:', this.value);
                     }
+                    console.log('🔄 Disparando actualización');
                     actualizarCalculoPresupuesto();
                 });
                 inputCupoLimite.addEventListener('change', function() {
