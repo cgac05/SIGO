@@ -9,6 +9,7 @@ use App\Jobs\CopiarDocumentoExpedienteJob;
 use App\Services\FirmaElectronicaService;
 use App\Services\PresupuetaryIntegrationService;
 use App\Services\PresupuestaryControlService;
+use App\Services\InventarioValidationService;
 use App\Services\SolicitudWorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,8 @@ class SolicitudProcesoController extends Controller
         private readonly SolicitudWorkflowService $workflow,
         private readonly PresupuetaryIntegrationService $presupuetoIntegration,
         private readonly FirmaElectronicaService $firmaService,
-        private readonly PresupuestaryControlService $presupuestaryControl
+        private readonly PresupuestaryControlService $presupuestaryControl,
+        private readonly InventarioValidationService $inventarioValidation
     ) {
     }
 
@@ -172,6 +174,17 @@ class SolicitudProcesoController extends Controller
             return back()->with('error', 'Error validando presupuesto: ' . $e->getMessage());
         }
 
+        // ⚠️ PRE-VALIDATION: Validar inventario para apoyos tipo Especie
+        // Esto previene que se apruebe una solicitud sin inventario suficiente
+        try {
+            $validacionInventario = $this->inventarioValidation->validarInventarioParaSolicitud($folio);
+            if (!$validacionInventario['valido']) {
+                return back()->with('error', 'Inventario insuficiente: ' . $validacionInventario['razon']);
+            }
+        } catch (\Exception $e) {
+            return back()->with('error', 'Error validando inventario: ' . $e->getMessage());
+        }
+
         // Usar FirmaElectronicaService para manejar la firma
         $resultado = $this->firmaService->firmarSolicitud(
             $folio,
@@ -187,6 +200,19 @@ class SolicitudProcesoController extends Controller
         // Esta es la operación IRREVERSIBLE que marca presupuesto como confirmado
         try {
             $this->presupuestaryControl->asignarPresupuestoSolicitud($folio, $user->id_usuario);
+            
+            // 📦 REGISTRO: Registrar SALIDA de inventario tras presupuesto asignado
+            // Esto decrementa stock_actual en BD_Inventario
+            $resultadoMovimiento = $this->inventarioValidation->registrarSalidaInventario($folio, $user->id_usuario);
+            if (!$resultadoMovimiento['exito']) {
+                \Log::warning("Movimiento inventario falló para folio {$folio}: " . $resultadoMovimiento['mensaje']);
+                // No revertir firma, pero notificar admin
+                event(new NotificacionGenerada(
+                    'admin',
+                    'Error registro inventario',
+                    "Solicitud {$folio} aprobada pero registro inventario falló: " . $resultadoMovimiento['mensaje']
+                ));
+            }
         } catch (\Exception $e) {
             // Log error pero no revertir firma (ya está en BD)
             \Log::error("Error asignando presupuesto para solicitud {$folio}: " . $e->getMessage());

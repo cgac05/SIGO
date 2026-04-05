@@ -33,6 +33,29 @@ class Kernel extends ConsoleKernel
         // $schedule->command('cleanup:pending-cancellations')
         //     ->daily()
         //     ->at('02:00');
+
+        // ====================================================================
+        // MÓDULO 7B: ALERTAS PRESUPUESTARIAS
+        // ====================================================================
+        // Verificar presupuestos altos diariamente a las 7:00 AM
+        $schedule->command('alertas:presupuesto')
+            ->dailyAt('07:00')
+            ->runInBackground()
+            ->skipWhenMaintenance()
+            ->onSuccess(function () {
+                \Illuminate\Support\Facades\Log::info('✅ Alertas presupuestarias verificadas exitosamente');
+            })
+            ->onFailure(function () {
+                \Illuminate\Support\Facades\Log::error('❌ Error en verificación de alertas presupuestarias');
+            });
+
+        // Verificación crítica cada 3 horas (solo presupuestos ≥95%)
+        $schedule->command('alertas:presupuesto --solo-criticas')
+            ->everyThreeHours()
+            ->runInBackground()
+            ->onFailure(function () {
+                \Illuminate\Support\Facades\Log::warning('Verificación crítica de presupuesto no completada');
+            });
     }
 
     /**

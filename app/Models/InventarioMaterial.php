@@ -8,28 +8,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class InventarioMaterial extends Model
 {
-    protected $table = 'inventario_material';
+    protected $table = 'BD_Inventario';
     protected $primaryKey = 'id_inventario';
     public $timestamps = false;
 
     protected $fillable = [
-        'codigo_material',
-        'nombre_material',
-        'descripcion',
         'fk_id_apoyo',
-        'unidad_medida',
-        'cantidad_actual',
-        'cantidad_minima',
-        'costo_unitario',
-        'proveedor_principal',
-        'activo',
+        'stock_actual',
     ];
 
     protected $casts = [
-        'cantidad_actual' => 'float',
-        'cantidad_minima' => 'float',
-        'costo_unitario' => 'float',
-        'activo' => 'boolean',
+        'stock_actual' => 'integer',
     ];
 
     /**
@@ -66,10 +55,13 @@ class InventarioMaterial extends Model
 
     /**
      * Scope: Obtener materiales activos
+     * Nota: BD_Inventario no tiene columna 'activo', este método está deshabilitado.
+     * Si se necesita filtrar materiales activos, considere agregar columna 'activo' a la tabla.
      */
     public function scopeActivos($query)
     {
-        return $query->where('activo', 1);
+        // return $query->where('activo', 1);  // Columna no existe en BD_Inventario
+        return $query;
     }
 
     /**

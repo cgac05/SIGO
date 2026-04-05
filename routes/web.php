@@ -12,6 +12,14 @@ use App\Http\Controllers\ReauthenticationController;
 use App\Http\Controllers\PadronController;
 use App\Http\Controllers\GoogleCalendarController;
 use App\Http\Controllers\Admin\PresupuestoController;
+use App\Http\Controllers\Admin\EconomicDashboardController;
+use App\Http\Controllers\Admin\DesembolsoController;
+use App\Http\Controllers\Admin\ReconciliacionPresupuestariaController;
+use App\Http\Controllers\Admin\CertificacionDigitalController;
+use App\Http\Controllers\Admin\CertificacionReportController;
+use App\Http\Controllers\Admin\VerificacionCertificadoController;
+use App\Http\Controllers\Admin\ArchivadoCertificadoController;
+use App\Http\Controllers\FacturaCompraController;
 use App\Models\Beneficiario;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -25,7 +33,7 @@ Route::get('/', function () {
 Route::get('/dashboard', function () {
     $user = Auth::user()->loadMissing(['personal', 'beneficiario']);
 
-    return view('dashboard', [
+    return view('dashboard-new', [
         'user' => $user,
         'tipo' => $user->tipo_usuario,
     ]);
@@ -340,6 +348,349 @@ Route::middleware('auth')->group(function () {
             ->middleware('role:2,3')
             ->whereNumber('id_categoria')
             ->name('admin.presupuesto.api.historial');
+    });
+
+    // ====================================================================
+    // MÓDULO ADMIN - DASHBOARD ECONÓMICO
+    // ====================================================================
+    Route::prefix('admin/dashboard')->middleware('role:2,3')->group(function () {
+        Route::get('economico', [EconomicDashboardController::class, 'index'])
+            ->name('admin.dashboard.economico');
+        
+        Route::get('api/movimientos', [EconomicDashboardController::class, 'apiMovimientosGrafico'])
+            ->name('admin.api.dashboard.movimientos');
+        
+        Route::get('api/presupuesto', [EconomicDashboardController::class, 'apiPresupuestoGrafico'])
+            ->name('admin.api.dashboard.presupuesto');
+        
+        // Trigger manual para verificar alertas presupuestarias (testing/admin)
+        Route::post('test/alertas-presupuesto', function () {
+            \Illuminate\Support\Facades\Artisan::call('alertas:presupuesto');
+            return redirect()->route('admin.dashboard.economico')
+                ->with('status', '✅ Alertas presupuestarias verificadas manualmente.');
+        })->middleware('role:3')->name('admin.dashboard.test-alertas');
+    });
+
+    // ====================================================================
+    // MÓDULO ADMIN - GESTIÓN DE FACTURAS
+    // ====================================================================
+    Route::prefix('admin/facturas')->middleware('role:2,3')->group(function () {
+        Route::get('', [FacturaCompraController::class, 'index'])
+            ->name('admin.facturas.index');
+        
+        Route::get('create', [FacturaCompraController::class, 'create'])
+            ->name('admin.facturas.create');
+        
+        Route::post('', [FacturaCompraController::class, 'store'])
+            ->name('admin.facturas.store');
+        
+        Route::get('{facturaCompra}', [FacturaCompraController::class, 'show'])
+            ->name('admin.facturas.show');
+        
+        Route::get('{facturaCompra}/edit', [FacturaCompraController::class, 'edit'])
+            ->name('admin.facturas.edit');
+        
+        Route::put('{facturaCompra}', [FacturaCompraController::class, 'update'])
+            ->name('admin.facturas.update');
+        
+        Route::delete('{facturaCompra}', [FacturaCompraController::class, 'destroy'])
+            ->name('admin.facturas.destroy');
+    });
+
+    // ====================================================================
+    // MÓDULO ADMIN - GESTIÓN DE DESEMBOLSOS Y PAGOS (FASE 8)
+    // ====================================================================
+    Route::prefix('admin/desembolsos')->middleware('role:2,3')->group(function () {
+        Route::get('', [DesembolsoController::class, 'index'])
+            ->name('desembolsos.index');
+        
+        Route::get('crear', [DesembolsoController::class, 'create'])
+            ->name('desembolsos.create');
+        
+        Route::post('', [DesembolsoController::class, 'store'])
+            ->name('desembolsos.store');
+        
+        Route::get('reporte/periodo', [DesembolsoController::class, 'reportePeriodo'])
+            ->name('desembolsos.reporte-periodo');
+        
+        Route::get('reporte/apoyo', [DesembolsoController::class, 'reporteApoyo'])
+            ->name('desembolsos.reporte-apoyo');
+        
+        Route::get('{id}', [DesembolsoController::class, 'show'])
+            ->whereNumber('id')
+            ->name('desembolsos.show');
+    });
+
+    // APIs para desembolsos
+    Route::prefix('api/desembolsos')->middleware('auth')->group(function () {
+        Route::post('validar', [DesembolsoController::class, 'apiValidarPresupuesto'])
+            ->name('api.desembolsos.validar');
+        
+        Route::get('{folio}/historial', [DesembolsoController::class, 'apiHistorialDesembolsos'])
+            ->name('api.desembolsos.historial');
+        
+        Route::get('apoyo/{id}/ejecucion', [DesembolsoController::class, 'apiEjecucionPresupuestaria'])
+            ->name('api.desembolsos.ejecucion');
+    });
+
+    // ====================================================================
+    // MÓDULO ADMIN - RECONCILIACIÓN PRESUPUESTARIA (FASE 8 PARTE 3)
+    // ====================================================================
+    Route::prefix('admin/reconciliacion')->middleware('role:2,3')->group(function () {
+        Route::get('', [ReconciliacionPresupuestariaController::class, 'index'])
+            ->name('reconciliacion.index');
+        
+        Route::get('categorias', [ReconciliacionPresupuestariaController::class, 'reporteCategorias'])
+            ->name('reconciliacion.categorias');
+        
+        Route::get('apoyos', [ReconciliacionPresupuestariaController::class, 'reporteApoyos'])
+            ->name('reconciliacion.apoyos');
+        
+        Route::get('alertas', [ReconciliacionPresupuestariaController::class, 'reporteAlertas'])
+            ->name('reconciliacion.alertas');
+        
+        Route::get('descargar', [ReconciliacionPresupuestariaController::class, 'descargar'])
+            ->name('reconciliacion.descargar');
+    });
+
+    // APIs para reconciliación
+    Route::prefix('api/reconciliacion')->middleware('auth')->group(function () {
+        Route::get('ejecucion-global', [ReconciliacionPresupuestariaController::class, 'apiEjecucionGlobal'])
+            ->name('api.reconciliacion.ejecucion-global');
+        
+        Route::get('categorias', [ReconciliacionPresupuestariaController::class, 'apiCategorias'])
+            ->name('api.reconciliacion.categorias');
+        
+        Route::get('apoyos', [ReconciliacionPresupuestariaController::class, 'apiApoyos'])
+            ->name('api.reconciliacion.apoyos');
+        
+        Route::get('discrepancias', [ReconciliacionPresupuestariaController::class, 'apiDiscrepancias'])
+            ->name('api.reconciliacion.discrepancias');
+        
+        Route::get('alertas', [ReconciliacionPresupuestariaController::class, 'apiAlertas'])
+            ->name('api.reconciliacion.alertas');
+        
+        Route::get('reporte', [ReconciliacionPresupuestariaController::class, 'apiReporteCompleto'])
+            ->name('api.reconciliacion.reporte');
+    });
+
+    // ====================================================================
+    // MÓDULO ADMIN - CERTIFICACIÓN DIGITAL DE ENTREGAS (FASE 9)
+    // ====================================================================
+    Route::prefix('admin/certificacion')->middleware('role:2,3')->group(function () {
+        Route::get('', [CertificacionDigitalController::class, 'index'])
+            ->name('certificacion.index');
+        
+        Route::get('listado', [CertificacionDigitalController::class, 'listado'])
+            ->name('certificacion.listado');
+        
+        Route::get('{id}/crear', [CertificacionDigitalController::class, 'crearCertificado'])
+            ->whereNumber('id')
+            ->name('certificacion.crear');
+        
+        Route::post('{id}/crear', [CertificacionDigitalController::class, 'generarCertificado'])
+            ->whereNumber('id')
+            ->name('certificacion.generar');
+        
+        Route::get('{id}/validar', [CertificacionDigitalController::class, 'validarForm'])
+            ->whereNumber('id')
+            ->name('certificacion.validar-form');
+        
+        Route::post('{id}/validar', [CertificacionDigitalController::class, 'validar'])
+            ->whereNumber('id')
+            ->name('certificacion.validar');
+        
+        Route::get('{id}', [CertificacionDigitalController::class, 'ver'])
+            ->whereNumber('id')
+            ->name('certificacion.ver');
+        
+        Route::get('search', [CertificacionDigitalController::class, 'buscar'])
+            ->name('certificacion.buscar');
+    });
+
+    // APIs para certificación digital
+    Route::prefix('api/certificacion')->middleware('auth')->group(function () {
+        Route::post('generar', [CertificacionDigitalController::class, 'apiGenerarCertificado'])
+            ->name('api.certificacion.generar');
+        
+        Route::get('validar/{hash}', [CertificacionDigitalController::class, 'apiValidarCertificado'])
+            ->name('api.certificacion.validar');
+        
+        Route::get('estadisticas', [CertificacionDigitalController::class, 'apiEstadisticas'])
+            ->name('api.certificacion.estadisticas');
+        
+        Route::post('validacion', [CertificacionDigitalController::class, 'apiRegistrarValidacion'])
+            ->name('api.certificacion.validacion');
+        
+        Route::get('comprobante/{id}', [CertificacionDigitalController::class, 'apiComprobante'])
+            ->whereNumber('id')
+            ->name('api.certificacion.comprobante');
+        
+        Route::get('cadena-custodia/{id}', [CertificacionDigitalController::class, 'apiCadenaCustodia'])
+            ->whereNumber('id')
+            ->name('api.certificacion.cadena-custodia');
+    });
+
+    // ====================================================================
+    // MÓDULO ADMIN - REPORTES Y EXPORTACIÓN DE CERTIFICACIÓN (FASE 9 PARTE 2)
+    // ====================================================================
+    Route::prefix('admin/certificacion')->middleware('role:2,3')->group(function () {
+        // Dashboard de reportes
+        Route::get('reportes', [CertificacionReportController::class, 'dashboardReportes'])
+            ->name('certificacion.reportes.dashboard');
+        
+        // Formularios de generación de reportes
+        Route::get('reportes/certificados', [CertificacionReportController::class, 'formRepCertificados'])
+            ->name('certificacion.reportes.form-certificados');
+        
+        Route::get('reportes/exportacion-masiva', [CertificacionReportController::class, 'formExportacionMasiva'])
+            ->name('certificacion.reportes.exportacion-masiva');
+        
+        // Descargas individuales
+        Route::get('{id}/pdf', [CertificacionReportController::class, 'descargarPDF'])
+            ->whereNumber('id')
+            ->name('certificacion.descarga.pdf');
+        
+        Route::get('{id}/cadena-custodia/pdf', [CertificacionReportController::class, 'descargarCadenaCustodiaPDF'])
+            ->whereNumber('id')
+            ->name('certificacion.descarga.cadena-custodia-pdf');
+        
+        // Exportaciones
+        Route::get('excel/exportar', [CertificacionReportController::class, 'exportarExcel'])
+            ->name('certificacion.exportar.excel');
+        
+        Route::post('zip/exportar', [CertificacionReportController::class, 'exportarZIP'])
+            ->name('certificacion.exportar.zip');
+        
+        Route::get('estadisticas/pdf', [CertificacionReportController::class, 'descargarReporteEstadisticas'])
+            ->name('certificacion.descarga.estadisticas-pdf');
+    });
+
+    // APIs para reportes de certificación
+    Route::prefix('api/certificacion/reportes')->middleware('auth')->group(function () {
+        Route::post('excel', [CertificacionReportController::class, 'apiGenerarExcel'])
+            ->name('api.certificacion.reportes.excel');
+        
+        Route::post('zip', [CertificacionReportController::class, 'apiGenerarZIP'])
+            ->name('api.certificacion.reportes.zip');
+        
+        Route::get('estadisticas', [CertificacionReportController::class, 'apiObtenerEstadisticas'])
+            ->name('api.certificacion.reportes.estadisticas');
+    });
+
+    // ====================================================================
+    // MÓDULO ADMIN - VERIFICACIÓN DIGITAL DE CERTIFICADOS (FASE 9 PARTE 3)
+    // ====================================================================
+    Route::prefix('admin/certificacion/verificacion')->middleware('role:2,3')->group(function () {
+        // Dashboard de verificación
+        Route::get('/', [VerificacionCertificadoController::class, 'dashboardVerificacion'])
+            ->name('certificacion.verificacion.dashboard');
+        
+        // Verificación individual
+        Route::get('{id}/formulario', [VerificacionCertificadoController::class, 'verificarCertificado'])
+            ->whereNumber('id')
+            ->name('certificacion.verificacion.formulario');
+        
+        // Reporte de validación
+        Route::post('{id}/validar', [VerificacionCertificadoController::class, 'generarReporteValidacion'])
+            ->whereNumber('id')
+            ->name('certificacion.verificacion.generar-reporte');
+        
+        Route::get('{id}/reporte-validacion/pdf', [VerificacionCertificadoController::class, 'descargarReporteValidacion'])
+            ->whereNumber('id')
+            ->name('certificacion.verificacion.descargar-reporte');
+        
+        // Auditoría detallada
+        Route::get('{id}/auditoria', [VerificacionCertificadoController::class, 'auditoriaDetallada'])
+            ->whereNumber('id')
+            ->name('certificacion.verificacion.auditoria');
+        
+        // Cumplimiento LGPDP
+        Route::get('{id}/cumplimiento', [VerificacionCertificadoController::class, 'reporteCumplimiento'])
+            ->whereNumber('id')
+            ->name('certificacion.verificacion.reporte-cumplimiento');
+        
+        Route::get('{id}/cumplimiento/pdf', [VerificacionCertificadoController::class, 'descargarReporteCumplimiento'])
+            ->whereNumber('id')
+            ->name('certificacion.verificacion.descargar-cumplimiento');
+        
+        // Validación en lote
+        Route::get('lote/formulario', [VerificacionCertificadoController::class, 'formularioValidacionLote'])
+            ->name('certificacion.verificacion.formulario-lote');
+        
+        Route::post('lote/procesar', [VerificacionCertificadoController::class, 'procesarValidacionLote'])
+            ->name('certificacion.verificacion.procesar-lote');
+        
+        Route::post('lote/descargar', [VerificacionCertificadoController::class, 'descargarValidacionLote'])
+            ->name('certificacion.verificacion.descargar-lote');
+    });
+
+    // APIs para verificación de certificados
+    Route::prefix('api/certificacion/verificacion')->middleware('auth')->group(function () {
+        Route::post('validar-multiples', [VerificacionCertificadoController::class, 'apiValidarMultiples'])
+            ->name('api.certificacion.verificacion.validar-multiples');
+        
+        Route::get('estadisticas', [VerificacionCertificadoController::class, 'apiObtenerEstadisticas'])
+            ->name('api.certificacion.verificacion.estadisticas');
+    });
+
+    // ====================================================================
+    // MÓDULO ADMIN - ARCHIVADO Y BACKUP DE CERTIFICADOS (FASE 9 PARTE 4)
+    // ====================================================================
+    Route::prefix('admin/certificacion/archivado')->middleware('role:2,3')->group(function () {
+        // Dashboard de archivamiento
+        Route::get('/', [ArchivadoCertificadoController::class, 'dashboardArchivamiento'])
+            ->name('certificacion.archivado.dashboard');
+        
+        // Visualización de archivos
+        Route::get('{id}/ver', [ArchivadoCertificadoController::class, 'verArchivo'])
+            ->whereNumber('id')
+            ->name('certificacion.archivado.ver');
+        
+        Route::get('{id}/descargar', [ArchivadoCertificadoController::class, 'descargarArchivo'])
+            ->whereNumber('id')
+            ->name('certificacion.archivado.descargar');
+        
+        // Restauración de certificados
+        Route::post('{id}/restaurar', [ArchivadoCertificadoController::class, 'restaurarCertificado'])
+            ->whereNumber('id')
+            ->name('certificacion.archivado.restaurar');
+        
+        // Historial de versiones
+        Route::get('{id_historico}/versiones', [ArchivadoCertificadoController::class, 'historialVersiones'])
+            ->whereNumber('id_historico')
+            ->name('certificacion.archivado.versiones');
+        
+        // Archivamiento individual
+        Route::post('{id}/archivar', [ArchivadoCertificadoController::class, 'archivarCertificado'])
+            ->whereNumber('id')
+            ->name('certificacion.archivado.archivar');
+        
+        // Archivamiento masivo
+        Route::get('lote/formulario', [ArchivadoCertificadoController::class, 'formularioArchivamientoMasivo'])
+            ->name('certificacion.archivado.formulario-masivo');
+        
+        Route::post('lote/procesar', [ArchivadoCertificadoController::class, 'procesarArchivamientoMasivo'])
+            ->name('certificacion.archivado.procesar-masivo');
+        
+        // Gestor de archivos
+        Route::get('gestor/listado', [ArchivadoCertificadoController::class, 'gestorArchivos'])
+            ->name('certificacion.archivado.gestor');
+    });
+
+    // APIs para archivado de certificados
+    Route::prefix('api/certificacion/archivado')->middleware('auth')->group(function () {
+        Route::post('backup-masivo', [ArchivadoCertificadoController::class, 'generarBackupMasivo'])
+            ->name('api.certificacion.archivado.backup-masivo');
+        
+        Route::get('descargar-backup', [ArchivadoCertificadoController::class, 'descargarBackupMasivo'])
+            ->name('api.certificacion.archivado.descargar-backup');
+        
+        Route::get('estadisticas', [ArchivadoCertificadoController::class, 'apiObtenerEstadisticas'])
+            ->name('api.certificacion.archivado.estadisticas');
+        
+        Route::post('limpiar-antiguos', [ArchivadoCertificadoController::class, 'limpiarArchivosAntiguos'])
+            ->name('api.certificacion.archivado.limpiar-antiguos');
     });
 
     // ====================================================================

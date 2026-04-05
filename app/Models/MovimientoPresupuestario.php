@@ -36,7 +36,7 @@ class MovimientoPresupuestario extends Model
 
     public function usuarioResponsable(): BelongsTo
     {
-        return $this->belongsTo(Usuario::class, 'id_usuario_responsable', 'id_usuario');
+        return $this->belongsTo(User::class, 'id_usuario_responsable', 'id_usuario');
     }
 
     // ========== SCOPES ==========
