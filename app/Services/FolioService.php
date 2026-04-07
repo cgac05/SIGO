@@ -13,7 +13,7 @@ use Carbon\Carbon;
  * Implementa:
  * - Dígito verificador (Algoritmo Verhoeff) para integridad
  * - Consecutivo anual secuencial
- * - Formato: SIGO-2026-TEP-NNNNN-C (donde C = dígito verificador)
+ * - Formato: SIGO-2026-NNNNN-C (donde C = dígito verificador - sin municipio)
  * - Auditoría mediante tabla auditoria_folios
  * - Validación de duplicados
  *
@@ -64,8 +64,8 @@ class FolioService
     /**
      * Generar folio institucional con dígito verificador
      *
-     * Formato: SIGO-YYYY-MMM-NNNNN-C
-     * Ejemplo: SIGO-2026-TEP-00001-3
+     * Formato: SIGO-YYYY-NNNNN-C
+     * Ejemplo: SIGO-2026-00001-3
      *
      * @param int|null $beneficiarioId ID beneficiario (para auditoría)
      * @return string Folio completo con dígito verificador
@@ -73,14 +73,13 @@ class FolioService
     public function generarFolioInstitucional(?int $beneficiarioId = null): string
     {
         $year = now()->format('Y');
-        $municipio = strtoupper((string) env('SIGO_MUNICIPIO_CODIGO', 'TEP'));
 
         // Obtener próximo consecutivo
         $consecutivo = $this->obtenerProximoConsecutivo($year);
 
         // Construir base del folio (sin dígito verificador)
         $baseNumerico = str_pad($consecutivo, 5, '0', STR_PAD_LEFT);
-        $baseFolio = "SIGO-{$year}-{$municipio}-{$baseNumerico}";
+        $baseFolio = "SIGO-{$year}-{$baseNumerico}";
 
         // Calcular dígito verificador
         $digitoVerificador = $this->calcularDigitoVerhoeff($baseNumerico);
@@ -97,22 +96,22 @@ class FolioService
     /**
      * Validar integridad de un folio existente
      *
-     * @param string $folio Folio a validar (ej: SIGO-2026-TEP-00001-3)
+     * @param string $folio Folio a validar (ej: SIGO-2026-00001-3)
      * @return array ['valido' => bool, 'mensaje' => string, 'error_tipo' => string|null]
      */
     public function validarFolio(string $folio): array
     {
         // Validar formato general
-        if (!preg_match('/^SIGO-\d{4}-[A-Z]{3}-\d{5}-\d$/', $folio)) {
+        if (!preg_match('/^SIGO-\d{4}-\d{5}-\d$/', $folio)) {
             return [
                 'valido' => false,
-                'mensaje' => 'Formato de folio inválido. Esperado: SIGO-YYYY-MMM-NNNNN-D',
+                'mensaje' => 'Formato de folio inválido. Esperado: SIGO-YYYY-NNNNN-D',
                 'error_tipo' => 'formato_invalido',
             ];
         }
 
         // Extraer componentes
-        [$prefijo, $year, $mun, $numero, $digitoProporcionado] = explode('-', $folio);
+        [$prefijo, $year, $numero, $digitoProporcionado] = explode('-', $folio);
 
         // Validar año razonable
         $yearActual = (int) now()->format('Y');
@@ -203,7 +202,7 @@ class FolioService
     /**
      * Registrar generación de folio en auditoría
      *
-     * @param string $folioCompleto SIGO-2026-TEP-00001-3
+     * @param string $folioCompleto SIGO-2026-00001-3
      * @param string $numero NNNNN sin dígito
      * @param int $digito Dígito verificador
      * @param int|null $beneficiarioId
@@ -283,12 +282,11 @@ class FolioService
      */
     private function anticiparProximoFolio(string $year): string
     {
-        $municipio = strtoupper((string) env('SIGO_MUNICIPIO_CODIGO', 'TEP'));
         $proximoConsecutivo = $this->obtenerProximoConsecutivo($year);
         $numeroFormato = str_pad($proximoConsecutivo, 5, '0', STR_PAD_LEFT);
         $digito = $this->calcularDigitoVerhoeff($numeroFormato);
 
-        return "SIGO-{$year}-{$municipio}-{$numeroFormato}-{$digito}";
+        return "SIGO-{$year}-{$numeroFormato}-{$digito}";
     }
 
     /**

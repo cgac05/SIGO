@@ -28,9 +28,19 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'google_refresh_token',
         'google_token_expires_at',
         'google_avatar',
+        'foto_perfil',
         'activo',
         'ultima_conexion',
         'remember_token',
+        'two_factor_enabled',
+        'two_factor_secret',
+        'notif_email_news',
+        'notif_email_apoyos',
+        'notif_email_status',
+        'notif_email_marketing',
+        'arco_cancelacion_solicitada',
+        'arco_cancelacion_fecha',
+        'arco_cancelacion_razon',
     ];
 
     protected $hidden = [

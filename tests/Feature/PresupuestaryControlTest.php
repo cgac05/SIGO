@@ -43,7 +43,7 @@ class PresupuestaryControlTest extends TestCase
 
         // Setup de solicitud
         $this->solicitud = Solicitud::create([
-            'folio_institucional' => 'SIGO-2026-TEP-00001-0',
+            'folio_institucional' => 'SIGO-2026-00001-0',
             'monto_solicitado' => 50000,
             'estado' => 'DOCUMENTOS_VERIFICADOS',
         ]);

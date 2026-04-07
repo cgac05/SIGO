@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\CertificacionReportController;
 use App\Http\Controllers\Admin\VerificacionCertificadoController;
 use App\Http\Controllers\Admin\ArchivadoCertificadoController;
 use App\Http\Controllers\FacturaCompraController;
+use App\Http\Controllers\FirmaController;
 use App\Models\Beneficiario;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -43,6 +44,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    
+    // Foto de Perfil
+    Route::post('/profile/photo', [ProfileController::class, 'uploadPhoto'])->name('profile.upload-photo');
+    
+    // Google Vinculación
+    Route::post('/profile/google-disconnect', [ProfileController::class, 'googleDisconnect'])->name('profile.google-disconnect');
+    
+    // Derechos ARCO
+    Route::post('/profile/arco/download', [ProfileController::class, 'arcoDownload'])->name('profile.arco.download');
+    Route::post('/profile/arco/cancel', [ProfileController::class, 'arcoCancel'])->name('profile.arco.cancel');
+    Route::post('/profile/notification-preferences', [ProfileController::class, 'updateNotificationPreferences'])->name('profile.update-notification-preferences');
+    
+    // 2FA y Seguridad
+    Route::post('/profile/2fa/enable', [ProfileController::class, 'enable2fa'])->name('profile.enable-2fa');
+    Route::post('/profile/2fa/disable', [ProfileController::class, 'disable2fa'])->name('profile.disable-2fa');
+    Route::post('/profile/logout-all-sessions', [ProfileController::class, 'logoutAllSessions'])->name('profile.logout-all-sessions');
 });
 
 Route::get('/Registrar-Solicitud', function () {
@@ -247,6 +264,27 @@ Route::middleware('auth')->group(function () {
         ->name('solicitudes.proceso.cierre-financiero');
     Route::get('/solicitudes/padron/export', [SolicitudProcesoController::class, 'exportPadron'])
         ->name('solicitudes.padron.export');
+
+    // ============================================================
+    // FASE 8: Firma Electrónica - Rutas de firma y aprobación
+    // ============================================================
+    Route::prefix('solicitudes/{folio}/firma')->group(function () {
+        Route::get('/', [FirmaController::class, 'show'])
+            ->whereNumber('folio')
+            ->name('solicitudes.firma.show');
+        
+        Route::post('/firmar', [FirmaController::class, 'firmar'])
+            ->whereNumber('folio')
+            ->name('solicitudes.firma.firmar');
+        
+        Route::post('/rechazar', [FirmaController::class, 'rechazar'])
+            ->whereNumber('folio')
+            ->name('solicitudes.firma.rechazar');
+        
+        Route::get('/historial', [FirmaController::class, 'historialFirmas'])
+            ->whereNumber('folio')
+            ->name('solicitudes.firma.historial');
+    });
 
     // Módulo administrativo - Verificación de documentos
     Route::prefix('admin/solicitudes')->group(function () {

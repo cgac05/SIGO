@@ -11,6 +11,7 @@ use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
+use App\Http\Controllers\ReauthenticationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -49,6 +50,12 @@ Route::middleware('auth')->group(function () {
 
     Route::post('registro/completar-perfil', [CompleteBeneficiarioProfileController::class, 'store'])
         ->name('registro.completar-perfil.store');
+
+    // ============================================================
+    // FASE 8: Firma Electrónica - Re-autenticación
+    // ============================================================
+    Route::post('reauth-verify', [ReauthenticationController::class, 'verify'])
+        ->name('auth.reauth.verify');
 
     // Ruta para cambio de contraseña forzado (campos debe_cambiar_password)
     Route::post('debe-cambiar-password', [\App\Http\Controllers\CambioPasswordController::class, 'update'])

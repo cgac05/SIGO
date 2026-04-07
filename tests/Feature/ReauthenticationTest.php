@@ -85,7 +85,7 @@ class ReauthenticationTest extends TestCase
         $this->actingAs($usuario);
 
         $view = $this->blade(
-            '@include("components.modals.reauth-signature", ["solicitudId" => "SIGO-2026-TEP-00001", "onlyPassword" => false])'
+            '@include("components.modals.reauth-signature", ["solicitudId" => "SIGO-2026-00001", "onlyPassword" => false])'
         );
 
         $view->assertSeeInOrder([

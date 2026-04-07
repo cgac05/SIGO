@@ -32,6 +32,9 @@
             <main>
                 @yield('content')
             </main>
+
+            <!-- Modales Globales -->
+            @include('modals.reauth-signature')
         </div>
     </body>
 </html>

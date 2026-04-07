@@ -73,22 +73,23 @@
                 </h3>
             </div>
             <div class="p-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-                <a href="{{ route('certificacion.digital.dashboard') ?? '#' }}" class="p-4 bg-green-50 rounded hover:bg-green-100 transition">
+                <a href="{{ route('certificacion.index') }}" class="p-4 bg-green-50 rounded hover:bg-green-100 transition">
                     <span class="text-2xl">🎫</span>
                     <p class="text-sm font-medium text-green-900 mt-2">Certificación Digital</p>
                 </a>
-                <a href="{{ route('certificacion.verificacion.dashboard') ?? '#' }}" class="p-4 bg-green-50 rounded hover:bg-green-100 transition">
+                <a href="{{ route('certificacion.validar-form', 0) ?? '#' }}" class="p-4 bg-green-50 rounded hover:bg-green-100 transition">
                     <span class="text-2xl">✔️</span>
                     <p class="text-sm font-medium text-green-900 mt-2">Verificación</p>
                 </a>
-                <a href="{{ route('certificacion.archivado.dashboard') ?? '#' }}" class="p-4 bg-green-50 rounded hover:bg-green-100 transition">
+                {{-- Archivado aún no implementado --}}
+                <div class="p-4 bg-gray-100 rounded opacity-50 cursor-not-allowed">
                     <span class="text-2xl">📦</span>
                     <p class="text-sm font-medium text-green-900 mt-2">Archivado</p>
-                </a>
-                <a href="{{ route('certificacion.archivado.gestor') ?? '#' }}" class="p-4 bg-green-50 rounded hover:bg-green-100 transition">
+                </div>
+                <div class="p-4 bg-gray-100 rounded opacity-50 cursor-not-allowed">
                     <span class="text-2xl">💾</span>
                     <p class="text-sm font-medium text-green-900 mt-2">Gestor de Archivos</p>
-                </a>
+                </div>
             </div>
         </div>
 
