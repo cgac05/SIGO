@@ -39,17 +39,16 @@ class FirmaController extends Controller
      */
     public function show(Request $request, int $folio)
     {
+        $this->authorize('viewAny', \App\Models\Solicitud::class);
+        
         $usuario = Auth::user();
         
-        // Validar que sea Personal (directivo/admin) con permisos
-        if ($usuario->tipo_usuario !== 'Personal') {
-            if ($request->expectsJson() || $request->isXmlHttpRequest()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No tienes permisos para firmar solicitudes. Solo Personal puede firmar.'
-                ], 403);
-            }
-            abort(403, 'No tienes permisos para firmar solicitudes.');
+        // Validar que sea directivo o personal con permisos
+        if (!in_array($usuario->role, [2, 3])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permisos para firmar solicitudes.'
+            ], 403);
         }
 
         // Obtener datos de la solicitud
@@ -58,22 +57,19 @@ class FirmaController extends Controller
             ->first();
 
         if (!$solicitud) {
-            if ($request->expectsJson() || $request->isXmlHttpRequest()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Solicitud no encontrada.'
-                ], 404);
-            }
-            abort(404, 'Solicitud no encontrada.');
+            return response()->json([
+                'success' => false,
+                'message' => 'Solicitud no encontrada.'
+            ], 404);
         }
 
         // Obtener documentos asociados
         $documentos = \DB::table('Documentos_Expediente')
             ->where('fk_folio', $folio)
-            ->orderBy('id_doc')
+            ->orderBy('id_documento')
             ->get()
             ->map(fn($doc) => [
-                'id' => $doc->id_doc,
+                'id' => $doc->id_documento,
                 'tipo' => $doc->fk_id_tipo_doc,
                 'estado' => $doc->estado_validacion,
                 'fecha' => $doc->fecha_revision
@@ -90,34 +86,24 @@ class FirmaController extends Controller
             ->where('id_apoyo', $solicitud->fk_id_apoyo)
             ->first();
 
-        // Si es AJAX o espera JSON, retorna JSON
-        if ($request->expectsJson() || $request->isXmlHttpRequest()) {
-            return response()->json([
-                'success' => true,
-                'solicitud' => [
-                    'folio' => $folio,
-                    'estado' => $solicitud->fk_id_estado,
-                    'fecha_creacion' => $solicitud->fecha_creacion,
-                    'beneficiario' => $beneficiario ? [
-                        'nombre' => $beneficiario->nombre,
-                        'apellidos' => $beneficiario->apellido_paterno . ' ' . $beneficiario->apellido_materno,
-                        'curp' => $beneficiario->curp
-                    ] : null,
-                    'apoyo' => $apoyo ? [
-                        'nombre' => $apoyo->nombre_apoyo,
-                        'tipo' => $apoyo->tipo_apoyo,
-                        'monto' => $apoyo->monto_maximo
-                    ] : null,
-                    'documentos' => $documentos
-                ]
-            ]);
-        }
-        
-        // Si no es AJAX, retorna la vista Blade
-        return view('solicitudes.firma', [
-            'folio' => $folio,
-            'solicitud' => $solicitud,
-            'usuario' => $usuario
+        return response()->json([
+            'success' => true,
+            'solicitud' => [
+                'folio' => $folio,
+                'estado' => $solicitud->fk_id_estado,
+                'fecha_creacion' => $solicitud->fecha_creacion,
+                'beneficiario' => $beneficiario ? [
+                    'nombre' => $beneficiario->nombre,
+                    'apellidos' => $beneficiario->apellido_paterno . ' ' . $beneficiario->apellido_materno,
+                    'curp' => $beneficiario->curp
+                ] : null,
+                'apoyo' => $apoyo ? [
+                    'nombre' => $apoyo->nombre_apoyo,
+                    'tipo' => $apoyo->tipo_apoyo,
+                    'monto' => $apoyo->monto_maximo
+                ] : null,
+                'documentos' => $documentos
+            ]
         ]);
     }
 
@@ -131,10 +117,12 @@ class FirmaController extends Controller
      */
     public function firmar(Request $request, int $folio)
     {
+        $this->authorize('viewAny', \App\Models\Solicitud::class);
+
         $usuario = Auth::user();
 
-        // Validar que sea Personal (directivo/admin) con permisos
-        if ($usuario->tipo_usuario !== 'Personal') {
+        // Validar que sea directivo o personal con permisos
+        if (!in_array($usuario->role, [2, 3])) {
             return response()->json([
                 'success' => false,
                 'message' => 'No tienes permisos para firmar solicitudes.'
@@ -200,10 +188,12 @@ class FirmaController extends Controller
      */
     public function rechazar(Request $request, int $folio)
     {
+        $this->authorize('viewAny', \App\Models\Solicitud::class);
+
         $usuario = Auth::user();
 
-        // Validar que sea Personal (directivo/admin) con permisos
-        if ($usuario->tipo_usuario !== 'Personal') {
+        // Validar que sea directivo o personal con permisos
+        if (!in_array($usuario->role, [2, 3])) {
             return response()->json([
                 'success' => false,
                 'message' => 'No tienes permisos para rechazar solicitudes.'
@@ -277,6 +267,8 @@ class FirmaController extends Controller
      */
     public function historialFirmas(Request $request, int $folio)
     {
+        $this->authorize('viewAny', \App\Models\Solicitud::class);
+
         try {
             $firmas = \DB::table('firmas_electronicas')
                 ->where('folio_solicitud', $folio)
