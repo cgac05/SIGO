@@ -161,7 +161,7 @@
 </div>
 
 <!-- Modal de Re-autenticación (componente incluido) -->
-@include('components.modals.reauth-signature')
+@include('modals.reauth-signature')
 
 <!-- CSS para skeleton loading -->
 <style>

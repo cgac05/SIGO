@@ -44,10 +44,6 @@ class SolicitudProcesoController extends Controller
                 'Solicitudes.cuv',
                 'Solicitudes.folio_institucional',
                 'Solicitudes.fecha_creacion',
-                'Solicitudes.presupuesto_confirmado',
-                'Solicitudes.monto_entregado',
-                'Solicitudes.fecha_entrega_recurso',
-                'Solicitudes.fecha_cierre_financiero',
                 'Apoyos.nombre_apoyo',
                 'Beneficiarios.nombre',
                 'Beneficiarios.apellido_paterno',
@@ -79,41 +75,37 @@ class SolicitudProcesoController extends Controller
 
     public function revisarDocumento(Request $request)
     {
+        $user = $this->authorizePersonal($request);
+
+        $data = $request->validate([
+            'id_documento' => ['required', 'integer', 'exists:Documentos_Expediente,id_doc'],
+            'accion' => ['required', 'in:aprobar,observar,rechazar'],
+            'observaciones' => ['nullable', 'string'],
+            'permite_correcciones' => ['nullable', 'boolean'],
+            'webview_link' => ['nullable', 'url'],
+            'official_file_id' => ['nullable', 'string', 'max:200'],
+            'source_file_id' => ['nullable', 'string', 'max:200'],
+        ]);
+
+        $documento = DB::table('Documentos_Expediente')->where('id_documento', $data['id_documento'])->first();
+        if (! $documento) {
+            return back()->with('error', 'No se encontro el documento.');
+        }
+
+        $this->workflow->assertHitoActual((int) $documento->fk_folio, 'ANALISIS_ADMIN');
+
+        $estado = match ($data['accion']) {
+            'aprobar' => 'Aprobado',
+            'observar' => 'Observado',
+            'rechazar' => 'Rechazado',
+            default => 'Pendiente',
+        };
+
+        DB::beginTransaction();
+
         try {
-            $user = $this->authorizePersonal($request);
-            \Log::info('revisarDocumento: Usuario autenticado', ['user_id' => $user->id_usuario ?? 'UNKNOWN']);
-
-            $data = $request->validate([
-                'id_documento' => ['required', 'integer', 'exists:Documentos_Expediente,id_doc'],
-                'accion' => ['required', 'in:aprobar,observar,rechazar'],
-                'observaciones' => ['nullable', 'string'],
-                'permite_correcciones' => ['nullable', 'boolean'],
-                'webview_link' => ['nullable', 'url'],
-                'official_file_id' => ['nullable', 'string', 'max:200'],
-                'source_file_id' => ['nullable', 'string', 'max:200'],
-            ]);
-            \Log::info('revisarDocumento: Datos validados', $data);
-
-            $documento = DB::table('Documentos_Expediente')->where('id_doc', $data['id_documento'])->first();
-            if (! $documento) {
-                \Log::error('revisarDocumento: Documento no encontrado', ['id_doc' => $data['id_documento']]);
-                return back()->with('error', 'No se encontro el documento.');
-            }
-            \Log::info('revisarDocumento: Documento encontrado', ['id_doc' => $documento->id_doc, 'folio' => $documento->fk_folio]);
-
-            $estado = match ($data['accion']) {
-                'aprobar' => 'Revisado',
-                'observar' => 'Observado',
-                'rechazar' => 'Rechazado',
-                default => 'Pendiente',
-            };
-            \Log::info('revisarDocumento: Estado determinado', ['accion' => $data['accion'], 'estado' => $estado]);
-
-            DB::beginTransaction();
-            \Log::info('revisarDocumento: Transacción iniciada');
-
             DB::table('Documentos_Expediente')
-                ->where('id_doc', $data['id_documento'])
+                ->where('id_documento', $data['id_documento'])
                 ->update([
                     'estado_validacion' => $estado,
                     'observaciones_revision' => $data['observaciones'] ?? null,
@@ -123,7 +115,6 @@ class SolicitudProcesoController extends Controller
                     'revisado_por' => $user->id_usuario,
                     'fecha_revision' => now(),
                 ]);
-            \Log::info('revisarDocumento: Documento actualizado');
 
             if ($data['accion'] === 'rechazar') {
                 $permiteCorrecciones = filter_var($data['permite_correcciones'] ?? true, FILTER_VALIDATE_BOOLEAN);
@@ -135,7 +126,6 @@ class SolicitudProcesoController extends Controller
                         'fecha_actualizacion' => now(),
                         'observaciones_internas' => $data['observaciones'] ?? null,
                     ]);
-                \Log::info('revisarDocumento: Solicitud actualizada (rechazar)');
             }
 
             if ($data['accion'] === 'aprobar') {
@@ -143,34 +133,22 @@ class SolicitudProcesoController extends Controller
                     ->where('folio', $documento->fk_folio)
                     ->update([
                         'fk_id_estado' => 2,
-                        'presupuesto_confirmado' => true,
-                        'fecha_confirmacion_presupuesto' => now(),
                         'fecha_actualizacion' => now(),
                     ]);
-                \Log::info('revisarDocumento: Solicitud actualizada (aprobar)', ['folio' => $documento->fk_folio, 'presupuesto_confirmado' => 1]);
 
-                CopiarDocumentoExpedienteJob::dispatch((int) $documento->id_doc);
-                \Log::info('revisarDocumento: Job despachado');
+                CopiarDocumentoExpedienteJob::dispatch((int) $documento->id_documento);
             }
 
             if ($data['accion'] === 'observar') {
                 $this->crearNotificacionBeneficiario((int) $documento->fk_folio, 'Tu documento fue observado por el area administrativa.', 'documento_observado');
-                \Log::info('revisarDocumento: Notificación creada (observar)');
             }
 
             DB::commit();
-            \Log::info('revisarDocumento: Transacción COMMITEADA exitosamente');
 
-            return redirect()->route('solicitudes.proceso.index')->with('status', 'Documento actualizado correctamente.');
+            return back()->with('status', 'Documento actualizado correctamente.');
         } catch (\Throwable $e) {
             DB::rollBack();
-            \Log::error('revisarDocumento: ERROR FATAL', [
-                'mensaje' => $e->getMessage(),
-                'archivo' => $e->getFile(),
-                'linea' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return redirect()->route('solicitudes.proceso.index')->with('error', 'No fue posible actualizar el documento: ' . $e->getMessage());
+            return back()->with('error', 'No fue posible actualizar el documento: ' . $e->getMessage());
         }
     }
 
@@ -190,7 +168,7 @@ class SolicitudProcesoController extends Controller
         try {
             $validacionPresupuesto = $this->presupuestaryControl->validarPresupuestoParaSolicitud($folio);
             if (!$validacionPresupuesto['valido']) {
-                return back()->with('error', 'Error: ' . $validacionPresupuesto['mensaje']);
+                return back()->with('error', 'Presupuesto insuficiente: ' . $validacionPresupuesto['razon']);
             }
         } catch (\Exception $e) {
             return back()->with('error', 'Error validando presupuesto: ' . $e->getMessage());
@@ -556,7 +534,7 @@ class SolicitudProcesoController extends Controller
 
         $documentos = DB::table('Documentos_Expediente')
             ->where('fk_folio', $folio)
-            ->orderBy('id_doc')
+            ->orderBy('id_documento')
             ->get();
 
         $seguimiento = DB::table('Seguimiento_Solicitud')->where('fk_folio', $folio)->first();
