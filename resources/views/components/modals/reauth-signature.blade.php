@@ -4,7 +4,7 @@
 <div id="modal-reauth-signature"
      x-data="reauthSignature()"
      x-show="open"
-     style="position: fixed; inset: 0; z-index: 9998; display: flex; align-items: center; justify-content: center; padding: 1rem;"
+     style="position: fixed; inset: 0; z-index: 9998; align-items: center; justify-content: center; padding: 1rem;"
      @keydown.escape="closeModal()"
      class="transition-opacity duration-300"
      :class="{ 'opacity-0 pointer-events-none': !open, 'opacity-100': open }">

@@ -72,49 +72,136 @@
                         </div>
 
                         <div class="p-5 space-y-6 bg-slate-50">
-                            <div>
-                                <h4 class="font-semibold text-slate-900 mb-2">Fase 1: Revision administrativa</h4>
-                                <form method="POST" action="{{ route('solicitudes.proceso.revisar-documento') }}" class="space-y-2">
-                                    @csrf
-                                    <input type="number" name="id_documento" placeholder="ID documento" class="w-full rounded-lg border-gray-300 text-sm" required>
-                                    <select name="accion" class="w-full rounded-lg border-gray-300 text-sm" required>
-                                        <option value="aprobar">Aprobar</option>
-                                        <option value="observar">Observar</option>
-                                        <option value="rechazar">Rechazar</option>
-                                    </select>
-                                    <textarea name="observaciones" rows="2" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Observaciones"></textarea>
-                                    <div class="flex items-center gap-2 text-xs text-slate-600">
-                                        <input type="hidden" name="permite_correcciones" value="0">
-                                        <input id="corr-{{ $solicitud->folio }}" type="checkbox" name="permite_correcciones" value="1" class="rounded border-gray-300" checked>
-                                        <label for="corr-{{ $solicitud->folio }}">Permite correcciones</label>
+                            @php
+                                // Determinación del estado de cada fase basado en campos de BD
+                                // Fase 1: Revision administrativa → completa cuando presupuesto se confirma
+                                $fase1Completada = $solicitud->presupuesto_confirmado || !is_null($solicitud->cuv);
+                                
+                                // Fase 2: Firma directiva → completa cuando CUV se genera
+                                $fase2Completada = !is_null($solicitud->cuv) || $solicitud->presupuesto_confirmado;
+                                
+                                // Fase 3: Cierre financiero → completa cuando hay monto entregado
+                                $fase3Completada = !is_null($solicitud->monto_entregado);
+                                
+                                // Determinar qué fase está actualmente activa (la primera no completada)
+                                $faseActiva = !$fase1Completada ? 1 : (!$fase2Completada ? 2 : 3);
+                            @endphp
+
+                            <!-- FASE 1: REVISIÓN ADMINISTRATIVA -->
+                            <div x-data="{ expanded: {{ $faseActiva === 1 ? 'true' : 'false' }} }" class="border-l-4 {{ $fase1Completada ? 'border-green-500 bg-green-50' : ($faseActiva === 1 ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50') }}">
+                                <div class="p-3 cursor-pointer hover:bg-opacity-75 transition" @click="expanded = !expanded">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="font-semibold text-slate-900">
+                                            @if($fase1Completada)
+                                                <span class="text-green-600">✓ Fase 1: Revisión administrativa</span>
+                                            @else
+                                                <span class="text-blue-600">◉ Fase 1: Revisión administrativa</span>
+                                            @endif
+                                        </h4>
+                                        <span x-show="!expanded" class="text-sm text-slate-500">Expandir</span>
+                                        <span x-show="expanded" class="text-sm text-slate-500">Contraer</span>
                                     </div>
-                                    <input type="url" name="webview_link" placeholder="Google Drive webViewLink" class="w-full rounded-lg border-gray-300 text-sm">
-                                    <input type="text" name="source_file_id" placeholder="source_file_id" class="w-full rounded-lg border-gray-300 text-sm">
-                                    <input type="text" name="official_file_id" placeholder="official_file_id (expediente oficial)" class="w-full rounded-lg border-gray-300 text-sm">
-                                    <button class="w-full rounded-lg bg-slate-900 text-white py-2 text-sm font-semibold">Guardar revision</button>
-                                </form>
+                                </div>
+
+                                <div x-show="expanded" class="p-3 border-t border-gray-300">
+                                    @if($faseActiva === 1 || $fase1Completada)
+                                        <form method="POST" action="{{ route('solicitudes.proceso.revisar-documento') }}" class="space-y-2">
+                                            @csrf
+                                            <input type="number" name="id_documento" placeholder="ID documento" class="w-full rounded-lg border-gray-300 text-sm" required>
+                                            <select name="accion" class="w-full rounded-lg border-gray-300 text-sm" required>
+                                                <option value="aprobar">Aprobar</option>
+                                                <option value="observar">Observar</option>
+                                                <option value="rechazar">Rechazar</option>
+                                            </select>
+                                            <textarea name="observaciones" rows="2" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Observaciones"></textarea>
+                                            <div class="flex items-center gap-2 text-xs text-slate-600">
+                                                <input type="hidden" name="permite_correcciones" value="0">
+                                                <input id="corr-{{ $solicitud->folio }}" type="checkbox" name="permite_correcciones" value="1" class="rounded border-gray-300" checked>
+                                                <label for="corr-{{ $solicitud->folio }}">Permite correcciones</label>
+                                            </div>
+                                            <input type="url" name="webview_link" placeholder="Google Drive webViewLink" class="w-full rounded-lg border-gray-300 text-sm">
+                                            <input type="text" name="source_file_id" placeholder="source_file_id" class="w-full rounded-lg border-gray-300 text-sm">
+                                            <input type="text" name="official_file_id" placeholder="official_file_id (expediente oficial)" class="w-full rounded-lg border-gray-300 text-sm">
+                                            <button class="w-full rounded-lg bg-slate-900 text-white py-2 text-sm font-semibold hover:bg-slate-800 transition">Guardar revision</button>
+                                        </form>
+                                    @else
+                                        <p class="text-sm text-slate-600 text-center py-4">⏸ Completa la Fase 1 para continuar</p>
+                                    @endif
+                                </div>
                             </div>
 
-                            <div>
-                                <h4 class="font-semibold text-slate-900 mb-2">Fase 2: Firma directiva</h4>
-                                <form method="POST" action="{{ route('solicitudes.proceso.firma-directiva') }}" class="space-y-2">
-                                    @csrf
-                                    <input type="hidden" name="folio" value="{{ $solicitud->folio }}">
-                                    <input type="password" name="password" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Confirmar contrasena" required>
-                                    <button class="w-full rounded-lg bg-blue-700 text-white py-2 text-sm font-semibold">Firmar y generar CUV</button>
-                                </form>
+                            <!-- FASE 2: FIRMA DIRECTIVA -->
+                            <div x-data="{ expanded: {{ $faseActiva === 2 ? 'true' : 'false' }} }" class="border-l-4 {{ $fase2Completada ? 'border-green-500 bg-green-50' : ($faseActiva === 2 ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50') }}">
+                                <div class="p-3 cursor-pointer hover:bg-opacity-75 transition" @click="expanded = !expanded">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="font-semibold text-slate-900">
+                                            @if($fase2Completada)
+                                                <span class="text-green-600">✓ Fase 2: Firma directiva (CUV: {{ $solicitud->cuv ?? 'N/A' }})</span>
+                                            @elseif($faseActiva === 2)
+                                                <span class="text-blue-600">◉ Fase 2: Firma directiva</span>
+                                            @else
+                                                <span class="text-gray-500">◯ Fase 2: Firma directiva (Bloqueada)</span>
+                                            @endif
+                                        </h4>
+                                        @if($faseActiva === 2 || $fase2Completada)
+                                            <span x-show="!expanded" class="text-sm text-slate-500">Expandir</span>
+                                            <span x-show="expanded" class="text-sm text-slate-500">Contraer</span>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                <div x-show="expanded" class="p-3 border-t border-gray-300">
+                                    @if($faseActiva === 2 || $fase2Completada)
+                                        <form method="POST" action="{{ route('solicitudes.proceso.firma-directiva') }}" class="space-y-2">
+                                            @csrf
+                                            <input type="hidden" name="folio" value="{{ $solicitud->folio }}">
+                                            <input type="password" name="password" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Confirmar contrasena" required>
+                                            <button {{ $fase2Completada ? 'disabled' : '' }} class="w-full rounded-lg {{ $fase2Completada ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-700 hover:bg-blue-800' }} text-white py-2 text-sm font-semibold transition">
+                                                {{ $fase2Completada ? '✓ CUV Generado' : 'Firmar y generar CUV' }}
+                                            </button>
+                                        </form>
+                                    @else
+                                        <p class="text-sm text-slate-600 text-center py-4">⏸ Completa la Fase 1 para continuar</p>
+                                    @endif
+                                </div>
                             </div>
 
-                            <div>
-                                <h4 class="font-semibold text-slate-900 mb-2">Fase 3: Cierre financiero</h4>
-                                <form method="POST" action="{{ route('solicitudes.proceso.cierre-financiero') }}" class="space-y-2">
-                                    @csrf
-                                    <input type="hidden" name="folio" value="{{ $solicitud->folio }}">
-                                    <input type="number" step="0.01" min="0" name="monto_entregado" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Monto entregado" required>
-                                    <input type="date" name="fecha_entrega_recurso" class="w-full rounded-lg border-gray-300 text-sm" required>
-                                    <input type="text" name="ruta_pdf_final" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Ruta PDF final con QR">
-                                    <button class="w-full rounded-lg bg-emerald-700 text-white py-2 text-sm font-semibold">Cerrar solicitud</button>
-                                </form>
+                            <!-- FASE 3: CIERRE FINANCIERO -->
+                            <div x-data="{ expanded: {{ $faseActiva === 3 ? 'true' : 'false' }} }" class="border-l-4 {{ $fase3Completada ? 'border-green-500 bg-green-50' : ($faseActiva === 3 ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50') }}">
+                                <div class="p-3 cursor-pointer hover:bg-opacity-75 transition" @click="expanded = !expanded">
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="font-semibold text-slate-900">
+                                            @if($fase3Completada)
+                                                <span class="text-green-600">✓ Fase 3: Cierre financiero</span>
+                                            @elseif($faseActiva === 3)
+                                                <span class="text-blue-600">◉ Fase 3: Cierre financiero</span>
+                                            @else
+                                                <span class="text-gray-500">◯ Fase 3: Cierre financiero (Bloqueada)</span>
+                                            @endif
+                                        </h4>
+                                        @if($faseActiva === 3 || $fase3Completada)
+                                            <span x-show="!expanded" class="text-sm text-slate-500">Expandir</span>
+                                            <span x-show="expanded" class="text-sm text-slate-500">Contraer</span>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                <div x-show="expanded" class="p-3 border-t border-gray-300">
+                                    @if($faseActiva === 3 || $fase3Completada)
+                                        <form method="POST" action="{{ route('solicitudes.proceso.cierre-financiero') }}" class="space-y-2">
+                                            @csrf
+                                            <input type="hidden" name="folio" value="{{ $solicitud->folio }}">
+                                            <input type="number" step="0.01" min="0" name="monto_entregado" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Monto entregado" required>
+                                            <input type="date" name="fecha_entrega_recurso" class="w-full rounded-lg border-gray-300 text-sm" required>
+                                            <input type="text" name="ruta_pdf_final" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Ruta PDF final con QR">
+                                            <button {{ $fase3Completada ? 'disabled' : '' }} class="w-full rounded-lg {{ $fase3Completada ? 'bg-gray-400 cursor-not-allowed' : 'bg-emerald-700 hover:bg-emerald-800' }} text-white py-2 text-sm font-semibold transition">
+                                                {{ $fase3Completada ? '✓ Solicitud Cerrada' : 'Cerrar solicitud' }}
+                                            </button>
+                                        </form>
+                                    @else
+                                        <p class="text-sm text-slate-600 text-center py-4">⏸ Completa la Fase 2 para continuar</p>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     </div>
