@@ -41,6 +41,12 @@
                     <span class="text-2xl">⚙️</span>
                     <p class="text-sm font-medium text-blue-900 mt-2">Proceso de Cierre</p>
                 </a>
+                @if(auth()->user()->personal && (int) auth()->user()->personal->fk_rol === 2)
+                <a href="{{ route('directivo.panel') }}" class="p-4 bg-indigo-50 rounded hover:bg-indigo-100 transition border-2 border-indigo-300">
+                    <span class="text-2xl">🖊️</span>
+                    <p class="text-sm font-medium text-indigo-900 mt-2">Panel Directivo</p>
+                </a>
+                @endif
                 <a href="#" class="p-4 bg-blue-50 rounded hover:bg-blue-100 transition">
                     <span class="text-2xl">✅</span>
                     <p class="text-sm font-medium text-blue-900 mt-2">Validación Rápida</p>

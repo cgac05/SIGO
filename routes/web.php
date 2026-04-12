@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DirectivoController;
 use App\Http\Controllers\SolicitudController;
 use App\Http\Controllers\SolicitudProcesoController;
 use App\Http\Controllers\DocumentVerificationController;
@@ -251,7 +252,12 @@ Route::middleware('auth')->group(function () {
     Route::delete('/apoyos/{id}',          [ApoyoController::class, 'destroy'])->name('apoyos.destroy');
 
     // Flujo de cierre y validación de solicitudes
+    // Panel Directivo
+    Route::get('/directivo/panel', [DirectivoController::class, 'index'])
+        ->middleware('role:2')
+        ->name('directivo.panel');
     Route::get('/solicitudes/proceso', [SolicitudProcesoController::class, 'index'])
+        ->middleware('role:2')
         ->name('solicitudes.proceso.index');
     Route::get('/solicitudes/{folio}/timeline', [SolicitudProcesoController::class, 'timeline'])
         ->whereNumber('folio')
