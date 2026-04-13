@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable implements MustVerifyEmailContract
 {
@@ -183,7 +184,32 @@ class User extends Authenticatable implements MustVerifyEmailContract
         if ($this->google_avatar) {
             return $this->google_avatar;
         }
-        
+
+        $fotoPerfil = trim((string) $this->foto_perfil);
+
+        if ($fotoPerfil !== '') {
+            if (preg_match('#^https?://#i', $fotoPerfil)) {
+                return $fotoPerfil;
+            }
+
+            $normalizedPath = ltrim($fotoPerfil, '/');
+            $publicDiskPath = str_starts_with($normalizedPath, 'storage/')
+                ? substr($normalizedPath, strlen('storage/'))
+                : $normalizedPath;
+
+            if (Storage::disk('public')->exists($publicDiskPath)) {
+                return Storage::disk('public')->url($publicDiskPath);
+            }
+
+            if (file_exists(public_path($normalizedPath))) {
+                return asset($normalizedPath);
+            }
+
+            if (file_exists(public_path('storage/' . $publicDiskPath))) {
+                return asset('storage/' . $publicDiskPath);
+            }
+        }
+
         // Si no, intentar obtener desde almacenamiento local
         $localPhotoPath = "storage/fotos/{$this->id_usuario}.jpg";
         if (file_exists(public_path($localPhotoPath))) {

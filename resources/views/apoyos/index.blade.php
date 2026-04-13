@@ -136,6 +136,7 @@
                 </div>
             </div>
         </main>
+        <x-site-footer class="mt-16" />
     </div>
 </body>
 </html>

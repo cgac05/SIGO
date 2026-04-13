@@ -1,5 +1,7 @@
 <!-- Seguridad y Sesiones -->
 <section>
+    @php($activeSessions = collect($activeSessions ?? []))
+
     <header>
         <h2 class="text-lg font-medium text-gray-900">
             🔐 Seguridad y Sesiones
@@ -58,27 +60,59 @@
 
         <!-- Sesiones Activas -->
         <div class="border-l-4 border-blue-400 bg-blue-50 p-4 rounded">
-            <h3 class="font-medium text-blue-900">💻 Sesiones Activas</h3>
-            <p class="text-sm text-blue-700 mt-1">
-                Aquí se muestran todos los dispositivos donde estás conectado.
-            </p>
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h3 class="font-medium text-blue-900">💻 Sesiones Activas</h3>
+                    <p class="text-sm text-blue-700 mt-1">
+                        Aquí se muestran los dispositivos y navegadores con sesión abierta.
+                    </p>
+                </div>
+
+                <span class="inline-flex items-center rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700">
+                    {{ $activeSessions->count() }} activas
+                </span>
+            </div>
             
             <div class="mt-4 space-y-3">
-                <div class="bg-white border border-blue-200 rounded p-3 flex justify-between items-center">
-                    <div>
-                        <p class="font-medium text-gray-900">🖥️ Dispositivo Actual</p>
-                        <p class="text-xs text-gray-600 mt-1">
-                            {{ substr(Request::userAgent(), 0, 60) }}...
-                        </p>
-                        <p class="text-xs text-blue-600 mt-1">Conectado hace pocos momentos</p>
+                @forelse($activeSessions as $session)
+                    <div class="bg-white border border-blue-200 rounded p-3 flex justify-between items-start gap-4 shadow-sm">
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <p class="font-medium text-gray-900">{{ $session['device_type'] }} · {{ $session['browser'] }}</p>
+
+                                @if($session['is_current'])
+                                    <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                                        Sesión actual
+                                    </span>
+                                @endif
+                            </div>
+
+                            <p class="text-xs text-gray-600 mt-1">
+                                {{ $session['user_agent_preview'] }}
+                            </p>
+                            <p class="text-xs text-gray-600 mt-1">
+                                {{ $session['summary'] }}
+                            </p>
+                            <p class="text-xs text-gray-600 mt-1">
+                                IP: {{ $session['ip_address'] }}
+                            </p>
+                            <p class="text-xs text-blue-600 mt-1">
+                                Última actividad: {{ $session['last_activity_human'] }}
+                            </p>
+                        </div>
+
+                        <span class="text-lg">{{ $session['is_current'] ? '✅' : '💠' }}</span>
                     </div>
-                    <span class="text-lg">✅</span>
-                </div>
+                @empty
+                    <div class="bg-white border border-dashed border-blue-200 rounded p-3 text-sm text-blue-700">
+                        No se pudieron cargar sesiones activas.
+                    </div>
+                @endforelse
 
                 <form action="{{ route('profile.logout-all-sessions') }}" method="POST" class="mt-4">
                     @csrf
-                    <button type="submit" onclick="return confirm('¿Cerrar todas las demás sesiones? Tendrás que volver a iniciar sesión en otros dispositivos.')" class="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700">
-                        🔒 Cerrar Todas las Sesiones
+                    <button type="submit" onclick="return confirm('¿Cerrar todas las demás sesiones? Tendrás que volver a iniciar sesión en otros dispositivos.');" class="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700">
+                        🔒 Cerrar demás sesiones
                     </button>
                 </form>
             </div>

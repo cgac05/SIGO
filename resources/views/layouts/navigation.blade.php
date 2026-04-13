@@ -1,5 +1,6 @@
 <nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
     @php($currentUser = Auth::user())
+    @php($profilePhotoUrl = $currentUser?->getFotoUrl())
     <!-- Primary Navigation Menu -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
@@ -80,12 +81,28 @@
                     </div>
                 @endif
 
-                <x-dropdown align="right" width="48">
+                <x-dropdown align="right" width="w-80">
                     <x-slot name="trigger">
-                        <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
-                            <div>{{ $currentUser?->display_name ?? 'Usuario' }}</div>
+                        <button class="inline-flex items-center gap-2 px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
+                            <span class="flex h-8 w-8 shrink-0 overflow-hidden rounded-full border border-gray-200 bg-gray-100 shadow-sm">
+                                @if($profilePhotoUrl)
+                                    <img
+                                        src="{{ $profilePhotoUrl }}"
+                                        alt="Foto de {{ $currentUser?->display_name ?? 'usuario' }}"
+                                        class="h-full w-full object-cover"
+                                    >
+                                @else
+                                    <span class="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-500 to-blue-700 text-xs font-semibold text-white">
+                                        {{ mb_strtoupper(mb_substr($currentUser?->display_name ?? $currentUser?->email ?? 'U', 0, 1)) }}
+                                    </span>
+                                @endif
+                            </span>
 
-                            <div class="ms-1">
+                            <div class="max-w-[10rem] truncate">
+                                {{ $currentUser?->display_name ?? 'Usuario' }}
+                            </div>
+
+                            <div class="ms-1 shrink-0">
                                 <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                 </svg>
@@ -94,22 +111,68 @@
                     </x-slot>
 
                     <x-slot name="content">
+                        <div class="border-b border-gray-100 px-4 py-4">
+                            <div class="flex items-center gap-3">
+                                <span class="flex h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-gray-200 bg-gray-100 shadow-sm">
+                                    @if($profilePhotoUrl)
+                                        <img
+                                            src="{{ $profilePhotoUrl }}"
+                                            alt="Foto de {{ $currentUser?->display_name ?? 'usuario' }}"
+                                            class="h-full w-full object-cover"
+                                        >
+                                    @else
+                                        <span class="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-semibold text-white">
+                                            {{ mb_strtoupper(mb_substr($currentUser?->display_name ?? $currentUser?->email ?? 'U', 0, 1)) }}
+                                        </span>
+                                    @endif
+                                </span>
+
+                                <div class="min-w-0">
+                                    <p class="truncate text-sm font-semibold text-gray-900">{{ $currentUser?->display_name ?? 'Usuario' }}</p>
+                                    <p class="truncate text-xs text-gray-500">{{ $currentUser?->email }}</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <x-dropdown-link :href="route('profile.edit')">
-                            {{ __('Profile') }}
+                            {{ __('Perfil') }}
                         </x-dropdown-link>
 
-                        <!-- Authentication -->
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
+                        <div class="border-t border-gray-100 py-2">
+                            <p class="px-4 pb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">Secciones del perfil</p>
 
-                            <x-dropdown-link :href="route('logout')"
-                                    onclick="event.preventDefault();
-                                                this.closest('form').submit();">
-                                {{ __('Log Out') }}
-                            </x-dropdown-link>
-                        </form>
+                            <a href="{{ route('profile.edit') }}#info" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">
+                                Información
+                            </a>
+                            <a href="{{ route('profile.edit') }}#photo" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">
+                                Foto
+                            </a>
+                            <a href="{{ route('profile.edit') }}#google" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">
+                                Google
+                            </a>
+                            <a href="{{ route('profile.edit') }}#security" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">
+                                Seguridad
+                            </a>
+                            <a href="{{ route('profile.edit') }}#arco" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">
+                                Derechos ARCO
+                            </a>
+                        </div>
+
+                        <div class="border-t border-gray-100">
+                            <!-- Authentication -->
+                            <form method="POST" action="{{ route('logout') }}">
+                                @csrf
+
+                                <x-dropdown-link :href="route('logout')"
+                                        onclick="event.preventDefault();
+                                                    this.closest('form').submit();">
+                                    {{ __('Log Out') }}
+                                </x-dropdown-link>
+                            </form>
+                        </div>
                     </x-slot>
                 </x-dropdown>
+
             </div>
 
             <!-- Hamburger -->

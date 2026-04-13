@@ -140,27 +140,10 @@
                                                                                                                                                                                                                                                             </section>
                                                                                                                                                                                                                                                             
         </main>
-        
-        <footer class="mt-16 rounded-2xl bg-[var(--color-guinda)] p-6 text-white shadow-lg">
-                    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                                    <div>
-                                                        <p class="font-semibold">INJUVE Nayarit</p>
-                                                                            <p class="text-xs"> {{ date('Y') }} Gobierno del Estado de Nayarit. Todos los derechos reservados.</p>
-                                                                                            </div>
-                                                                                                            <div class="flex items-center gap-3 text-xs">
-                                                                                                                                <span>Síguenos:</span>
-                                                                                                                                                    <a href="#" class="opacity-90 hover:opacity-100">Facebook</a>
-                                                                                                                                                                        <a href="#" class="opacity-90 hover:opacity-100">Instagram</a>
-                                                                                                                                                                                            <a href="#" class="opacity-90 hover:opacity-100">X</a>
-                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                            <div class="flex items-center gap-3 text-xs">
-                                                                                                                                                                                                                                                <a href="#" class="underline">Aviso de Privacidad</a>
-                                                                                                                                                                                                                                                                    <a href="#" class="underline">Términos de Servicio</a>
-                                                                                                                                                                                                                                                                                    </div>
-                                                                                                                                                                                                                                                                                                </div>
-                                                                                                                                                                                                                                                                                                        </footer>
-                                                                                                                                                                                                                                                                                                            </div>
-                                                                                                                                                                                                                                                                                                            
+    </div>
+
+    <x-site-footer class="mt-16" />
+
     <script>
             document.addEventListener('DOMContentLoaded', function () {
                         const counterEl = document.getElementById('counter');

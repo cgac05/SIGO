@@ -1399,5 +1399,7 @@ if ($isEditing) {
         })();
     </script>
 
+    <x-site-footer class="mt-16" />
+
 </body>
 </html>

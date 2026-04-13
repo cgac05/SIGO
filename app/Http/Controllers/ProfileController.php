@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
@@ -20,6 +23,7 @@ class ProfileController extends Controller
     {
         return view('profile.edit', [
             'user' => $request->user(),
+            'activeSessions' => $this->getActiveSessions($request),
         ]);
     }
 
@@ -206,11 +210,110 @@ class ProfileController extends Controller
      */
     public function logoutAllSessions(Request $request): RedirectResponse
     {
-        // Invalidar todas las sesiones excepto la actual
-        // TODO: Implementar con persistencia de sesiones en BD
-        session()->invalidate();
-        session()->flush();
+        $user = $request->user();
 
-        return Redirect::route('profile.edit')->with('status', 'Todas las sesiones han sido cerradas');
+        DB::table(config('session.table', 'sessions'))
+            ->where('user_id', $user->getAuthIdentifier())
+            ->where('id', '!=', $request->session()->getId())
+            ->delete();
+
+        return Redirect::route('profile.edit')->with('status', 'Se cerraron las demás sesiones activas');
+    }
+
+    /**
+     * Obtener sesiones activas del usuario autenticado.
+     */
+    private function getActiveSessions(Request $request): array
+    {
+        if (config('session.driver') !== 'database') {
+            return [];
+        }
+
+        $user = $request->user();
+        $currentSessionId = $request->session()->getId();
+        $activeSince = now()->subMinutes((int) config('session.lifetime', 120))->timestamp;
+
+        return DB::table(config('session.table', 'sessions'))
+            ->where('user_id', $user->getAuthIdentifier())
+            ->where('last_activity', '>=', $activeSince)
+            ->orderByDesc('last_activity')
+            ->get()
+            ->map(function ($session) use ($currentSessionId) {
+                $userAgent = (string) ($session->user_agent ?? '');
+
+                return [
+                    'id' => $session->id,
+                    'ip_address' => $session->ip_address ?: 'No disponible',
+                    'user_agent' => $userAgent,
+                    'user_agent_preview' => Str::limit($userAgent ?: 'Navegador no identificado', 110),
+                    'device_type' => $this->detectDeviceType($userAgent),
+                    'browser' => $this->detectBrowser($userAgent),
+                    'operating_system' => $this->detectOperatingSystem($userAgent),
+                    'summary' => $this->formatSessionSummary($userAgent),
+                    'last_activity_human' => Carbon::createFromTimestamp((int) $session->last_activity)->diffForHumans(),
+                    'is_current' => $session->id === $currentSessionId,
+                ];
+            })
+            ->all();
+    }
+
+    private function formatSessionSummary(string $userAgent): string
+    {
+        $parts = array_filter([
+            $this->detectDeviceType($userAgent),
+            $this->detectBrowser($userAgent),
+            $this->detectOperatingSystem($userAgent),
+        ], fn ($part) => ! in_array($part, ['Desconocido', 'Navegador desconocido'], true));
+
+        return implode(' · ', $parts) ?: 'Sesión activa';
+    }
+
+    private function detectDeviceType(string $userAgent): string
+    {
+        $normalized = mb_strtolower($userAgent);
+
+        if (str_contains($normalized, 'ipad') || str_contains($normalized, 'tablet')) {
+            return 'Tablet';
+        }
+
+        if (str_contains($normalized, 'mobile') || str_contains($normalized, 'iphone') || str_contains($normalized, 'android')) {
+            return 'Móvil';
+        }
+
+        return 'Escritorio';
+    }
+
+    private function detectBrowser(string $userAgent): string
+    {
+        $normalized = mb_strtolower($userAgent);
+
+        return match (true) {
+            str_contains($normalized, 'edg/') => 'Edge',
+            str_contains($normalized, 'opr/') || str_contains($normalized, 'opera') => 'Opera',
+            str_contains($normalized, 'chrome/') && ! str_contains($normalized, 'edg/') && ! str_contains($normalized, 'opr/') => 'Chrome',
+            str_contains($normalized, 'firefox/') => 'Firefox',
+            str_contains($normalized, 'safari/') && ! str_contains($normalized, 'chrome/') => 'Safari',
+            str_contains($normalized, 'trident/') || str_contains($normalized, 'msie') => 'Internet Explorer',
+            default => 'Navegador desconocido',
+        };
+    }
+
+    private function detectOperatingSystem(string $userAgent): string
+    {
+        $normalized = mb_strtolower($userAgent);
+
+        return match (true) {
+            str_contains($normalized, 'windows nt 11.0') => 'Windows 11',
+            str_contains($normalized, 'windows nt 10.0') => 'Windows 10',
+            str_contains($normalized, 'windows nt 6.3') => 'Windows 8.1',
+            str_contains($normalized, 'windows nt 6.2') => 'Windows 8',
+            str_contains($normalized, 'windows nt 6.1') => 'Windows 7',
+            str_contains($normalized, 'windows nt') => 'Windows',
+            str_contains($normalized, 'android') => 'Android',
+            str_contains($normalized, 'iphone') || str_contains($normalized, 'ipad') || str_contains($normalized, 'ios') => 'iOS',
+            str_contains($normalized, 'mac os x') || str_contains($normalized, 'macintosh') => 'macOS',
+            str_contains($normalized, 'linux') => 'Linux',
+            default => 'Desconocido',
+        };
     }
 }

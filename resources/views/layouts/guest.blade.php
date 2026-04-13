@@ -17,17 +17,23 @@
     <body class="font-sans text-gray-900 antialiased">
         <!-- Antiguo color-->
         <!-- class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100"-->
-        <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-cover bg-center bg-no-repeat" 
+        <div class="min-h-screen flex flex-col bg-cover bg-center bg-no-repeat" 
                 style="background-image: url('{{ asset('images/fondo3.png') }}');">
-            <div>
-                <a href="/">
-                    <x-application-logo class="w-20 h-20 fill-current text-gray-500" />
-                </a>
+            <div class="flex-1 flex flex-col items-center justify-center px-4 pt-6 sm:pt-0">
+                <div>
+                    <a href="/">
+                        <x-application-logo class="w-20 h-20 fill-current text-gray-500" />
+                    </a>
+                </div>
+
+                <div class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white shadow-md overflow-hidden sm:rounded-lg">
+                    {{ $slot }}
+                </div>
             </div>
 
-            <div class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white shadow-md overflow-hidden sm:rounded-lg">
-                {{ $slot }}
-            </div>
+            @unless (request()->routeIs('login', 'register', 'password.request'))
+                <x-site-footer class="mt-8" />
+            @endunless
         </div>
     </body>
 </html>

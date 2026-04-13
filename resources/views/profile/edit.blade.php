@@ -113,9 +113,20 @@
 
     <script>
         // Tabs functionality
+        const profileTabs = ['info', 'photo', 'google', 'security', 'arco'];
+
+        function getProfileTabFromHash() {
+            const hash = window.location.hash.replace('#', '');
+
+            return profileTabs.includes(hash) ? hash : 'info';
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
-            // Set first tab as active
-            switchTab('info');
+            switchTab(getProfileTabFromHash());
+        });
+
+        window.addEventListener('hashchange', function() {
+            switchTab(getProfileTabFromHash());
         });
 
         function switchTab(tabName) {
@@ -130,16 +141,21 @@
                 btn.classList.add('border-transparent', 'text-gray-700');
             });
 
+            const activeButton = document.querySelector('.tab-button[data-tab="' + tabName + '"]');
+
             // Show selected tab
             document.getElementById('tab-' + tabName).classList.remove('hidden');
 
             // Add active border to clicked button
-            event.target.closest('.tab-button').classList.remove('border-transparent', 'text-gray-700');
-            event.target.closest('.tab-button').classList.add('border-blue-600', 'text-blue-600');
+            if (activeButton) {
+                activeButton.classList.remove('border-transparent', 'text-gray-700');
+                activeButton.classList.add('border-blue-600', 'text-blue-600');
+            }
 
             // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     </script>
+    <x-site-footer class="mt-16" />
 </body>
 </html>

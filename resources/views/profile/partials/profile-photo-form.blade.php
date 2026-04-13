@@ -17,7 +17,7 @@
                     <img src="{{ $user->google_avatar }}" alt="Avatar" class="h-24 w-24 rounded-full border-2 border-blue-500">
                     <p class="text-xs text-gray-500 mt-2">👤 Google Avatar</p>
                 @elseif ($user->foto_perfil)
-                    <img src="{{ asset($user->foto_perfil) }}" alt="Foto" class="h-24 w-24 rounded-full border-2 border-gray-300">
+                    <img src="{{ $user->getFotoUrl() }}" alt="Foto" class="h-24 w-24 rounded-full border-2 border-gray-300">
                     <p class="text-xs text-gray-500 mt-2">📷 Foto Local</p>
                 @else
                     <div class="h-24 w-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl">
