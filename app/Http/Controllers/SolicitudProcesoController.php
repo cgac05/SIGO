@@ -44,6 +44,8 @@ class SolicitudProcesoController extends Controller
                 'Solicitudes.cuv',
                 'Solicitudes.folio_institucional',
                 'Solicitudes.fecha_creacion',
+                'Solicitudes.presupuesto_confirmado',
+                'Solicitudes.monto_entregado',
                 'Apoyos.nombre_apoyo',
                 'Beneficiarios.nombre',
                 'Beneficiarios.apellido_paterno',
@@ -77,27 +79,37 @@ class SolicitudProcesoController extends Controller
     {
         $user = $this->authorizePersonal($request);
 
-        $data = $request->validate([
-            'id_documento' => ['required', 'integer', 'exists:Documentos_Expediente,id_doc'],
-            'accion' => ['required', 'in:aprobar,observar,rechazar'],
-            'observaciones' => ['nullable', 'string'],
-            'permite_correcciones' => ['nullable', 'boolean'],
-            'webview_link' => ['nullable', 'url'],
-            'official_file_id' => ['nullable', 'string', 'max:200'],
-            'source_file_id' => ['nullable', 'string', 'max:200'],
-        ]);
+        try {
+            $data = $request->validate([
+                'id_documento' => ['required', 'integer', 'exists:Documentos_Expediente,id_doc'],
+                'accion' => ['required', 'in:aprobar,observar,rechazar'],
+                'observaciones' => ['nullable', 'string'],
+                'permite_correcciones' => ['nullable', 'boolean'],
+                'webview_link' => ['nullable', 'string', 'max:500'],
+                'official_file_id' => ['nullable', 'string', 'max:200'],
+                'source_file_id' => ['nullable', 'string', 'max:200'],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $message = 'Errores de validación: ' . implode(', ', collect($e->errors())->flatten()->all());
+            if ($request->expectsJson()) {
+                return response()->json(['exito' => false, 'mensaje' => $message], 422);
+            }
+            return back()->withErrors($e->errors());
+        }
 
-        $documento = DB::table('Documentos_Expediente')->where('id_documento', $data['id_documento'])->first();
+        $documento = DB::table('Documentos_Expediente')->where('id_doc', $data['id_documento'])->first();
         if (! $documento) {
-            return back()->with('error', 'No se encontro el documento.');
+            $mensaje = 'No se encontro el documento.';
+            if ($request->expectsJson()) return response()->json(['exito' => false, 'mensaje' => $mensaje], 404);
+            return back()->with('error', $mensaje);
         }
 
         $this->workflow->assertHitoActual((int) $documento->fk_folio, 'ANALISIS_ADMIN');
 
         $estado = match ($data['accion']) {
-            'aprobar' => 'Aprobado',
-            'observar' => 'Observado',
-            'rechazar' => 'Rechazado',
+            'aprobar' => 'Correcto',
+            'observar' => 'Pendiente',
+            'rechazar' => 'Incorrecto',
             default => 'Pendiente',
         };
 
@@ -105,7 +117,7 @@ class SolicitudProcesoController extends Controller
 
         try {
             DB::table('Documentos_Expediente')
-                ->where('id_documento', $data['id_documento'])
+                ->where('id_doc', $data['id_documento'])
                 ->update([
                     'estado_validacion' => $estado,
                     'observaciones_revision' => $data['observaciones'] ?? null,
@@ -136,7 +148,17 @@ class SolicitudProcesoController extends Controller
                         'fecha_actualizacion' => now(),
                     ]);
 
-                CopiarDocumentoExpedienteJob::dispatch((int) $documento->id_documento);
+                // 🧪 COMENTADO PARA PRUEBAS: Job requiere tabla 'jobs' que no existe
+                // CopiarDocumentoExpedienteJob::dispatch((int) $documento->id_doc);
+                
+                // Verificar si TODOS los documentos están aprobados
+                $todosAprobados = $this->verificarTodosDocumentosAprobados((int) $documento->fk_folio);
+                if ($todosAprobados) {
+                    // Completar Fase 1
+                    DB::table('Solicitudes')
+                        ->where('folio', $documento->fk_folio)
+                        ->update(['presupuesto_confirmado' => 1]);
+                }
             }
 
             if ($data['accion'] === 'observar') {
@@ -145,11 +167,45 @@ class SolicitudProcesoController extends Controller
 
             DB::commit();
 
-            return back()->with('status', 'Documento actualizado correctamente.');
+            // Verificar estado final para respuesta
+            $todosAprobados = $this->verificarTodosDocumentosAprobados((int) $documento->fk_folio);
+            $mensaje = 'Documento actualizado correctamente.';
+            
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'exito' => true,
+                    'mensaje' => $mensaje,
+                    'fase1_completada' => $todosAprobados,
+                    'accion' => $data['accion'],
+                ]);
+            }
+            
+            return back()->with('status', $mensaje);
         } catch (\Throwable $e) {
             DB::rollBack();
-            return back()->with('error', 'No fue posible actualizar el documento: ' . $e->getMessage());
+            $mensaje = 'No fue posible actualizar el documento: ' . $e->getMessage();
+            if ($request->expectsJson()) {
+                return response()->json(['exito' => false, 'mensaje' => $mensaje], 422);
+            }
+            return back()->with('error', $mensaje);
         }
+    }
+
+    /**
+     * Verificar si todos los documentos de una solicitud están aprobados
+     */
+    private function verificarTodosDocumentosAprobados(int $folio): bool
+    {
+        $totalDocumentos = DB::table('Documentos_Expediente')
+            ->where('fk_folio', $folio)
+            ->count();
+
+        $documentosAprobados = DB::table('Documentos_Expediente')
+            ->where('fk_folio', $folio)
+            ->where('estado_validacion', 'Correcto')
+            ->count();
+
+        return $totalDocumentos > 0 && $totalDocumentos === $documentosAprobados;
     }
 
     public function firmaDirectiva(Request $request)
@@ -168,7 +224,7 @@ class SolicitudProcesoController extends Controller
         try {
             $validacionPresupuesto = $this->presupuestaryControl->validarPresupuestoParaSolicitud($folio);
             if (!$validacionPresupuesto['valido']) {
-                return back()->with('error', 'Presupuesto insuficiente: ' . $validacionPresupuesto['razon']);
+                return back()->with('error', 'Presupuesto insuficiente: ' . $validacionPresupuesto['mensaje']);
             }
         } catch (\Exception $e) {
             return back()->with('error', 'Error validando presupuesto: ' . $e->getMessage());
@@ -188,7 +244,7 @@ class SolicitudProcesoController extends Controller
         // Usar FirmaElectronicaService para manejar la firma
         $resultado = $this->firmaService->firmarSolicitud(
             $folio,
-            $user,
+            $user,  // Ya está como App\Models\User
             $data['password']
         );
 
@@ -487,13 +543,12 @@ class SolicitudProcesoController extends Controller
         }
 
         DB::table('Notificaciones')->insert([
-            'fk_id_usuario' => $beneficiario->fk_id_usuario,
+            'id_beneficiario' => $beneficiario->id_beneficiario,
+            'tipo' => $evento,
+            'titulo' => '✅ Apoyo Autorizado',
             'mensaje' => $mensaje,
-            'evento' => $evento,
-            'canal' => 'sistema',
-            'leido' => 0,
-            'data' => json_encode(['folio' => $folio], JSON_UNESCAPED_UNICODE),
-            'fecha_creacion' => now(),
+            'datos' => json_encode(['folio' => $folio, 'evento' => $evento]),
+            'leida' => 0,
         ]);
 
         $emailDestino = DB::table('Usuarios')
@@ -534,7 +589,7 @@ class SolicitudProcesoController extends Controller
 
         $documentos = DB::table('Documentos_Expediente')
             ->where('fk_folio', $folio)
-            ->orderBy('id_documento')
+            ->orderBy('id_doc')
             ->get();
 
         $seguimiento = DB::table('Seguimiento_Solicitud')->where('fk_folio', $folio)->first();

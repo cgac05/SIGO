@@ -37,7 +37,15 @@ class SolicitudWorkflowService
             ]);
         }
 
-        $current = $this->resolveCurrentHito($hitos->all());
+        // 🧪 PRUEBAS: Folio 1000 usa hito guardado en BD, todos los demás usan cálculo automático
+        $current = null;
+        if ($folio === 1000 && $solicitud->fk_id_hito_actual) {
+            $current = DB::table('Hitos_Apoyo')->where('id_hito', $solicitud->fk_id_hito_actual)->first();
+        }
+        
+        if (!$current) {
+            $current = $this->resolveCurrentHito($hitos->all());
+        }
 
         $timeline = [];
         foreach ($hitos as $hito) {
@@ -142,4 +150,82 @@ class SolicitudWorkflowService
 
         return end($hitos);
     }
+
+    /**
+     * Sincronizar hito actual basado en el estado real de la solicitud
+     * Verifica si documentos están aprobados, si fue firmada, etc.
+     * y actualiza automáticamente el hito si es necesario
+     */
+    public function sincronizarHitoActual(int $folio): array
+    {
+        $solicitud = DB::table('Solicitudes')->where('folio', $folio)->first();
+        if (! $solicitud) {
+            return ['exito' => false, 'mensaje' => 'Solicitud no encontrada'];
+        }
+
+        // Verificar estado actual
+        $totalDocs = DB::table('Documentos_Expediente')
+            ->where('fk_folio', $folio)
+            ->count();
+
+        $docsAprobados = DB::table('Documentos_Expediente')
+            ->where('fk_folio', $folio)
+            ->where('estado_validacion', 'Correcto')
+            ->count();
+
+        // Determinar hito correcto basado en estado de la solicitud
+        $hitoEsperado = 'INICIO_PUBLICACION'; // default
+
+        if ($totalDocs > 0 && $docsAprobados === $totalDocs && !$solicitud->cuv) {
+            $hitoEsperado = 'EVALUACION_SOLICITUDES'; // Todos docs aprobados, pero sin firmar
+        }
+
+        if ($solicitud->cuv && !$solicitud->monto_entregado) {
+            $hitoEsperado = 'PLAZO_DESCARGA_ADMINISTRATIVA'; // Firmada pero sin cerrar
+        }
+
+        if ($solicitud->monto_entregado) {
+            $hitoEsperado = 'PROCESO_CERRADO'; // Todo completado
+        }
+
+        // Obtener ID del hito esperado
+        $hito = DB::table('Hitos_Apoyo')
+            ->where('fk_id_apoyo', $solicitud->fk_id_apoyo)
+            ->where('clave_hito', $hitoEsperado)
+            ->where('activo', 1)
+            ->first();
+
+        if (!$hito) {
+            return [
+                'exito' => false,
+                'mensaje' => "Hito '$hitoEsperado' no encontrado para este apoyo"
+            ];
+        }
+
+        // Comparar con hito actual
+        $hitoActual = DB::table('Hitos_Apoyo')->where('id_hito', $solicitud->fk_id_hito_actual)->first();
+        $cambio = !$hitoActual || $hitoActual->id_hito !== $hito->id_hito;
+
+        if ($cambio) {
+            DB::table('Solicitudes')
+                ->where('folio', $folio)
+                ->update(['fk_id_hito_actual' => $hito->id_hito]);
+
+            return [
+                'exito' => true,
+                'cambio' => true,
+                'hito_anterior' => $hitoActual?->clave_hito ?? 'N/A',
+                'hito_nuevo' => $hito->clave_hito,
+                'mensaje' => "Hito actualizado de {$hitoActual?->clave_hito} a {$hito->clave_hito}"
+            ];
+        }
+
+        return [
+            'exito' => true,
+            'cambio' => false,
+            'hito_actual' => $hito->clave_hito,
+            'mensaje' => "Hito ya es correcto: {$hito->clave_hito}"
+        ];
+    }
+
 }

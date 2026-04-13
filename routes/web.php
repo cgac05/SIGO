@@ -273,6 +273,10 @@ Route::middleware('auth')->group(function () {
             ->whereNumber('folio')
             ->name('solicitudes.firma.show');
         
+        Route::post('/completar-fase-2', [FirmaController::class, 'completarFase2'])
+            ->whereNumber('folio')
+            ->name('solicitudes.firma.completar-fase-2');
+        
         Route::post('/firmar', [FirmaController::class, 'firmar'])
             ->whereNumber('folio')
             ->name('solicitudes.firma.firmar');
