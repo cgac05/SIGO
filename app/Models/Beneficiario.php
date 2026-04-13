@@ -48,6 +48,24 @@ class Beneficiario extends Model
         ])->filter()->implode(' '));
     }
 
+    public function getEdadAttribute(): ?int
+    {
+        if (! $this->fecha_nacimiento) {
+            return null;
+        }
+
+        return $this->fecha_nacimiento->age;
+    }
+
+    public function getSexoLabelAttribute(): string
+    {
+        return match (mb_strtoupper((string) $this->genero)) {
+            'H' => 'Masculino',
+            'M' => 'Femenino',
+            default => '—',
+        };
+    }
+
     /**
      * Retorna el email para notificaciones (obtiene del usuario asociado)
      */

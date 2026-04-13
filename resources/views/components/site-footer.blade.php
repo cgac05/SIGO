@@ -8,7 +8,7 @@
             <div class="lg:col-span-4">
                 <div class="flex items-center gap-4">
                     <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/95 p-2 shadow-lg ring-1 ring-white/20">
-                        <img src="{{ asset('images/logo.png') }}" alt="Logo SIGO" class="h-10 w-auto">
+                        <img src="{{ asset('images/logo_simple.png') }}" alt="Logo SIGO" class="h-10 w-auto">
                     </div>
 
                     <div>

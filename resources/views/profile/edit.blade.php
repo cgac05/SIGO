@@ -14,7 +14,19 @@
         <header class="bg-gradient-to-r from-blue-600 to-blue-800 shadow-lg">
             <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
                 <div class="flex items-center gap-4">
-                    <div class="text-4xl">👤</div>
+                    <div class="flex h-28 w-28 shrink-0 overflow-hidden rounded-full border-2 border-white/80 bg-white/10 shadow-lg">
+                        @if ($user?->getFotoUrl())
+                            <img
+                                src="{{ $user->getFotoUrl() }}"
+                                alt="Foto de {{ $user?->display_name ?? 'usuario' }}"
+                                class="h-full w-full object-cover"
+                            >
+                        @else
+                            <span class="flex h-full w-full items-center justify-center bg-white/10 text-3xl font-semibold text-white">
+                                {{ mb_strtoupper(mb_substr($user?->display_name ?? $user?->email ?? 'U', 0, 1)) }}
+                            </span>
+                        @endif
+                    </div>
                     <div>
                         <h1 class="text-3xl font-bold text-white">Mi Perfil</h1>
                         <p class="text-blue-100 mt-1">Gestiona tu información personal y preferencias</p>

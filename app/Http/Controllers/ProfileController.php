@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -32,17 +33,100 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill([
-            'email' => $request->validated('email'),
-        ]);
+        $user = $request->user();
+        $validated = $request->validated();
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
-        }
+        DB::transaction(function () use ($user, $validated): void {
+            $user->loadMissing(['personal', 'beneficiario']);
 
-        $request->user()->save();
+            $user->fill([
+                'email' => $validated['email'],
+            ]);
+
+            if ($user->isDirty('email')) {
+                $user->email_verified_at = null;
+            }
+
+            $this->updateProfileFullName($user, $validated['display_name']);
+
+            $user->save();
+        });
 
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
+    }
+
+    /**
+     * Update the user's full name in the related profile table.
+     */
+    private function updateProfileFullName(User $user, string $fullName): void
+    {
+        [$nombre, $apellidoPaterno, $apellidoMaterno] = $this->splitFullName($fullName);
+
+        if ($user->personal) {
+            $user->personal->fill([
+                'nombre' => $nombre,
+                'apellido_paterno' => $apellidoPaterno,
+                'apellido_materno' => $apellidoMaterno,
+            ])->save();
+
+            return;
+        }
+
+        if ($user->beneficiario) {
+            $user->beneficiario->fill([
+                'nombre' => $nombre,
+                'apellido_paterno' => $apellidoPaterno,
+                'apellido_materno' => $apellidoMaterno,
+            ])->save();
+        }
+    }
+
+    /**
+     * Split a full name into the columns used by the profile tables.
+     */
+    private function splitFullName(string $fullName): array
+    {
+        $parts = preg_split('/\s+/u', trim($fullName), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        if ($parts === []) {
+            return ['', '', ''];
+        }
+
+        if (count($parts) === 1) {
+            return [$this->normalizeNamePart($parts[0], 150), '', ''];
+        }
+
+        if (count($parts) === 2) {
+            return [
+                $this->normalizeNamePart($parts[0], 150),
+                $this->normalizeNamePart($parts[1], 50),
+                '',
+            ];
+        }
+
+        $apellidoMaterno = array_pop($parts) ?: '';
+        $apellidoPaterno = array_pop($parts) ?: '';
+        $nombre = implode(' ', $parts);
+
+        if ($nombre === '') {
+            $nombre = $apellidoPaterno;
+            $apellidoPaterno = $apellidoMaterno;
+            $apellidoMaterno = '';
+        }
+
+        return [
+            $this->normalizeNamePart($nombre, 150),
+            $this->normalizeNamePart($apellidoPaterno, 50),
+            $this->normalizeNamePart($apellidoMaterno, 50),
+        ];
+    }
+
+    /**
+     * Normalize a name segment and keep it within the target column size.
+     */
+    private function normalizeNamePart(string $value, int $limit): string
+    {
+        return Str::limit(Str::squish($value), $limit, '');
     }
 
     /**
