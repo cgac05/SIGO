@@ -1,0 +1,104 @@
+# ⚡ QUICK START - FASE 2 EN 5 MINUTOS
+
+## Paso 1️⃣: Ejecuta el SQL (2 min)
+
+Abre **SQL Server Management Studio** y ejecuta:
+```
+c:\xampp\htdocs\SIGO\SQL_SETUP_PARA_COMPAÑEROS_FASE2_COMPLETA.sql
+```
+
+✅ Espera el mensaje: `SETUP COMPLETADO EXITOSAMENTE`
+
+---
+
+## Paso 2️⃣: Inicia sesión (30 seg)
+
+Abre: `http://localhost/solicitudes`
+
+```
+Usuario: dora1
+Contraseña: 123456789
+```
+
+---
+
+## Paso 3️⃣: Busca el Folio (30 seg)
+
+1. Menú → **Solicitudes en Proceso**
+2. Busca: **Folio 1000**
+3. Estado: **ANALISIS_ADMIN** ← Debe estar aquí
+4. Haz clic: **Ver**
+
+---
+
+## Paso 4️⃣: Completa Resumen Crítico (1 min)
+
+Verás una página con:
+
+✅ **5 Bloques de información:**
+- Azul: Datos del beneficiario (Christian Guillermo)
+- Verde: Datos del apoyo ($50)
+- Morado: Documentos requeridos
+- Índigo: Presupuesto y responsabilidades  
+- Gris: Hito actual (ANALISIS_ADMIN → RESULTADOS)
+
+✅ **4 Checkboxes abajo:**
+- [ ] Confirmo perfil del beneficiario
+- [ ] Confirmo monto del apoyo
+- [ ] Confirmo documentos requeridos
+- [ ] Asumo responsabilidad
+
+---
+
+## Paso 5️⃣: Marca los Checkboxes y Continúa (1 min)
+
+1. Marca **todos los 4 checkboxes** ✓
+2. Haz clic: **"Proceder a Firmar"**
+3. Espera: Notificación verde "Fase 2 completada"
+4. Automático: Redirige a `/solicitudes/proceso`
+5. Verifica: Folio 1000 debe estar en **Fase 3 (RESULTADOS)**
+
+---
+
+## ✅ Éxito
+
+Si completaste todo y ves el folio en Fase 3, **¡TODO FUNCIONA!** 🎉
+
+---
+
+## ❌ Si falla algo
+
+### SQL no ejecuta:
+- Verifica que estés en base `BD_SIGO`
+- Cierra otras pestañas de SSMS
+- Reconecta
+
+### No veo el folio:
+```sql
+SELECT * FROM Solicitudes WHERE folio = 1000
+-- Debe retornar 1 registro
+```
+
+### Error de permisos:
+```sql
+SELECT fk_rol FROM Personal 
+WHERE fk_id_usuario = (SELECT id_usuario FROM Usuarios WHERE nombre = 'dora1')
+-- Debe retornar: 2
+```
+
+### Botón no funciona:
+```bash
+php artisan view:clear
+php artisan cache:clear
+# Recarga página (Ctrl + Shift + R)
+```
+
+---
+
+**Lee la guía completa en:** `README_SQL_SETUP_FASE2.md`
+
+**Solución de problemas:** `FAQ_TROUBLESHOOTING_FASE2.md`
+
+---
+
+**¡Listo! 🚀**
