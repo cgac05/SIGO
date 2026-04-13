@@ -35,7 +35,7 @@ class FirmaElectronicaService
      * @param string $password Contraseña para re-autenticación
      * @return array ['valido' => bool, 'mensaje' => string, 'datos' => array|null]
      */
-    public function validarPreRequisitosSignatura(int $folio, Usuario $directivo, string $password): array
+    public function validarPreRequisitosSignatura(int $folio, \App\Models\User $directivo, string $password): array
     {
         // 1. Validar que el folio existe
         $solicitud = DB::table('Solicitudes')
@@ -49,11 +49,12 @@ class FirmaElectronicaService
             ];
         }
 
-        // 2. Validar que el usuario es directivo (role 3 = Directivo)
-        if (!in_array($directivo->role, [2, 3])) {
+        // 2. Validar que el usuario es directivo (role 2, 3 = Directivo, Admin)
+        $personal = DB::table('Personal')->where('fk_id_usuario', $directivo->id_usuario)->first();
+        if (!$personal || !in_array($personal->fk_rol, [1, 2, 3])) {
             return [
                 'valido' => false,
-                'mensaje' => 'Solo directivos pueden firmar solicitudes.',
+                'mensaje' => 'Solo personal administrativo/directivo puede firmar solicitudes.',
             ];
         }
 
@@ -163,11 +164,11 @@ class FirmaElectronicaService
      * PUNTO DE NO RETORNO - Una vez firmada, no se puede revertir
      *
      * @param int $folio
-     * @param Usuario $directivo
+     * @param \App\Models\User $directivo
      * @param string $password
      * @return array ['exitoso' => bool, 'mensaje' => string, 'firma' => array|null]
      */
-    public function firmarSolicitud(int $folio, Usuario $directivo, string $password): array
+    public function firmarSolicitud(int $folio, \App\Models\User $directivo, string $password): array
     {
         // Validar pre-requisitos
         $validacion = $this->validarPreRequisitosSignatura($folio, $directivo, $password);
@@ -183,10 +184,10 @@ class FirmaElectronicaService
                 // Obtener documentos para incluir en sello
                 $documentos = DB::table('Documentos_Expediente')
                     ->where('fk_folio', $folio)
-                    ->orderBy('id_documento')
+                    ->orderBy('id_doc')
                     ->get()
                     ->map(fn ($doc) => [
-                        'id_documento' => $doc->id_documento,
+                        'id_doc' => $doc->id_doc,
                         'tipo' => $doc->fk_id_tipo_doc,
                         'estado' => $doc->estado_validacion,
                         'official_file_id' => $doc->official_file_id,

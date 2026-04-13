@@ -73,18 +73,33 @@
 
                         <div class="p-5 space-y-6 bg-slate-50">
                             @php
-                                // Determinación del estado de cada fase basado en campos de BD
-                                // Fase 1: Revision administrativa → completa cuando presupuesto se confirma
-                                $fase1Completada = $solicitud->presupuesto_confirmado || !is_null($solicitud->cuv);
+                                // Flujo secuencial de FASES - cada una depende de la anterior
                                 
-                                // Fase 2: Firma directiva → completa cuando CUV se genera
-                                $fase2Completada = !is_null($solicitud->cuv) || $solicitud->presupuesto_confirmado;
+                                // FASE 1: Revisión administrativa
+                                // ✓ Completa SOLO cuando: presupuesto_confirmado = 1
+                                $fase1Completada = (bool) $solicitud->presupuesto_confirmado;
                                 
-                                // Fase 3: Cierre financiero → completa cuando hay monto entregado
-                                $fase3Completada = !is_null($solicitud->monto_entregado);
+                                // FASE 2: Firma directiva (genera CUV)
+                                // ✓ Completa SOLO cuando: cuv ≠ NULL (requiere Fase 1 completa)
+                                $fase2Completada = !is_null($solicitud->cuv) && $fase1Completada;
                                 
-                                // Determinar qué fase está actualmente activa (la primera no completada)
+                                // FASE 3: Cierre financiero
+                                // ✓ Completa SOLO cuando: monto_entregado ≠ NULL (requiere Fase 2 completa)
+                                $fase3Completada = !is_null($solicitud->monto_entregado) && $fase2Completada;
+                                
+                                // Fase activa = primera no completada
                                 $faseActiva = !$fase1Completada ? 1 : (!$fase2Completada ? 2 : 3);
+                                
+                                // DEBUG: descomentar para ver estado en browser console
+                                // @if(false) console.log({!! json_encode([
+                                //     'folio' => $solicitud->folio,
+                                //     'presupuesto' => $solicitud->presupuesto_confirmado,
+                                //     'cuv' => $solicitud->cuv,
+                                //     'monto' => $solicitud->monto_entregado,
+                                //     'f1' => $fase1Completada,
+                                //     'f2' => $fase2Completada,
+                                //     'f3' => $fase3Completada,
+                                // ]) !!}); @endif
                             @endphp
 
                             <!-- FASE 1: REVISIÓN ADMINISTRATIVA -->
@@ -105,7 +120,59 @@
 
                                 <div x-show="expanded" class="p-3 border-t border-gray-300">
                                     @if($faseActiva === 1 || $fase1Completada)
-                                        <form method="POST" action="{{ route('solicitudes.proceso.revisar-documento') }}" class="space-y-2">
+                                        <form @submit.prevent="submitRevisarDocumento($el)" class="space-y-2" x-data="{ 
+                                            async submitRevisarDocumento(form) {
+                                                const formData = new FormData(form);
+                                                try {
+                                                    console.log('📤 Enviando formulario...');
+                                                    const response = await fetch('{{ route('solicitudes.proceso.revisar-documento') }}', {
+                                                        method: 'POST',
+                                                        headers: {
+                                                            'Accept': 'application/json',
+                                                        },
+                                                        body: formData
+                                                    });
+                                                    
+                                                    console.log('📥 Status:', response.status);
+                                                    
+                                                    let data;
+                                                    try {
+                                                        data = await response.json();
+                                                    } catch(e) {
+                                                        console.error('❌ JSON Parse Error:', e);
+                                                        data = { exito: false, mensaje: 'Error al procesar respuesta del servidor' };
+                                                    }
+                                                    
+                                                    console.log('📦 Respuesta:', data);
+                                                    
+                                                    if (!response.ok) {
+                                                        const mensaje = data?.mensaje || 'Error en el servidor (Status: ' + response.status + ')';
+                                                        console.error('Error completo:', data);
+                                                        alert('❌ Error: ' + mensaje);
+                                                        return;
+                                                    }
+                                                    
+                                                    if (!data?.exito) {
+                                                        const mensaje = data?.mensaje || 'Error desconocido';
+                                                        alert('❌ Error: ' + mensaje);
+                                                        return;
+                                                    }
+                                                    
+                                                    // Mostrar éxito
+                                                    alert('✅ ' + data.mensaje);
+                                                    // Limpiar formulario
+                                                    form.reset();
+                                                    // Si Fase 1 se completó, recargar
+                                                    if (data.fase1_completada) {
+                                                        alert('🔄 Recargando página para mostrar Fase 2...');
+                                                        setTimeout(() => location.reload(), 800);
+                                                    }
+                                                } catch (error) {
+                                                    console.error('🔥 Error completo:', error);
+                                                    alert('🔥 Error: ' + (error.message || 'Error desconocido'));
+                                                }
+                                            }
+                                        }">
                                             @csrf
                                             <input type="number" name="id_documento" placeholder="ID documento" class="w-full rounded-lg border-gray-300 text-sm" required>
                                             <select name="accion" class="w-full rounded-lg border-gray-300 text-sm" required>
@@ -119,10 +186,10 @@
                                                 <input id="corr-{{ $solicitud->folio }}" type="checkbox" name="permite_correcciones" value="1" class="rounded border-gray-300" checked>
                                                 <label for="corr-{{ $solicitud->folio }}">Permite correcciones</label>
                                             </div>
-                                            <input type="url" name="webview_link" placeholder="Google Drive webViewLink" class="w-full rounded-lg border-gray-300 text-sm">
-                                            <input type="text" name="source_file_id" placeholder="source_file_id" class="w-full rounded-lg border-gray-300 text-sm">
-                                            <input type="text" name="official_file_id" placeholder="official_file_id (expediente oficial)" class="w-full rounded-lg border-gray-300 text-sm">
-                                            <button class="w-full rounded-lg bg-slate-900 text-white py-2 text-sm font-semibold hover:bg-slate-800 transition">Guardar revision</button>
+                                            <input type="text" name="webview_link" placeholder="Google Drive webViewLink (opcional)" class="w-full rounded-lg border-gray-300 text-sm">
+                                            <input type="text" name="source_file_id" placeholder="source_file_id (opcional)" class="w-full rounded-lg border-gray-300 text-sm">
+                                            <input type="text" name="official_file_id" placeholder="official_file_id - expediente oficial (opcional)" class="w-full rounded-lg border-gray-300 text-sm">
+                                            <button type="submit" class="w-full rounded-lg bg-slate-900 text-white py-2 text-sm font-semibold hover:bg-slate-800 transition">Guardar revision</button>
                                         </form>
                                     @else
                                         <p class="text-sm text-slate-600 text-center py-4">⏸ Completa la Fase 1 para continuar</p>
@@ -152,14 +219,17 @@
 
                                 <div x-show="expanded" class="p-3 border-t border-gray-300">
                                     @if($faseActiva === 2 || $fase2Completada)
-                                        <form method="POST" action="{{ route('solicitudes.proceso.firma-directiva') }}" class="space-y-2">
-                                            @csrf
-                                            <input type="hidden" name="folio" value="{{ $solicitud->folio }}">
-                                            <input type="password" name="password" class="w-full rounded-lg border-gray-300 text-sm" placeholder="Confirmar contrasena" required>
-                                            <button {{ $fase2Completada ? 'disabled' : '' }} class="w-full rounded-lg {{ $fase2Completada ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-700 hover:bg-blue-800' }} text-white py-2 text-sm font-semibold transition">
-                                                {{ $fase2Completada ? '✓ CUV Generado' : 'Firmar y generar CUV' }}
-                                            </button>
-                                        </form>
+                                        @if($fase2Completada)
+                                            <div class="p-4 bg-green-50 border border-green-200 rounded-lg text-center">
+                                                <p class="text-sm text-green-800 font-semibold">✓ Solicitud firmada correctamente</p>
+                                                <p class="text-xs text-green-700 mt-1">CUV: {{ $solicitud->cuv }}</p>
+                                            </div>
+                                        @else
+                                            <a href="{{ route('solicitudes.firma.show', ['folio' => $solicitud->folio]) }}" class="w-full block rounded-lg bg-blue-700 hover:bg-blue-800 text-white py-3 text-sm font-semibold transition text-center">
+                                                🖊️ Proceder a Firmar Solicitud
+                                            </a>
+                                            <p class="text-xs text-slate-600 text-center mt-2">Haz click para revisar y firmar la solicitud con la nueva interfaz</p>
+                                        @endif
                                     @else
                                         <p class="text-sm text-slate-600 text-center py-4">⏸ Completa la Fase 1 para continuar</p>
                                     @endif
