@@ -27,6 +27,11 @@
                             {{ __('Proceso de Cierre') }}
                         </x-nav-link>
                     @endif
+                    @if($currentUser?->isPersonal() && (int) optional($currentUser->personal)->fk_rol === 3)
+                        <x-nav-link :href="route('finanzas.panel')" :active="request()->routeIs('finanzas.*')">
+                            {{ __('Recursos Financieros') }}
+                        </x-nav-link>
+                    @endif
                 </div>
             </div>
 
