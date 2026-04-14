@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB; // <-- Agregamos esta línea
 
 return new class extends Migration
 {
@@ -16,7 +17,14 @@ return new class extends Migration
             $table->decimal('presupuesto_inicial', 15, 2);
             $table->decimal('reservado', 15, 2)->default(0);
             $table->decimal('aprobado', 15, 2)->default(0);
-            $table->decimal('disponible', 15, 2)->storedAs('presupuesto_inicial - aprobado');
+
+            // PARCHE PARA TESTS (SQLite)
+            if (DB::getDriverName() === 'sqlite') {
+                $table->decimal('disponible', 15, 2)->default(0);
+            } else {
+                $table->decimal('disponible', 15, 2)->storedAs('presupuesto_inicial - aprobado');
+            }
+
             $table->decimal('porcentaje_utilizacion', 5, 2)->default(0);
             $table->timestamp('fecha_creacion')->useCurrent();
             $table->enum('estado', ['ABIERTO', 'CERRADO'])->default('ABIERTO');
@@ -35,7 +43,14 @@ return new class extends Migration
             $table->decimal('presupuesto_total', 15, 2);
             $table->decimal('reservado', 15, 2)->default(0);
             $table->decimal('aprobado', 15, 2)->default(0);
-            $table->decimal('disponible', 15, 2)->storedAs('presupuesto_total - aprobado');
+
+            // PARCHE PARA TESTS (SQLite)
+            if (DB::getDriverName() === 'sqlite') {
+                $table->decimal('disponible', 15, 2)->default(0);
+            } else {
+                $table->decimal('disponible', 15, 2)->storedAs('presupuesto_total - aprobado');
+            }
+
             $table->decimal('monto_maximo_beneficiario', 15, 2);
             $table->integer('cantidad_beneficiarios_planificada');
             $table->integer('cantidad_beneficiarios_aprobada')->default(0);
