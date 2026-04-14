@@ -3,7 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB; // <-- Agregamos esta línea
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -18,8 +18,8 @@ return new class extends Migration
             $table->decimal('reservado', 15, 2)->default(0);
             $table->decimal('aprobado', 15, 2)->default(0);
 
-            // PARCHE PARA TESTS (SQLite)
-            if (DB::getDriverName() === 'sqlite') {
+            // PARCHE PARA TESTS (Evita el error en SQLite/GitHub)
+            if (config('database.default') === 'sqlite' || DB::getDriverName() === 'sqlite') {
                 $table->decimal('disponible', 15, 2)->default(0);
             } else {
                 $table->decimal('disponible', 15, 2)->storedAs('presupuesto_inicial - aprobado');
@@ -34,7 +34,7 @@ return new class extends Migration
             $table->index('ano_fiscal');
         });
 
-        // Tabla 2: Presupuesto por Apoyo (Sub-asignación)
+        // Tabla 2: Presupuesto por Apoyo
         Schema::create('presupuesto_apoyos', function (Blueprint $table) {
             $table->id('id_presupuesto_apoyo');
             $table->unsignedBigInteger('fk_id_apoyo');
@@ -44,8 +44,8 @@ return new class extends Migration
             $table->decimal('reservado', 15, 2)->default(0);
             $table->decimal('aprobado', 15, 2)->default(0);
 
-            // PARCHE PARA TESTS (SQLite)
-            if (DB::getDriverName() === 'sqlite') {
+            // PARCHE PARA TESTS
+            if (config('database.default') === 'sqlite' || DB::getDriverName() === 'sqlite') {
                 $table->decimal('disponible', 15, 2)->default(0);
             } else {
                 $table->decimal('disponible', 15, 2)->storedAs('presupuesto_total - aprobado');
@@ -58,10 +58,9 @@ return new class extends Migration
 
             $table->foreign('fk_id_apoyo')->references('id')->on('apoyos')->onDelete('restrict');
             $table->foreign('fk_id_categoria')->references('id_presupuesto')->on('presupuesto_categorias')->onDelete('cascade');
-            $table->index(['ano_fiscal', 'fk_id_apoyo']);
         });
 
-        // Tabla 3: Movimientos Presupuestarios (Auditoría)
+        // Tabla 3: Movimientos
         Schema::create('movimientos_presupuestarios', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('fk_id_solicitud')->nullable();
@@ -78,12 +77,9 @@ return new class extends Migration
             $table->foreign('fk_id_solicitud')->references('id')->on('solicitudes')->onDelete('set null');
             $table->foreign('fk_id_apoyo')->references('id')->on('apoyos')->onDelete('restrict');
             $table->foreign('fk_id_categoria')->references('id_presupuesto')->on('presupuesto_categorias')->onDelete('restrict');
-            $table->foreign('directivo_id')->references('id')->on('usuarios')->onDelete('set null');
-            $table->index(['ano_fiscal', 'fk_id_solicitud']);
-            $table->index('fecha_movimiento');
         });
 
-        // Tabla 4: Ciclo Presupuestario Anual
+        // Tabla 4: Ciclos
         Schema::create('ciclos_presupuestarios', function (Blueprint $table) {
             $table->id();
             $table->year('ano_fiscal')->unique();
@@ -92,16 +88,10 @@ return new class extends Migration
             $table->date('fecha_cierre')->nullable();
             $table->decimal('presupuesto_total_inicial', 15, 2);
             $table->decimal('presupuesto_total_aprobado', 15, 2)->default(0);
-            $table->integer('cantidad_solicitudes_totales')->default(0);
-            $table->integer('cantidad_solicitudes_aprobadas')->default(0);
-            $table->integer('cantidad_beneficiarios_atendidos')->default(0);
-            $table->unsignedBigInteger('creada_por');
             $table->timestamps();
-
-            $table->foreign('creada_por')->references('id')->on('usuarios')->onDelete('restrict');
         });
 
-        // Tabla 5: Alertas de Presupuesto
+        // Tabla 5: Alertas
         Schema::create('alertas_presupuesto', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('fk_id_categoria');
@@ -109,10 +99,7 @@ return new class extends Migration
             $table->string('mensaje');
             $table->timestamp('fecha_alerta')->useCurrent();
             $table->boolean('vista')->default(false);
-            $table->timestamp('fecha_vista')->nullable();
-
             $table->foreign('fk_id_categoria')->references('id_presupuesto')->on('presupuesto_categorias')->onDelete('cascade');
-            $table->index('vista');
         });
     }
 
