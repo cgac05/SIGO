@@ -172,10 +172,19 @@ class SolicitudController extends Controller
 
             $folio = DB::table('Solicitudes')->insertGetId($payloadSolicitud, 'folio');
 
-            // Registrar en auditoría que el folio institucional fue usado
-            DB::table('auditoria_folios')
-                ->where('folio_completo', $folioInstitucional)
-                ->update(['fk_folio_solicitud' => $folio]);
+            // Registrar en auditoría que el folio institucional fue usado (si tabla existe)
+            if (\Illuminate\Support\Facades\Schema::hasTable('auditoria_folios')) {
+                try {
+                    DB::table('auditoria_folios')
+                        ->where('folio_completo', $folioInstitucional)
+                        ->update(['fk_folio_solicitud' => $folio]);
+                } catch (\Exception $e) {
+                    \Log::warning('No se pudo actualizar auditoría_folios', [
+                        'folio' => $folioInstitucional,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
 
             // NUEVO: Reservar presupuesto para la solicitud
             $solicitud = \App\Models\Solicitud::find($folio);
