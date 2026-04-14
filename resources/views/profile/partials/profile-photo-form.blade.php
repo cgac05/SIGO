@@ -1,5 +1,8 @@
 <!-- Foto de Perfil -->
 <section>
+    @php($avatarUrl = $user->avatar_url)
+    @php($avatarFallbackUrl = $user->avatar_placeholder_url)
+
     <header>
         <h2 class="text-lg font-medium text-gray-900">
             🖼️ Foto de Perfil
@@ -14,15 +17,27 @@
         <div class="flex items-center gap-6">
             <div>
                 @if ($user->google_avatar)
-                    <img src="{{ $user->google_avatar }}" alt="Avatar" class="h-24 w-24 rounded-full border-2 border-blue-500">
+                    <img
+                        src="{{ $avatarUrl }}"
+                        alt="Avatar"
+                        class="h-24 w-24 rounded-full border-2 border-blue-500 object-cover"
+                        onerror="this.onerror=null;this.src='{{ $avatarFallbackUrl }}';"
+                    >
                     <p class="text-xs text-gray-500 mt-2">👤 Google Avatar</p>
                 @elseif ($user->foto_perfil)
-                    <img src="{{ $user->getFotoUrl() }}" alt="Foto" class="h-24 w-24 rounded-full border-2 border-gray-300">
+                    <img
+                        src="{{ $avatarUrl }}"
+                        alt="Foto"
+                        class="h-24 w-24 rounded-full border-2 border-gray-300 object-cover"
+                        onerror="this.onerror=null;this.src='{{ $avatarFallbackUrl }}';"
+                    >
                     <p class="text-xs text-gray-500 mt-2">📷 Foto Local</p>
                 @else
-                    <div class="h-24 w-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl">
-                        {{ strtoupper(substr($user->email, 0, 1)) }}
-                    </div>
+                    <img
+                        src="{{ $avatarFallbackUrl }}"
+                        alt="Sin foto"
+                        class="h-24 w-24 rounded-full border-2 border-gray-300 object-cover"
+                    >
                     <p class="text-xs text-gray-500 mt-2">😌 Sin foto</p>
                 @endif
             </div>

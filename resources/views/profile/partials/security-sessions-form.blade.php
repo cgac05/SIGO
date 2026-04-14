@@ -43,17 +43,11 @@
                     </button>
                 </form>
             @else
-                <p class="text-sm text-purple-700 mt-2">
-                    ⚠️ 2FA no está activada. Se recomienda activarla para mayor seguridad.
-                </p>
-                <form action="{{ route('profile.enable-2fa') }}" method="POST" class="inline mt-2">
-                    @csrf
-                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700">
-                        📱 Activar 2FA
-                    </button>
-                </form>
+                <div class="inline-flex items-center px-4 py-2 bg-purple-100 text-purple-700 text-sm font-medium rounded-lg mt-2 border border-purple-200">
+                    📱 Disponible próximamente
+                </div>
                 <p class="text-xs text-purple-600 mt-2 font-medium">
-                    (Nota: 2FA es experimental, usa con cuidado)
+                    (La activación de 2FA no está disponible por el momento)
                 </p>
             @endif
         </div>

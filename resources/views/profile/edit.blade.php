@@ -8,6 +8,9 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="font-sans antialiased bg-gray-100">
+    @php($showBeneficiaryProfileSections = $user?->isBeneficiario())
+    @php($avatarUrl = $user?->avatar_url)
+    @php($avatarFallbackUrl = $user?->avatar_placeholder_url)
     <div class="min-h-screen">
         @include('layouts.navigation')
 
@@ -15,17 +18,12 @@
             <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
                 <div class="flex items-center gap-4">
                     <div class="flex h-28 w-28 shrink-0 overflow-hidden rounded-full border-2 border-white/80 bg-white/10 shadow-lg">
-                        @if ($user?->getFotoUrl())
-                            <img
-                                src="{{ $user->getFotoUrl() }}"
-                                alt="Foto de {{ $user?->display_name ?? 'usuario' }}"
-                                class="h-full w-full object-cover"
-                            >
-                        @else
-                            <span class="flex h-full w-full items-center justify-center bg-white/10 text-3xl font-semibold text-white">
-                                {{ mb_strtoupper(mb_substr($user?->display_name ?? $user?->email ?? 'U', 0, 1)) }}
-                            </span>
-                        @endif
+                        <img
+                            src="{{ $avatarUrl }}"
+                            alt="Foto de {{ $user?->display_name ?? 'usuario' }}"
+                            class="h-full w-full object-cover"
+                            onerror="this.onerror=null;this.src='{{ $avatarFallbackUrl }}';"
+                        >
                     </div>
                     <div>
                         <h1 class="text-3xl font-bold text-white">Mi Perfil</h1>
@@ -51,9 +49,11 @@
                     <a href="#security" onclick="switchTab('security')" class="flex-1 py-4 px-4 text-center font-medium text-gray-700 hover:text-blue-600 border-b-2 border-transparent hover:border-blue-300 transition cursor-pointer tab-button" data-tab="security">
                         🔐 Seguridad
                     </a>
-                    <a href="#arco" onclick="switchTab('arco')" class="flex-1 py-4 px-4 text-center font-medium text-gray-700 hover:text-blue-600 border-b-2 border-transparent hover:border-blue-300 transition cursor-pointer tab-button" data-tab="arco">
-                        ⚖️ Derechos ARCO
-                    </a>
+                    @if($showBeneficiaryProfileSections)
+                        <a href="#arco" onclick="switchTab('arco')" class="flex-1 py-4 px-4 text-center font-medium text-gray-700 hover:text-blue-600 border-b-2 border-transparent hover:border-blue-300 transition cursor-pointer tab-button" data-tab="arco">
+                            ⚖️ Derechos ARCO
+                        </a>
+                    @endif
                 </div>
             </div>
 
@@ -101,31 +101,35 @@
                 </div>
 
                 <!-- Tab: Derechos ARCO -->
-                <div id="tab-arco" class="tab-content hidden">
-                    <div class="p-6 sm:p-8 bg-white shadow sm:rounded-lg">
-                        <div class="max-w-3xl mx-auto">
-                            @include('profile.partials.arco-rights-form')
+                @if($showBeneficiaryProfileSections)
+                    <div id="tab-arco" class="tab-content hidden">
+                        <div class="p-6 sm:p-8 bg-white shadow sm:rounded-lg">
+                            <div class="max-w-3xl mx-auto">
+                                @include('profile.partials.arco-rights-form')
+                            </div>
                         </div>
                     </div>
-                </div>
+                @endif
 
-                <!-- Peligro: Eliminar Cuenta -->
-                <div class="p-6 sm:p-8 bg-red-50 border-l-4 border-red-500 rounded-lg">
-                    <div class="max-w-3xl mx-auto">
-                        <h3 class="text-lg font-medium text-red-900 mb-2">⚠️ Zona de Peligro</h3>
-                        <p class="text-sm text-red-800 mb-4">
-                            Acciones irreversibles para tu cuenta. Procede con cuidado.
-                        </p>
-                        @include('profile.partials.delete-user-form')
+                @if($showBeneficiaryProfileSections)
+                    <!-- Peligro: Eliminar Cuenta -->
+                    <div class="p-6 sm:p-8 bg-red-50 border-l-4 border-red-500 rounded-lg">
+                        <div class="max-w-3xl mx-auto">
+                            <h3 class="text-lg font-medium text-red-900 mb-2">⚠️ Zona de Peligro</h3>
+                            <p class="text-sm text-red-800 mb-4">
+                                Acciones irreversibles para tu cuenta. Procede con cuidado.
+                            </p>
+                            @include('profile.partials.delete-user-form')
+                        </div>
                     </div>
-                </div>
+                @endif
             </div>
         </main>
     </div>
 
     <script>
         // Tabs functionality
-        const profileTabs = ['info', 'photo', 'google', 'security', 'arco'];
+        const profileTabs = {!! json_encode($showBeneficiaryProfileSections ? ['info', 'photo', 'google', 'security', 'arco'] : ['info', 'photo', 'google', 'security']) !!};
 
         function getProfileTabFromHash() {
             const hash = window.location.hash.replace('#', '');
@@ -133,12 +137,24 @@
             return profileTabs.includes(hash) ? hash : 'info';
         }
 
+        function normalizeProfileHash(tabName) {
+            const currentHash = window.location.hash.replace('#', '');
+
+            if (currentHash && currentHash !== tabName) {
+                history.replaceState(null, '', window.location.pathname + window.location.search + '#' + tabName);
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
-            switchTab(getProfileTabFromHash());
+            const initialTab = getProfileTabFromHash();
+            switchTab(initialTab);
+            normalizeProfileHash(initialTab);
         });
 
         window.addEventListener('hashchange', function() {
-            switchTab(getProfileTabFromHash());
+            const currentTab = getProfileTabFromHash();
+            switchTab(currentTab);
+            normalizeProfileHash(currentTab);
         });
 
         function switchTab(tabName) {

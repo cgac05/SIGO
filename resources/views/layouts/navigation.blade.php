@@ -1,6 +1,8 @@
 <nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
     @php($currentUser = Auth::user())
-    @php($profilePhotoUrl = $currentUser?->getFotoUrl())
+    @php($profilePhotoUrl = $currentUser?->avatar_url)
+    @php($profilePhotoFallbackUrl = $currentUser?->avatar_placeholder_url)
+    @php($showBeneficiaryProfileSections = $currentUser?->isBeneficiario())
     <!-- Primary Navigation Menu -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
@@ -85,17 +87,12 @@
                     <x-slot name="trigger">
                         <button class="inline-flex items-center gap-2 px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
                             <span class="flex h-8 w-8 shrink-0 overflow-hidden rounded-full border border-gray-200 bg-gray-100 shadow-sm">
-                                @if($profilePhotoUrl)
-                                    <img
-                                        src="{{ $profilePhotoUrl }}"
-                                        alt="Foto de {{ $currentUser?->display_name ?? 'usuario' }}"
-                                        class="h-full w-full object-cover"
-                                    >
-                                @else
-                                    <span class="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-500 to-blue-700 text-xs font-semibold text-white">
-                                        {{ mb_strtoupper(mb_substr($currentUser?->display_name ?? $currentUser?->email ?? 'U', 0, 1)) }}
-                                    </span>
-                                @endif
+                                <img
+                                    src="{{ $profilePhotoUrl }}"
+                                    alt="Foto de {{ $currentUser?->display_name ?? 'usuario' }}"
+                                    class="h-full w-full object-cover"
+                                    onerror="this.onerror=null;this.src='{{ $profilePhotoFallbackUrl }}';"
+                                >
                             </span>
 
                             <div class="max-w-[10rem] truncate">
@@ -114,17 +111,12 @@
                         <div class="border-b border-gray-100 px-4 py-4">
                             <div class="flex items-center gap-3">
                                 <span class="flex h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-gray-200 bg-gray-100 shadow-sm">
-                                    @if($profilePhotoUrl)
-                                        <img
-                                            src="{{ $profilePhotoUrl }}"
-                                            alt="Foto de {{ $currentUser?->display_name ?? 'usuario' }}"
-                                            class="h-full w-full object-cover"
-                                        >
-                                    @else
-                                        <span class="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-semibold text-white">
-                                            {{ mb_strtoupper(mb_substr($currentUser?->display_name ?? $currentUser?->email ?? 'U', 0, 1)) }}
-                                        </span>
-                                    @endif
+                                    <img
+                                        src="{{ $profilePhotoUrl }}"
+                                        alt="Foto de {{ $currentUser?->display_name ?? 'usuario' }}"
+                                        class="h-full w-full object-cover"
+                                        onerror="this.onerror=null;this.src='{{ $profilePhotoFallbackUrl }}';"
+                                    >
                                 </span>
 
                                 <div class="min-w-0">
@@ -153,9 +145,11 @@
                             <a href="{{ route('profile.edit') }}#security" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">
                                 Seguridad
                             </a>
-                            <a href="{{ route('profile.edit') }}#arco" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">
-                                Derechos ARCO
-                            </a>
+                            @if($showBeneficiaryProfileSections)
+                                <a href="{{ route('profile.edit') }}#arco" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">
+                                    Derechos ARCO
+                                </a>
+                            @endif
                         </div>
 
                         <div class="border-t border-gray-100">
