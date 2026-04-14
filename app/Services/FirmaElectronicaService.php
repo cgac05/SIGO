@@ -318,8 +318,8 @@ class FirmaElectronicaService
                 $solicitud = DB::table('Solicitudes')->where('folio', $folio)->first();
                 if ($solicitud) {
                     $movimiento = DB::table('movimientos_presupuestarios')
-                        ->where('folio_solicitud', $folio)
-                        ->where('tipo', 'RESERVA_SOLICITUD')
+                        ->where('tipo_movimiento', 'RESERVA_SOLICITUD')
+                        ->where('descripcion', 'like', "%solicitud $folio%")
                         ->first();
 
                     if ($movimiento) {
@@ -331,14 +331,11 @@ class FirmaElectronicaService
                         // Crear movimiento de liberación
                         DB::table('movimientos_presupuestarios')->insert([
                             'id_categoria' => $movimiento->id_categoria,
-                            'id_presupuesto_apoyo' => $movimiento->id_presupuesto_apoyo,
-                            'folio_solicitud' => $folio,
-                            'tipo' => 'LIBERACION_RECHAZO',
+                            'id_apoyo_presupuesto' => $movimiento->id_apoyo_presupuesto,
+                            'tipo_movimiento' => 'LIBERACION_RECHAZO',
                             'monto' => $movimiento->monto,
-                            'id_usuario' => (int) $directivo->id_usuario,
+                            'creado_por' => (int) $directivo->id_usuario,
                             'descripcion' => "Liberación de presupuesto por rechazo: {$motivo}",
-                            'fecha_cambio' => now(),
-                            'estado' => 'CONFIRMADO',
                         ]);
                     }
                 }

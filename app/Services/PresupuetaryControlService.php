@@ -178,17 +178,18 @@ class PresupuetaryControlService
             }
 
             // Validación 3: No existe presupuesto anterior para este apoyo
-            if (PresupuestoApoyo::where('id_apoyo', $id_apoyo)->exists()) {
+            if (PresupuestoApoyo::where('folio', $id_apoyo)->exists()) {
                 throw new Exception("Apoyo {$id_apoyo} ya tiene presupuesto asignado");
             }
 
-            // Crear PresupuestoApoyo en estado RESERVADO
+            // Crear PresupuestoApoyo en estado PENDIENTE
             $presupuesto_apoyo = PresupuestoApoyo::create([
-                'id_apoyo' => $id_apoyo,
+                'folio' => $id_apoyo,
                 'id_categoria' => $id_categoria,
-                'costo_estimado' => $costo_estimado,
-                'estado' => 'RESERVADO',
-                'fecha_reserva' => now(),
+                'monto_solicitado' => $costo_estimado,
+                'monto_aprobado' => 0,
+                'estado' => 'PENDIENTE',
+                'fecha_solicitud' => now(),
             ]);
 
             // OPERACIÓN CRÍTICA: Decrementar disponible en categoría
@@ -239,8 +240,8 @@ class PresupuetaryControlService
         return DB::transaction(function () use ($id_solicitud, $id_directivo_aprobador) {
             $solicitud = Solicitud::findOrFail($id_solicitud);
 
-            // Validación 1: Encontrar el PresupuestoApoyo para este apoyo
-            $presupuesto_apoyo = PresupuestoApoyo::where('id_apoyo', $solicitud->fk_id_apoyo)
+            // Validación 1: Encontrar el PresupuestoApoyo para este folio
+            $presupuesto_apoyo = PresupuestoApoyo::where('folio', $solicitud->folio)
                 ->firstOrFail();
 
             // Validación 2: Debe estar en estado RESERVADO
@@ -290,7 +291,7 @@ class PresupuetaryControlService
 
             Log::warning("ASIGNACIÓN DIRECTIVO - PRESUPUESTO APROBADO (IRREVERSIBLE)", [
                 'id_solicitud' => $id_solicitud,
-                'id_presupuesto_apoyo' => $presupuesto_apoyo->id_presupuesto_apoyo,
+                'id_presupuesto_apoyo' => $presupuesto_apoyo->id_apoyo_presupuesto,
                 'id_directivo' => $id_directivo_aprobador,
                 'monto' => $solicitud->monto,
                 'categoria_disponible' => $categoria->disponible,
@@ -312,7 +313,7 @@ class PresupuetaryControlService
         }
 
         // Nivel 2: Verificar que PresupuestoApoyo es suficiente
-        if ((float) $presupuesto_apoyo->costo_estimado < (float) $monto) {
+        if ((float) $presupuesto_apoyo->monto_solicitado < (float) $monto) {
             return false;
         }
 
@@ -339,14 +340,12 @@ class PresupuetaryControlService
         $id_solicitud = null
     ): MovimientoPresupuestario {
         return MovimientoPresupuestario::create([
-            'id_presupuesto_apoyo' => $presupuesto_apoyo->id_presupuesto_apoyo,
-            'id_solicitud' => $id_solicitud,
+            'id_categoria' => $presupuesto_apoyo->id_categoria,
+            'id_apoyo_presupuesto' => $presupuesto_apoyo->id_apoyo_presupuesto,
             'tipo_movimiento' => $tipo_movimiento,
             'monto' => $monto,
-            'id_usuario_responsable' => $id_usuario_responsable,
-            'notas' => $notas,
-            'ip_origen' => $ip_origen ?? request()->ip(),
-            'user_agent' => $user_agent ?? request()->header('User-Agent'),
+            'creado_por' => $id_usuario_responsable,
+            'descripcion' => $notas ?? "Movimiento de {$tipo_movimiento}",
         ]);
     }
 
@@ -398,9 +397,9 @@ class PresupuetaryControlService
      */
     public function historialMovimientos($id_presupuesto_apoyo, $limit = 50)
     {
-        return MovimientoPresupuestario::where('id_presupuesto_apoyo', $id_presupuesto_apoyo)
+        return MovimientoPresupuestario::where('id_apoyo_presupuesto', $id_presupuesto_apoyo)
             ->with('usuarioResponsable')
-            ->orderBy('fecha_movimiento', 'desc')
+            ->orderBy('created_at', 'desc')
             ->limit($limit)
             ->get();
     }

@@ -213,11 +213,18 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Datos para gráfico de distribución
-    const categoriasData = @json($categorias->map(fn($c) => [
-        'nombre' => $c->nombre,
-        'presupuesto' => (float)$c->presupuesto_anual,
-        'color' => ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'][array_search($c->id_categoria, $categorias->pluck('id_categoria')->toArray()) ?? 0]
-    ]));
+    const colores = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+    const categoriasData = @json($categorias->map(function($c) {
+        $indice = array_search($c->id_categoria, $categorias->pluck('id_categoria')->toArray()) ?? 0;
+        return [
+            'nombre' => $c->nombre,
+            'presupuesto' => (float)$c->presupuesto_anual,
+            'colorIndex' => $indice
+        ];
+    }));
+    
+    // Asignar colores
+    categoriasData.forEach(c => c.color = colores[c.colorIndex]);
 
     if (document.getElementById('chartDistribucion')) {
         const ctx = document.getElementById('chartDistribucion').getContext('2d');

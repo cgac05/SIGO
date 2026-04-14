@@ -127,12 +127,12 @@ class PresupuestoService
 
             // Crear registro en presupuesto_apoyos
             $presupuesto = PresupuestoApoyo::create([
-                'id_apoyo' => $apoyo->id_apoyo,
+                'folio' => $solicitud->folio,
                 'id_categoria' => $categoria->id_categoria,
-                'costo_estimado' => $monto,
-                'estado' => 'RESERVADO',
-                'fecha_reserva' => Carbon::now(),
-                'observaciones' => "Solicitud {$solicitud->folio} - Beneficiario: {$solicitud->beneficiario?->nombre}",
+                'monto_solicitado' => $monto,
+                'monto_aprobado' => 0,
+                'estado' => 'PENDIENTE',
+                'fecha_solicitud' => Carbon::now(),
             ]);
 
             // Decrementar presupuesto disponible en categoría
@@ -141,14 +141,11 @@ class PresupuestoService
             // Registrar movimiento presupuestario (que vincula la solicitud con presupuesto)
             MovimientoPresupuestario::create([
                 'id_categoria' => $categoria->id_categoria,
-                'id_presupuesto_apoyo' => $presupuesto->id_presupuesto_apoyo,
-                'folio_solicitud' => $solicitud->folio,
-                'tipo' => 'RESERVA_SOLICITUD',
+                'id_apoyo_presupuesto' => $presupuesto->id_apoyo_presupuesto,
+                'tipo_movimiento' => 'RESERVA_SOLICITUD',
                 'monto' => $monto,
-                'id_usuario' => auth()->user()->id_usuario ?? null,
+                'creado_por' => auth()->user()->id_usuario ?? null,
                 'descripcion' => "Reserva de presupuesto para solicitud {$solicitud->folio}",
-                'fecha_cambio' => Carbon::now(),
-                'estado' => 'CONFIRMADO',
             ]);
 
             return true;
@@ -179,20 +176,17 @@ class PresupuestoService
             $presupuesto->update([
                 'estado' => 'APROBADO',
                 'fecha_aprobacion' => Carbon::now(),
-                'id_directivo_aprobador' => $id_directivo,
+                'aprobado_por' => $id_directivo,
             ]);
 
             // Registrar movimiento presupuestario
             MovimientoPresupuestario::create([
                 'id_categoria' => $presupuesto->id_categoria,
-                'id_presupuesto_apoyo' => $presupuesto->id_presupuesto_apoyo,
-                'folio_solicitud' => $solicitud->folio,
-                'tipo' => 'ASIGNACION_DIRECTIVO',
-                'monto' => $presupuesto->costo_estimado,
-                'id_usuario' => $id_directivo,
+                'id_apoyo_presupuesto' => $presupuesto->id_apoyo_presupuesto,
+                'tipo_movimiento' => 'ASIGNACION_DIRECTIVO',
+                'monto' => $presupuesto->monto_solicitado,
+                'creado_por' => $id_directivo,
                 'descripcion' => "Aprobación de solicitud {$solicitud->folio} por directivo",
-                'fecha_cambio' => Carbon::now(),
-                'estado' => 'CONFIRMADO',
             ]);
 
             return true;
@@ -217,13 +211,13 @@ class PresupuestoService
             $presupuesto = $solicitud->presupuestoApoyo;
             $categoria = $presupuesto->categoria;
 
-            // Solo puede ser rechazado si está RESERVADO
-            if ($presupuesto->estado !== 'RESERVADO') {
+            // Solo puede ser rechazado si está PENDIENTE
+            if ($presupuesto->estado !== 'PENDIENTE') {
                 return false;
             }
 
             // Liberar presupuesto
-            $categoria->incrementarDisponible($presupuesto->costo_estimado);
+            $categoria->incrementarDisponible($presupuesto->monto_solicitado);
 
             // Actualizar estado presupuesto a CANCELADO
             $presupuesto->update([
@@ -233,14 +227,11 @@ class PresupuestoService
             // Registrar movimiento presupuestario
             MovimientoPresupuestario::create([
                 'id_categoria' => $categoria->id_categoria,
-                'id_presupuesto_apoyo' => $presupuesto->id_presupuesto_apoyo,
-                'folio_solicitud' => $solicitud->folio,
-                'tipo' => 'RECHAZO_SOLICITUD',
-                'monto' => $presupuesto->costo_estimado,
-                'id_usuario' => $id_directivo,
+                'id_apoyo_presupuesto' => $presupuesto->id_apoyo_presupuesto,
+                'tipo_movimiento' => 'RECHAZO_SOLICITUD',
+                'monto' => $presupuesto->monto_solicitado,
+                'creado_por' => $id_directivo,
                 'descripcion' => "Rechazo de solicitud {$solicitud->folio}. Razón: {$razon}",
-                'fecha_cambio' => Carbon::now(),
-                'estado' => 'CONFIRMADO',
             ]);
 
             return true;

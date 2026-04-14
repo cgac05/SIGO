@@ -138,10 +138,10 @@ class PresupuetaryIntegrationService
 
         return [
             'estado' => $presupuesto->estado,
-            'costo_estimado' => $presupuesto->costo_estimado,
+            'costo_estimado' => $presupuesto->monto_solicitado,
             'categoria' => $presupuesto->categoria->nombre ?? null,
             'disponible_en_categoria' => $presupuesto->categoria->disponible ?? null,
-            'fecha_reserva' => $presupuesto->fecha_reserva?->toDateTimeString(),
+            'fecha_reserva' => $presupuesto->fecha_solicitud?->toDateTimeString(),
             'fecha_aprobacion' => $presupuesto->fecha_aprobacion?->toDateTimeString(),
         ];
     }
@@ -157,15 +157,15 @@ class PresupuetaryIntegrationService
                 return false;
             }
 
-            $presupuesto_apoyo = PresupuestoApoyo::where('id_apoyo', $solicitud->fk_id_apoyo)->first();
+            $presupuesto_apoyo = PresupuestoApoyo::where('folio', $solicitud->folio)->first();
             if (!$presupuesto_apoyo) {
-                Log::warning("PresupuetaryIntegration: No hay presupuesto para apoyo {$solicitud->fk_id_apoyo}");
+                Log::warning("PresupuetaryIntegration: No hay presupuesto para solicitud {$solicitud->folio}");
                 return false;
             }
 
             if (!$presupuesto_apoyo->canBeApproved()) {
                 Log::warning("PresupuetaryIntegration: PresupuestoApoyo no puede ser aprobado", [
-                    'id_presupuesto' => $presupuesto_apoyo->id_presupuesto_apoyo,
+                    'id_presupuesto' => $presupuesto_apoyo->id_apoyo_presupuesto,
                     'estado' => $presupuesto_apoyo->estado,
                 ]);
                 return false;

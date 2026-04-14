@@ -82,12 +82,12 @@ class Solicitud extends Model
     {
         // Buscar el movimiento presupuestario de tipo RESERVA o ASIGNACION
         $movimiento = $this->movimientosPresupuestarios()
-            ->whereIn('tipo', ['RESERVA_SOLICITUD', 'ASIGNACION_DIRECTIVO'])
-            ->orderBy('fecha_cambio', 'desc')
+            ->whereIn('tipo_movimiento', ['RESERVA_SOLICITUD', 'ASIGNACION_DIRECTIVO'])
+            ->orderBy('created_at', 'desc')
             ->first();
 
-        if ($movimiento && $movimiento->id_presupuesto_apoyo) {
-            return PresupuestoApoyo::find($movimiento->id_presupuesto_apoyo);
+        if ($movimiento && $movimiento->id_apoyo_presupuesto) {
+            return PresupuestoApoyo::find($movimiento->id_apoyo_presupuesto);
         }
 
         return null;
@@ -108,7 +108,7 @@ class Solicitud extends Model
     {
         $presupuesto = $this->getPresupuestoAsignado();
         if ($presupuesto) {
-            return (float) $presupuesto->costo_estimado;
+            return (float) $presupuesto->monto_solicitado;
         }
         return 0;
     }

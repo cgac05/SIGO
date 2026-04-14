@@ -119,22 +119,22 @@ class GestionInventarioService
         try {
             // Crear registro de presupuesto asociado al apoyo
             $presupuestoApoyo = PresupuestoApoyo::create([
-                'id_apoyo' => $idApoyo,
+                'folio' => $idApoyo,
                 'id_categoria' => $idCategoria,
-                'costo_estimado' => $montoAsignado,
-                'estado' => 'RESERVADO',
-                'id_directivo_aprobador' => $usuarioId,
-                'fecha_reserva' => now(),
+                'monto_solicitado' => $montoAsignado,
+                'monto_aprobado' => 0,
+                'estado' => 'PENDIENTE',
+                'aprobado_por' => $usuarioId,
+                'fecha_solicitud' => now(),
             ]);
 
             // Crear movimiento presupuestario
             DB::table('movimientos_presupuestarios')->insert([
                 'id_categoria' => $idCategoria,
-                'id_apoyo' => $idApoyo,
+                'id_apoyo_presupuesto' => $presupuestoApoyo->id_apoyo_presupuesto ?? null,
                 'tipo_movimiento' => 'RESERVA',
                 'monto' => $montoAsignado,
-                'usuario_id' => $usuarioId,
-                'fecha_movimiento' => now(),
+                'creado_por' => $usuarioId,
                 'descripcion' => "Reserva de presupuesto para apoyo #{$idApoyo}",
             ]);
 
@@ -168,17 +168,16 @@ class GestionInventarioService
             // Restaurar disponible en categoría
             $categoria = PresupuestoCategoria::find($presupuestApoyo->id_categoria);
             $categoria->update([
-                'disponible' => $categoria->disponible + $presupuestApoyo->costo_estimado,
+                'disponible' => $categoria->disponible + $presupuestApoyo->monto_solicitado,
             ]);
 
             // Registrar movimiento de liberación
             DB::table('movimientos_presupuestarios')->insert([
                 'id_categoria' => $presupuestApoyo->id_categoria,
-                'id_apoyo' => $presupuestApoyo->id_apoyo,
+                'id_apoyo_presupuesto' => $presupuestApoyo->id_apoyo_presupuesto,
                 'tipo_movimiento' => 'LIBERACION',
-                'monto' => -$presupuestApoyo->costo_estimado,
-                'usuario_id' => $usuarioId,
-                'fecha_movimiento' => now(),
+                'monto' => -$presupuestApoyo->monto_solicitado,
+                'creado_por' => $usuarioId,
                 'descripcion' => "Liberación de presupuesto reservado",
             ]);
 

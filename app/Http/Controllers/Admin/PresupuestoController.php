@@ -101,12 +101,12 @@ class PresupuestoController extends Controller
 
         $apoyos = $categoria->apoyos->map(function ($presupuesto) {
             return [
-                'id_presupuesto' => $presupuesto->id_presupuesto_apoyo,
+                'id_presupuesto' => $presupuesto->id_apoyo_presupuesto,
                 'apoyo_nombre' => $presupuesto->apoyo->nombre_apoyo ?? 'N/A',
                 'estado' => $presupuesto->estado,
                 'estado_badge' => $presupuesto->getBadgeColor(),
-                'costo_estimado' => $presupuesto->costo_estimado,
-                'costo_formato' => '$' . number_format($presupuesto->costo_estimado, 2),
+                'costo_estimado' => $presupuesto->monto_solicitado,
+                'costo_formato' => '$' . number_format($presupuesto->monto_solicitado, 2),
                 'fecha_reserva' => $presupuesto->fecha_reserva?->format('d/m/Y H:i'),
                 'fecha_aprobacion' => $presupuesto->fecha_aprobacion?->format('d/m/Y H:i'),
                 'directivo_aprobador' => $presupuesto->directivoAprobador?->nombre ?? 'Pendiente',
@@ -148,9 +148,9 @@ class PresupuestoController extends Controller
                 'monto_formato' => $mov->getMontoFormato(),
                 'usuario' => $mov->usuarioResponsable?->nombre ?? 'Sistema',
                 'solicitante' => $mov->solicitud?->fk_curp ?? 'N/A',
-                'notas' => $mov->notas,
-                'ip_origen' => $mov->ip_origen,
-                'fecha' => $mov->fecha_movimiento->format('d/m/Y H:i:s'),
+                'notas' => $mov->descripcion,
+                'ip_origen' => $mov->ip_origen ?? 'N/A',
+                'fecha' => $mov->created_at->format('d/m/Y H:i:s'),
             ];
         });
 
@@ -229,16 +229,16 @@ class PresupuestoController extends Controller
         $this->authorizeDirectivo();
 
         $movimientos = \DB::table('movimientos_presupuestarios as mov')
-            ->join('presupuesto_apoyos as pa', 'mov.id_presupuesto_apoyo', '=', 'pa.id_presupuesto_apoyo')
+            ->join('presupuesto_apoyos as pa', 'mov.id_apoyo_presupuesto', '=', 'pa.id_apoyo_presupuesto')
             ->where('pa.id_categoria', $id_categoria)
             ->select([
                 'mov.id_movimiento',
                 'mov.tipo_movimiento',
                 'mov.monto',
-                'mov.fecha_movimiento',
-                'mov.notas',
+                'mov.created_at as fecha_movimiento',
+                'mov.descripcion as notas',
             ])
-            ->orderByDesc('mov.fecha_movimiento')
+            ->orderByDesc('mov.created_at')
             ->limit(100)
             ->get();
 

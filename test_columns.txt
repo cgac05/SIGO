@@ -1,0 +1,5 @@
+C:\xampp\htdocs\SIGO\> php artisan tinker
+Psy Shell v0.12.0 -- By Justin Hileman
+Type `help` for help.
+
+>>> DB::table('movimientos_presupuestarios')->first();

@@ -12,7 +12,6 @@ class MovimientoPresupuestario extends Model
     protected $guarded = [];
     protected $casts = [
         'monto' => 'decimal:2',
-        'fecha_movimiento' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -26,17 +25,17 @@ class MovimientoPresupuestario extends Model
     
     public function presupuestoApoyo(): BelongsTo
     {
-        return $this->belongsTo(PresupuestoApoyo::class, 'id_presupuesto_apoyo', 'id_presupuesto_apoyo');
+        return $this->belongsTo(PresupuestoApoyo::class, 'id_apoyo_presupuesto', 'id_apoyo_presupuesto');
     }
 
-    public function solicitud(): BelongsTo
+    public function categoria(): BelongsTo
     {
-        return $this->belongsTo(Solicitud::class, 'id_solicitud', 'folio');
+        return $this->belongsTo(PresupuestoCategoria::class, 'id_categoria', 'id_categoria');
     }
 
     public function usuarioResponsable(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'id_usuario_responsable', 'id_usuario');
+        return $this->belongsTo(Usuario::class, 'creado_por', 'id_usuario');
     }
 
     // ========== SCOPES ==========
@@ -63,7 +62,7 @@ class MovimientoPresupuestario extends Model
 
     public function scopeDelPresupuesto($query, $id_presupuesto_apoyo)
     {
-        return $query->where('id_presupuesto_apoyo', $id_presupuesto_apoyo);
+        return $query->where('id_apoyo_presupuesto', $id_presupuesto_apoyo);
     }
 
     // ========== METHODS ==========

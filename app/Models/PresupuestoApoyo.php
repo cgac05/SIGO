@@ -9,11 +9,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class PresupuestoApoyo extends Model
 {
     protected $table = 'presupuesto_apoyos';
-    protected $primaryKey = 'id_presupuesto_apoyo';
+    protected $primaryKey = 'id_apoyo_presupuesto';
     protected $guarded = [];
     protected $casts = [
-        'costo_estimado' => 'decimal:2',
-        'fecha_reserva' => 'datetime',
+        'monto_solicitado' => 'decimal:2',
+        'monto_aprobado' => 'decimal:2',
+        'fecha_solicitud' => 'datetime',
         'fecha_aprobacion' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -21,9 +22,9 @@ class PresupuestoApoyo extends Model
 
     // ========== RELATIONSHIPS ==========
     
-    public function apoyo(): BelongsTo
+    public function solicitud(): BelongsTo
     {
-        return $this->belongsTo(Apoyo::class, 'id_apoyo', 'id_apoyo');
+        return $this->belongsTo(Solicitud::class, 'folio', 'folio');
     }
 
     public function categoria(): BelongsTo
@@ -31,14 +32,14 @@ class PresupuestoApoyo extends Model
         return $this->belongsTo(PresupuestoCategoria::class, 'id_categoria', 'id_categoria');
     }
 
-    public function directivoAprobador(): BelongsTo
+    public function aprobador(): BelongsTo
     {
-        return $this->belongsTo(Usuario::class, 'id_directivo_aprobador', 'id_usuario');
+        return $this->belongsTo(Usuario::class, 'aprobado_por', 'id_usuario');
     }
 
     public function movimientos(): HasMany
     {
-        return $this->hasMany(MovimientoPresupuestario::class, 'id_presupuesto_apoyo', 'id_presupuesto_apoyo');
+        return $this->hasMany(MovimientoPresupuestario::class, 'id_apoyo_presupuesto', 'id_apoyo_presupuesto');
     }
 
     // ========== SCOPES ==========
@@ -55,7 +56,25 @@ class PresupuestoApoyo extends Model
 
     public function scopeDelApoyo($query, $id_apoyo)
     {
-        return $query->where('id_apoyo', $id_apoyo);
+        return $query->where('folio', $id_apoyo);
+    }
+
+    // ========== ACCESSORS (Compatibilidad con código legado) ==========
+    
+    /**
+     * Alias para monto_solicitado (compatibilidad)
+     */
+    public function getCostoEstimadoAttribute()
+    {
+        return $this->monto_solicitado;
+    }
+
+    /**
+     * Alias para fecha_solicitud (compatibilidad)
+     */
+    public function getFechaReservaAttribute()
+    {
+        return $this->fecha_solicitud;
     }
 
     // ========== METHODS ==========
@@ -78,7 +97,7 @@ class PresupuestoApoyo extends Model
         }
 
         // Categoria must have available budget
-        if (!$this->categoria || !$this->categoria->isDisponibleFor($this->costo_estimado)) {
+        if (!$this->categoria || !$this->categoria->isDisponibleFor($this->monto_solicitado)) {
             return false;
         }
 
@@ -99,13 +118,13 @@ class PresupuestoApoyo extends Model
         return $this->update([
             'estado' => 'APROBADO',
             'fecha_aprobacion' => now(),
-            'id_directivo_aprobador' => $id_directivo_aprobador,
+            'aprobado_por' => $id_directivo_aprobador,
         ]);
     }
 
     public function getCostoEstimadoFormato(): string
     {
-        return '$' . number_format($this->costo_estimado, 2);
+        return '$' . number_format($this->monto_solicitado, 2);
     }
 
     public function getBadgeColor(): string
