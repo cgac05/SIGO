@@ -256,6 +256,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/solicitudes/proceso/{folio}', [SolicitudProcesoController::class, 'show'])
         ->whereNumber('folio')
         ->name('solicitudes.proceso.show');
+    Route::post('/solicitudes/proceso/{folio}/firmar', [SolicitudProcesoController::class, 'firmar'])
+        ->whereNumber('folio')
+        ->name('solicitudes.proceso.firmar');
     Route::get('/solicitudes/{folio}/timeline', [SolicitudProcesoController::class, 'timeline'])
         ->whereNumber('folio')
         ->name('solicitudes.proceso.timeline');
