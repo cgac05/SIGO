@@ -32,7 +32,7 @@
         @endif
 
         <!-- ========== ESTADÍSTICAS RÁPIDAS ========== -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <div class="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
                 <div class="flex items-center justify-between">
                     <div>
@@ -46,10 +46,20 @@
             <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-gray-600 text-sm font-semibold">Aprobadas Hoy</p>
-                        <p class="text-4xl font-bold text-green-600 mt-2">{{ $stats['aprobadas_hoy'] }}</p>
+                        <p class="text-gray-600 text-sm font-semibold">Firmadas</p>
+                        <p class="text-4xl font-bold text-green-600 mt-2">{{ $stats['firmadas'] }}</p>
                     </div>
                     <div class="text-5xl">✓</div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-semibold">Aprobadas Hoy</p>
+                        <p class="text-4xl font-bold text-blue-600 mt-2">{{ $stats['aprobadas_hoy'] }}</p>
+                    </div>
+                    <div class="text-5xl">📊</div>
                 </div>
             </div>
 
@@ -124,10 +134,34 @@
             </form>
         </div>
 
+        <!-- ========== MENÚ DE SOLICITUDES (TABS) ========== -->
+        <div class="mb-6 bg-white rounded-lg shadow border-b border-slate-200">
+            <div class="flex">
+                <!-- Tab: Pendientes -->
+                <a href="{{ route('solicitudes.proceso.index', array_merge(request()->query(), ['tab' => 'pendientes'])) }}" 
+                   class="flex-1 px-6 py-4 font-semibold text-center {{ $tabActual === 'pendientes' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' : 'text-slate-600 hover:text-slate-900' }} transition-colors">
+                    ⏳ Pendientes de Firma
+                    <span class="ml-2 inline-block px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-bold">
+                        {{ $stats['pendientes'] }}
+                    </span>
+                </a>
+
+                <!-- Tab: Firmadas -->
+                <a href="{{ route('solicitudes.proceso.index', array_merge(request()->query(), ['tab' => 'firmadas'])) }}" 
+                   class="flex-1 px-6 py-4 font-semibold text-center {{ $tabActual === 'firmadas' ? 'text-green-600 border-b-2 border-green-600 bg-green-50' : 'text-slate-600 hover:text-slate-900' }} transition-colors">
+                    ✓ Firmadas
+                    <span class="ml-2 inline-block px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-bold">
+                        {{ $stats['firmadas'] }}
+                    </span>
+                </a>
+            </div>
+        </div>
+
         <!-- ========== MENÚ DE SOLICITUDES (CARDS) ========== -->
         <div>
             <h2 class="text-lg font-semibold text-gray-900 mb-4">
-                📋 Mis Solicitudes <span class="text-sm font-normal text-gray-600">({{ $solicitudes->total() }} total)</span>
+                {{ $tabActual === 'pendientes' ? '⏳ Pendientes de Firma' : '✓ Solicitudes Firmadas' }} 
+                <span class="text-sm font-normal text-gray-600">({{ $solicitudes->total() }} total)</span>
             </h2>
 
             @if($solicitudes->count() > 0)
@@ -170,10 +204,15 @@
                                             <p class="text-sm font-semibold text-slate-900 mt-1">{{ $sol->nombre_apoyo }}</p>
                                         </div>
 
-                                        <!-- Monto -->
+                                        <!-- Monto o CUV -->
                                         <div>
-                                            <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Monto</p>
-                                            <p class="text-sm font-bold text-green-600 mt-1">${{ number_format($sol->monto_entregado ?? 0, 0) }}</p>
+                                            @if($tabActual === 'firmadas' && $sol->cuv)
+                                                <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold">CUV</p>
+                                                <p class="text-sm font-mono font-bold text-green-600 mt-1">{{ $sol->cuv }}</p>
+                                            @else
+                                                <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Monto</p>
+                                                <p class="text-sm font-bold text-green-600 mt-1">${{ number_format($sol->monto_entregado ?? 0, 0) }}</p>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
