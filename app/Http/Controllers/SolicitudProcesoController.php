@@ -12,6 +12,7 @@ use App\Services\PresupuestaryControlService;
 use App\Services\InventarioValidationService;
 use App\Services\SolicitudWorkflowService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -31,7 +32,14 @@ class SolicitudProcesoController extends Controller
     {
         $this->authorizePersonal($request);
 
-        $solicitudes = DB::table('Solicitudes')
+        // Obtener filtros
+        $folio = $request->query('folio');
+        $estado = $request->query('estado');
+        $apoyo = $request->query('apoyo');
+        $beneficiario = $request->query('beneficiario');
+
+        // Base query
+        $solicitudesQuery = DB::table('Solicitudes')
             ->join('Apoyos', 'Solicitudes.fk_id_apoyo', '=', 'Apoyos.id_apoyo')
             ->join('Beneficiarios', 'Solicitudes.fk_curp', '=', 'Beneficiarios.curp')
             ->leftJoin('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
@@ -47,24 +55,54 @@ class SolicitudProcesoController extends Controller
                 'Solicitudes.presupuesto_confirmado',
                 'Solicitudes.monto_entregado',
                 'Apoyos.nombre_apoyo',
-                'Beneficiarios.nombre',
+                'Beneficiarios.nombre as beneficiario_nombre',
                 'Beneficiarios.apellido_paterno',
                 'Beneficiarios.apellido_materno',
-                'Cat_EstadosSolicitud.nombre_estado as estado',
-            ])
-            ->orderByDesc('Solicitudes.folio')
-            ->limit(30)
+                'Cat_EstadosSolicitud.nombre_estado as nombre_estado',
+            ]);
+
+        // Aplicar filtros
+        if ($folio) {
+            $solicitudesQuery->where('Solicitudes.folio', $folio);
+        }
+        if ($estado) {
+            $solicitudesQuery->where('Cat_EstadosSolicitud.nombre_estado', $estado);
+        }
+        if ($apoyo) {
+            $solicitudesQuery->where('Solicitudes.fk_id_apoyo', $apoyo);
+        }
+        if ($beneficiario) {
+            $solicitudesQuery->where(DB::raw("CONCAT(Beneficiarios.nombre, ' ', Beneficiarios.apellido_paterno, ' ', Beneficiarios.apellido_materno)"), 'LIKE', "%$beneficiario%");
+        }
+
+        // Obtener solicitudes paginadas
+        $solicitudes = $solicitudesQuery->orderByDesc('Solicitudes.folio')->paginate(10);
+
+        // Estadísticas
+        $hoy = now()->startOfDay();
+        $stats = [
+            'pendientes' => DB::table('Solicitudes')->whereNull('Solicitudes.cuv')->count(),
+            'aprobadas_hoy' => DB::table('Solicitudes')
+                ->where('Solicitudes.cuv', '!=', null)
+                ->whereDate('Solicitudes.fecha_creacion', $hoy)
+                ->count(),
+            'rechazadas_hoy' => DB::table('Solicitudes')
+                ->where('Solicitudes.fk_id_estado', DB::raw("(SELECT id_estado FROM Cat_EstadosSolicitud WHERE nombre_estado = 'RECHAZADA')"))
+                ->whereDate('Solicitudes.fecha_creacion', $hoy)
+                ->count(),
+        ];
+
+        // Apoyos disponibles para filtro
+        $apoyosDisponibles = DB::table('Apoyos')
+            ->where('activo', 1)
+            ->select('id_apoyo', 'nombre_apoyo')
+            ->orderBy('nombre_apoyo')
             ->get();
 
-        $solicitudesConTimeline = $solicitudes->map(function ($solicitud) {
-            $timelineResult = $this->workflow->getTimelineByFolio((int) $solicitud->folio);
-            $solicitud->timeline = $timelineResult['timeline'];
-            $solicitud->hito_actual = $timelineResult['hito_actual'];
-            return $solicitud;
-        });
-
-        return view('solicitudes.proceso', [
-            'solicitudes' => $solicitudesConTimeline,
+        return view('solicitudes.proceso.index', [
+            'solicitudes' => $solicitudes,
+            'stats' => $stats,
+            'apoyosDisponibles' => $apoyosDisponibles,
         ]);
     }
 
@@ -602,5 +640,237 @@ class SolicitudProcesoController extends Controller
             'seguimiento' => $seguimiento,
             'timestamp_snapshot' => now()->toIso8601String(),
         ];
+    }
+
+    /**
+     * ✅ VISTA DETALLADA - Información completa de una solicitud
+     */
+    public function show($folio, Request $request)
+    {
+        $user = Auth::user();
+        $this->authorizePersonal($request, 2);
+
+        // Obtener solicitud
+        $solicitud = DB::table('Solicitudes')
+            ->where('folio', $folio)
+            ->first();
+
+        if (!$solicitud) {
+            abort(404, 'Solicitud no encontrada');
+        }
+
+        // Información del beneficiario
+        $beneficiario = DB::table('Beneficiarios')
+            ->where('curp', $solicitud->fk_curp)
+            ->first();
+
+        if (!$beneficiario) {
+            abort(404, 'Beneficiario no encontrado');
+        }
+
+        // Información del apoyo
+        $apoyo = DB::table('Apoyos')
+            ->where('id_apoyo', $solicitud->fk_id_apoyo)
+            ->first();
+
+        // Documentos asociados
+        $documentos = DB::table('Documentos_Solicitud')
+            ->where('fk_id_solicitud', $solicitud->id_solicitud)
+            ->get();
+
+        // ========== VALIDACIÓN DE PRESUPUESTO ==========
+        $presupuestoDisponible = $this->obtenerPresupuestoDisponibleApoyo($apoyo->id_apoyo);
+        $presupuestoCategoriaDisponible = $this->obtenerPresupuestoCategoriaDisponible($apoyo->fk_id_categoria);
+
+        $puedeAprobarse = ($presupuestoDisponible >= $solicitud->monto_solicitado) 
+                         && ($presupuestoCategoriaDisponible >= $solicitud->monto_solicitado);
+
+        // ========== HISTORIAL DE APOYOS PREVIOS ==========
+        $historialApoyos = DB::table('Solicitudes')
+            ->join('Apoyos', 'Solicitudes.fk_id_apoyo', '=', 'Apoyos.id_apoyo')
+            ->where('Solicitudes.fk_curp', $beneficiario->curp)
+            ->where('Solicitudes.id_solicitud', '!=', $solicitud->id_solicitud)
+            ->where('Solicitudes.fk_id_estado', 3) // Solo aprobadas
+            ->select(
+                'Solicitudes.folio',
+                'Solicitudes.id_solicitud',
+                'Apoyos.nombre_apoyo',
+                'Solicitudes.monto_solicitado as monto',
+                'Solicitudes.fecha_creacion',
+                'Solicitudes.cuv'
+            )
+            ->orderByDesc('Solicitudes.fecha_creacion')
+            ->limit(10)
+            ->get();
+
+        // Estado actual
+        $estadoActual = DB::table('Cat_EstadosSolicitud')
+            ->where('id_estado', $solicitud->fk_id_estado)
+            ->first();
+
+        // Total de apoyos previos
+        $totalApoyosPrevios = DB::table('Solicitudes')
+            ->where('fk_curp', $beneficiario->curp)
+            ->where('fk_id_estado', 3) // Aprobadas
+            ->count();
+
+        return view('solicitudes.proceso.show', [
+            'solicitud' => $solicitud,
+            'beneficiario' => $beneficiario,
+            'apoyo' => $apoyo,
+            'documentos' => $documentos,
+            'presupuestoDisponible' => $presupuestoDisponible,
+            'presupuestoCategoriaDisponible' => $presupuestoCategoriaDisponible,
+            'puedeAprobarse' => $puedeAprobarse,
+            'historialApoyos' => $historialApoyos,
+            'totalApoyosPrevios' => $totalApoyosPrevios,
+            'estadoActual' => $estadoActual,
+            'userRole' => $user->role_id,
+        ]);
+    }
+
+    /**
+     * ✅ FIRMAR SOLICITUD - Generar CUV y confirmar presupuesto
+     */
+    public function firmar($folio, Request $request)
+    {
+        $user = Auth::user();
+        
+        // Validar que sea directivo
+        if ($user->role_id != 2) {
+            abort(403, 'Solo directivos pueden firmar');
+        }
+
+        // Validar contraseña
+        $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        if (!Hash::check($request->input('password'), $user->password)) {
+            return back()->withErrors(['password' => 'Contraseña incorrecta']);
+        }
+
+        // Obtener solicitud
+        $solicitud = DB::table('Solicitudes')
+            ->where('folio', $folio)
+            ->first();
+
+        if (!$solicitud) {
+            return back()->withErrors(['error' => 'Solicitud no encontrada']);
+        }
+
+        // Validar estado
+        if ($solicitud->fk_id_estado != 12) { // DOCUMENTOS_VERIFICADOS
+            return back()->withErrors(['error' => 'Solicitud no está en estado para firmar']);
+        }
+
+        // Validar presupuesto
+        $apoyo = DB::table('Apoyos')->where('id_apoyo', $solicitud->fk_id_apoyo)->first();
+        $presupuestoDisponible = $this->obtenerPresupuestoDisponibleApoyo($apoyo->id_apoyo);
+
+        if ($presupuestoDisponible < $solicitud->monto_solicitado) {
+            return back()->withErrors(['error' => 'Presupuesto insuficiente']);
+        }
+
+        // Iniciar transacción
+        DB::beginTransaction();
+
+        try {
+            // Generar CUV único
+            $cuv = hash('sha256', $folio . now()->timestamp . $user->id);
+
+            // Actualizar solicitud
+            DB::table('Solicitudes')->where('folio', $folio)->update([
+                'cuv' => $cuv,
+                'fk_id_estado' => 3, // APROBADA
+                'presupuesto_confirmado' => 1,
+                'updated_at' => now(),
+            ]);
+
+            // Registrar firma electrónica
+            DB::table('firmas_electronicas')->insert([
+                'folio' => $folio,
+                'cuv' => $cuv,
+                'usuario_id' => $user->id,
+                'fecha_firma' => now(),
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'created_at' => now(),
+            ]);
+
+            // Asignar presupuesto (restar de disponible)
+            DB::table('presupuesto_apoyos')
+                ->where('fk_id_apoyo', $apoyo->id_apoyo)
+                ->where('ano_fiscal', date('Y'))
+                ->increment('aprobado', $solicitud->monto_solicitado);
+
+            // Registrar movimiento presupuestario
+            DB::table('movimientos_presupuestarios')->insert([
+                'fk_id_solicitud' => $solicitud->id_solicitud,
+                'fk_id_apoyo' => $apoyo->id_apoyo,
+                'fk_id_categoria' => $apoyo->fk_id_categoria,
+                'tipo_movimiento' => 'ASIGNACION_DIRECTIVO',
+                'monto_movimiento' => $solicitud->monto_solicitado,
+                'ano_fiscal' => date('Y'),
+                'directivo_id' => $user->id,
+                'fecha_movimiento' => now(),
+                'estado_movimiento' => 'CONFIRMADO',
+                'observaciones' => 'Firma electrónica por ' . $user->nombre,
+                'created_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('solicitudes.proceso.show', $folio)
+                ->with('success', "✓ Solicitud firmada exitosamente. CUV: {$cuv}");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error al firmar solicitud: ' . $e->getMessage());
+            
+            return back()->withErrors(['error' => 'Error al firmar: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * ⭐ HELPERS - Obtener presupuesto disponible en un apoyo
+     */
+    private function obtenerPresupuestoDisponibleApoyo($idApoyo)
+    {
+        $presupuesto = DB::table('presupuesto_apoyos')
+            ->where('fk_id_apoyo', $idApoyo)
+            ->where('ano_fiscal', date('Y'))
+            ->first();
+
+        if (!$presupuesto) {
+            return 0;
+        }
+
+        $disponible = $presupuesto->presupuesto_total 
+                    - $presupuesto->aprobado 
+                    - $presupuesto->reservado;
+
+        return max(0, $disponible);
+    }
+
+    /**
+     * ⭐ HELPERS - Obtener presupuesto disponible por categoría
+     */
+    private function obtenerPresupuestoCategoriaDisponible($idCategoria)
+    {
+        $presupuesto = DB::table('presupuesto_categorias')
+            ->where('id_presupuesto', $idCategoria)
+            ->where('ano_fiscal', date('Y'))
+            ->first();
+
+        if (!$presupuesto) {
+            return 0;
+        }
+
+        $disponible = $presupuesto->presupuesto_inicial 
+                    - $presupuesto->aprobado 
+                    - $presupuesto->reservado;
+
+        return max(0, $disponible);
     }
 }

@@ -253,6 +253,9 @@ Route::middleware('auth')->group(function () {
     // Flujo de cierre y validación de solicitudes
     Route::get('/solicitudes/proceso', [SolicitudProcesoController::class, 'index'])
         ->name('solicitudes.proceso.index');
+    Route::get('/solicitudes/proceso/{folio}', [SolicitudProcesoController::class, 'show'])
+        ->whereNumber('folio')
+        ->name('solicitudes.proceso.show');
     Route::get('/solicitudes/{folio}/timeline', [SolicitudProcesoController::class, 'timeline'])
         ->whereNumber('folio')
         ->name('solicitudes.proceso.timeline');

@@ -11,6 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // ✅ Tabla ya existe en BD
+        if (Schema::hasTable('auditoria_verificacion')) {
+            return;
+        }
+        
         Schema::create('auditoria_verificacion', function (Blueprint $table) {
             $table->id('id_auditoria');
             $table->unsignedBigInteger('id_historico');
