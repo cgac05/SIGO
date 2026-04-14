@@ -178,6 +178,9 @@ class ProfileController extends Controller
     public function arcoDownload(Request $request)
     {
         $user = $request->user();
+
+        abort_unless($user?->isBeneficiario(), 403);
+
         $data = [
             'usuario' => [
                 'id' => $user->id_usuario,
@@ -209,6 +212,8 @@ class ProfileController extends Controller
      */
     public function arcoCancel(Request $request): RedirectResponse
     {
+        abort_unless($request->user()?->isBeneficiario(), 403);
+
         $request->validate([
             'razon' => 'required|string|min:10|max:500',
         ]);

@@ -152,6 +152,34 @@ if ($isEditing) {
                 .btn-secondary:hover { background: #e2e8f0; }
             </style>
 
+            {{-- SECCIÓN DE MENSAJES --}}
+            <div id="messagesContainer" class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                {{-- Errores de validación --}}
+                <div id="errorsAlert" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                    <div class="flex items-start gap-3">
+                        <svg class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                        </svg>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-red-900">Por favor, corrija los siguientes errores:</h3>
+                            <ul id="errorsList" class="mt-2 space-y-1 list-disc list-inside text-sm text-red-700"></ul>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Mensaje de éxito --}}
+                <div id="successAlert" class="hidden bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                    <div class="flex items-start gap-3">
+                        <svg class="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-green-900" id="successMessage">✅ Apoyo creado exitosamente</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             @if ($isCreating)
                 <form id="formularioApoyo" method="POST" action="{{ route('apoyos.store') }}" enctype="multipart/form-data" novalidate>
             @else
@@ -1396,6 +1424,160 @@ if ($isEditing) {
 
             // Cargar documentos cuando la página se carga
             recargarDocumentos();
+
+            // ==================== INTERCEPTAR SUBMIT DEL FORMULARIO ====================
+            
+            // Función para convertir fechas de d/m/Y a Y-m-d
+            function convertDateFormat(dateStr) {
+                if (!dateStr) return '';
+                const [day, month, year] = dateStr.split('/');
+                if (!day || !month || !year) return dateStr;
+                return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            }
+            
+            const formularioApoyo = document.getElementById('formularioApoyo');
+            
+            formularioApoyo.addEventListener('submit', async function(e) {
+                e.preventDefault(); // Evitar envío tradicional
+                console.log('✅ Submit interceptado');
+
+                // Sincronizar contenido de Quill antes de enviar
+                if (typeof quill !== 'undefined') {
+                    document.getElementById('descripcion-hidden').value = quill.root.innerHTML;
+                }
+
+                // Ocultar mensajes anteriores
+                document.getElementById('errorsAlert').classList.add('hidden');
+                document.getElementById('successAlert').classList.add('hidden');
+                document.getElementById('errorsList').innerHTML = '';
+
+                // Crear FormData con los datos del formulario
+                const formData = new FormData(this);
+                
+                // ⚠️ CONVERTIR FECHAS A FORMATO Y-m-d
+                const fechaInicio = formData.get('fechaInicio');
+                const fechafin = formData.get('fechafin');
+                
+                if (fechaInicio) {
+                    formData.set('fechaInicio', convertDateFormat(fechaInicio));
+                    console.log('📅 Fecha inicio convertida:', fechaInicio, '→', convertDateFormat(fechaInicio));
+                }
+                if (fechafin) {
+                    formData.set('fechafin', convertDateFormat(fechafin));
+                    console.log('📅 Fecha fin convertida:', fechafin, '→', convertDateFormat(fechafin));
+                }
+
+                try {
+                    const response = await fetch(this.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    console.log('📤 Respuesta recibida:', response.status, response.statusText);
+
+                    const data = await response.json().catch(() => ({}));
+                    console.log('📋 Datos de respuesta:', data);
+
+                    // Manejar errores de validación (422)
+                    if (response.status === 422) {
+                        console.log('❌ Errores de validación:', data.errors);
+                        
+                        const errorsAlert = document.getElementById('errorsAlert');
+                        const errorsList = document.getElementById('errorsList');
+                        
+                        // Limpiar lista anterior
+                        errorsList.innerHTML = '';
+
+                        // Agregar cada error a la lista
+                        if (data.errors && typeof data.errors === 'object') {
+                            Object.entries(data.errors).forEach(([field, messages]) => {
+                                if (Array.isArray(messages)) {
+                                    messages.forEach(message => {
+                                        const li = document.createElement('li');
+                                        li.textContent = message;
+                                        errorsList.appendChild(li);
+                                        
+                                        // Marcar el campo con error
+                                        const fieldElement = document.querySelector(`[name="${field}"]`);
+                                        if (fieldElement) {
+                                            fieldElement.classList.add('error');
+                                            fieldElement.addEventListener('change', () => {
+                                                fieldElement.classList.remove('error');
+                                            }, { once: true });
+                                        }
+                                    });
+                                }
+                            });
+                        }
+
+                        // Mostrar alerta de errores
+                        errorsAlert.classList.remove('hidden');
+                        
+                        // Scroll al inicio
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        return;
+                    }
+
+                    // Manejar otros errores HTTP
+                    if (!response.ok) {
+                        console.log('❌ Error del servidor:', response.status);
+                        
+                        const errorsAlert = document.getElementById('errorsAlert');
+                        const errorsList = document.getElementById('errorsList');
+                        
+                        errorsList.innerHTML = '';
+                        const li = document.createElement('li');
+                        li.textContent = data.message || `Error del servidor (${response.status})`;
+                        errorsList.appendChild(li);
+                        
+                        errorsAlert.classList.remove('hidden');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        return;
+                    }
+
+                    // Si fue exitoso
+                    if (data.success) {
+                        console.log('✅ Apoyo guardado exitosamente');
+                        
+                        // Mostrar mensaje de éxito
+                        const successAlert = document.getElementById('successAlert');
+                        const successMessage = document.getElementById('successMessage');
+                        
+                        if (data.message) {
+                            successMessage.textContent = '✅ ' + data.message;
+                        }
+                        
+                        successAlert.classList.remove('hidden');
+                        
+                        // Scroll al inicio
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        
+                        // Redirigir después de 2 segundos
+                        setTimeout(() => {
+                            window.location.href = '{{ route("apoyos.index") }}';
+                        }, 2000);
+                    }
+
+                } catch (error) {
+                    console.error('🔥 Error en fetch:', error);
+                    
+                    const errorsAlert = document.getElementById('errorsAlert');
+                    const errorsList = document.getElementById('errorsList');
+                    
+                    errorsList.innerHTML = '';
+                    const li = document.createElement('li');
+                    li.textContent = 'Error de conexión: ' + error.message;
+                    errorsList.appendChild(li);
+                    
+                    errorsAlert.classList.remove('hidden');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            });
+            // ==================== FIN INTERCEPTOR ====================
+
         })();
     </script>
 

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class User extends Authenticatable implements MustVerifyEmailContract
 {
@@ -180,43 +181,99 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function getFotoUrl(): string
     {
-        // Si tiene avatar de Google, retornar esa URL
-        if ($this->google_avatar) {
-            return $this->google_avatar;
+        $googleAvatar = trim((string) $this->google_avatar);
+
+        if ($googleAvatar !== '' && $this->isValidAvatarUrl($googleAvatar)) {
+            return $googleAvatar;
         }
 
         $fotoPerfil = trim((string) $this->foto_perfil);
 
         if ($fotoPerfil !== '') {
-            if (preg_match('#^https?://#i', $fotoPerfil)) {
-                return $fotoPerfil;
-            }
+            $resolvedUrl = $this->resolveStoredAvatarUrl($fotoPerfil);
 
-            $normalizedPath = ltrim($fotoPerfil, '/');
-            $publicDiskPath = str_starts_with($normalizedPath, 'storage/')
-                ? substr($normalizedPath, strlen('storage/'))
-                : $normalizedPath;
-
-            if (Storage::disk('public')->exists($publicDiskPath)) {
-                return Storage::disk('public')->url($publicDiskPath);
-            }
-
-            if (file_exists(public_path($normalizedPath))) {
-                return asset($normalizedPath);
-            }
-
-            if (file_exists(public_path('storage/' . $publicDiskPath))) {
-                return asset('storage/' . $publicDiskPath);
+            if ($resolvedUrl !== null) {
+                return $resolvedUrl;
             }
         }
 
-        // Si no, intentar obtener desde almacenamiento local
-        $localPhotoPath = "storage/fotos/{$this->id_usuario}.jpg";
-        if (file_exists(public_path($localPhotoPath))) {
-            return asset($localPhotoPath);
+        foreach (['jpg', 'jpeg', 'png', 'gif', 'webp'] as $extension) {
+            $localPhotoPath = "storage/fotos/{$this->id_usuario}.{$extension}";
+
+            if (file_exists(public_path($localPhotoPath))) {
+                return asset($localPhotoPath);
+            }
         }
-        
-        // Si no tiene foto, retornar una URL vacía o placeholder
+
         return '';
+    }
+
+    public function getAvatarInitialAttribute(): string
+    {
+        $source = Str::squish((string) ($this->display_name ?: $this->email ?: 'U'));
+
+        if ($source === '') {
+            return 'U';
+        }
+
+        return mb_strtoupper(mb_substr($source, 0, 1));
+    }
+
+    public function getAvatarPlaceholderUrlAttribute(): string
+    {
+        $initial = htmlspecialchars($this->avatar_initial, ENT_QUOTES, 'UTF-8');
+        $svg = <<<SVG
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Avatar de usuario">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="128" fill="url(#bg)"/>
+  <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="112" font-weight="700">{$initial}</text>
+</svg>
+SVG;
+
+        return 'data:image/svg+xml;base64,' . base64_encode($svg);
+    }
+
+    public function getAvatarUrlAttribute(): string
+    {
+        $fotoUrl = $this->getFotoUrl();
+
+        return $fotoUrl !== '' ? $fotoUrl : $this->avatar_placeholder_url;
+    }
+
+    private function isValidAvatarUrl(string $url): bool
+    {
+        return filter_var($url, FILTER_VALIDATE_URL) !== false || str_starts_with($url, 'data:image/');
+    }
+
+    private function resolveStoredAvatarUrl(string $path): ?string
+    {
+        $normalizedPath = str_replace('\\', '/', ltrim($path, '/'));
+
+        if ($normalizedPath === '') {
+            return null;
+        }
+
+        $publicDiskPath = str_starts_with($normalizedPath, 'storage/')
+            ? substr($normalizedPath, strlen('storage/'))
+            : $normalizedPath;
+
+        if ($publicDiskPath !== '' && Storage::disk('public')->exists($publicDiskPath)) {
+            return Storage::disk('public')->url($publicDiskPath);
+        }
+
+        if (file_exists(public_path($normalizedPath))) {
+            return asset($normalizedPath);
+        }
+
+        if ($publicDiskPath !== '' && file_exists(public_path('storage/' . $publicDiskPath))) {
+            return asset('storage/' . $publicDiskPath);
+        }
+
+        return null;
     }
 }

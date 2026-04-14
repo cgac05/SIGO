@@ -185,9 +185,17 @@ class FolioService
      */
     private function obtenerProximoConsecutivo(string $year): int
     {
-        $consecutivo = DB::table('auditoria_folios')
-            ->where('año_fiscal', $year)
-            ->count();
+        // Verificar si la tabla existe
+        $tablaExiste = \Illuminate\Support\Facades\Schema::hasTable('auditoria_folios');
+        
+        if ($tablaExiste) {
+            $consecutivo = DB::table('auditoria_folios')
+                ->where('año_fiscal', $year)
+                ->count();
+        } else {
+            // Fallback: contar solicitudes ya creadas este año
+            $consecutivo = 0;
+        }
 
         if ($consecutivo === 0) {
             // Fallback: contar solicitudes ya creadas este año
@@ -214,16 +222,33 @@ class FolioService
         int $digito,
         ?int $beneficiarioId = null
     ): void {
-        DB::table('auditoria_folios')->insert([
-            'folio_completo' => $folioCompleto,
-            'numero_base' => $numero,
-            'digito_verificador' => $digito,
-            'fk_id_beneficiario' => $beneficiarioId,
-            'año_fiscal' => now()->format('Y'),
-            'fecha_generacion' => now(),
-            'generado_por' => auth()->id(),
-            'ip_generacion' => request()->ip(),
-        ]);
+        // Verificar si la tabla existe antes de intentar insertar
+        $tablaExiste = \Illuminate\Support\Facades\Schema::hasTable('auditoria_folios');
+        
+        if ($tablaExiste) {
+            try {
+                DB::table('auditoria_folios')->insert([
+                    'folio_completo' => $folioCompleto,
+                    'numero_base' => $numero,
+                    'digito_verificador' => $digito,
+                    'fk_id_beneficiario' => $beneficiarioId,
+                    'año_fiscal' => now()->format('Y'),
+                    'fecha_generacion' => now(),
+                    'generado_por' => auth()->id(),
+                    'ip_generacion' => request()->ip(),
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('No se pudo registrar folio en auditoría', [
+                    'folio' => $folioCompleto,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        } else {
+            Log::warning('Tabla auditoria_folios no existe. El folio no fue auditado.', [
+                'folio' => $folioCompleto,
+                'sugerencia' => 'Ejecutar: CREATE_TABLA_AUDITORIA_FOLIOS.sql'
+            ]);
+        }
 
         // También registrar en logs por redundancia
         Log::channel('folios')->info('Folio generado', [
@@ -252,14 +277,27 @@ class FolioService
     {
         $year = $year ?? now()->format('Y');
 
-        $totalGenerados = DB::table('auditoria_folios')
-            ->where('año_fiscal', $year)
-            ->count();
+        $tablaExiste = \Illuminate\Support\Facades\Schema::hasTable('auditoria_folios');
 
-        $usados = DB::table('auditoria_folios')
-            ->where('año_fiscal', $year)
-            ->whereNotNull('fk_folio_solicitud')
-            ->count();
+        if ($tablaExiste) {
+            try {
+                $totalGenerados = DB::table('auditoria_folios')
+                    ->where('año_fiscal', $year)
+                    ->count();
+
+                $usados = DB::table('auditoria_folios')
+                    ->where('año_fiscal', $year)
+                    ->whereNotNull('fk_folio_solicitud')
+                    ->count();
+            } catch (\Exception $e) {
+                Log::warning('Error al obtener estadísticas de folios', ['error' => $e->getMessage()]);
+                $totalGenerados = 0;
+                $usados = 0;
+            }
+        } else {
+            $totalGenerados = 0;
+            $usados = 0;
+        }
 
         $pendientes = $totalGenerados - $usados;
         $porcentajeUtilizacion = $totalGenerados > 0 ? round(($usados / $totalGenerados) * 100, 2) : 0;

@@ -898,62 +898,88 @@ class ApoyoController extends Controller
     {
         $this->ensureManagerAccess();
 
-        $data = $request->validate([
-            'nombre_apoyo' => 'required|string|max:100',
-            'tipo_apoyo' => 'required|in:Económico,Especie',
-            'monto_maximo' => 'required|numeric|min:0|max:999999999.99',
-            'cupo_limite' => 'required|integer|min:1|max:1000000',
-            'descripcion' => 'required|string',
-            'monto_inicial_asignado' => 'nullable|required_if:tipo_apoyo,Económico|numeric|min:0|max:999999999999.99',
-            'stock_inicial' => 'nullable|required_if:tipo_apoyo,Especie|integer|min:0',
-            'id_categoria' => 'nullable|required_if:tipo_apoyo,Económico|integer|exists:presupuesto_categorias,id_categoria',
-            'unidad_medida' => 'nullable|string|max:30',
-            'costo_unitario' => 'nullable|numeric|min:0',
-            'activo' => 'nullable|boolean',
-            'fechaInicio' => 'required|date',
-            'fechafin' => 'required|date|after_or_equal:fechaInicio',
-            'foto_ruta' => 'nullable|image|max:5120',
-            'documentos_requeridos' => 'nullable|array',
-            'documentos_requeridos.*' => 'integer|exists:Cat_TiposDocumento,id_tipo_doc',
-            'hitos' => 'nullable|array',
-            'hitos.*.titulo' => 'nullable|string|max:150',
-            'hitos.*.fecha_inicio' => 'nullable|date_format:Y-m-d',
-            'hitos.*.fecha_fin' => 'nullable|date_format:Y-m-d',
-            'hitos.*.slug' => 'nullable|string|max:80',
-            'hitos.*.es_base' => 'nullable|boolean',
-            'hitos.*.incluir' => 'nullable|boolean',
+        \Log::info('=== STORE APOYO START ===', [
+            'all_input' => $request->all(),
+            'has_token' => $request->has('_token'),
         ]);
-
-        // Validar presupuesto disponible si es económico
-        if ($data['tipo_apoyo'] === 'Económico' && $data['id_categoria']) {
-            // Calcular total: monto_máximo × cupo_límite
-            $totalNecesario = ($data['monto_maximo'] ?? 0) * ($data['cupo_limite'] ?? 1);
-            
-            $inventarioService = new GestionInventarioService();
-            $validacion = $inventarioService->validarPresupuestoDisponible(
-                $data['id_categoria'],
-                $totalNecesario
-            );
-            if (!$validacion['valido']) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Presupuesto insuficiente. Necesita: $" . 
-                                number_format($totalNecesario, 2) . 
-                                " pero disponible es: $" . 
-                                number_format($validacion['disponible'] ?? 0, 2),
-                ], 422);
-            }
-        }
-
-        // Validar reglas específicas de hitos (períodos obligatorios, rangos, etc.)
-        $this->validateMilestonesDateRanges($data['hitos'] ?? []);
 
         DB::beginTransaction();
 
         try {
+            // Validar datos - esto puede lanzar ValidationException
+            $data = $request->validate([
+                'nombre_apoyo' => 'required|string|max:100',
+                'tipo_apoyo' => 'required|in:Económico,Especie',
+                'monto_maximo' => 'required|numeric|min:0|max:999999999.99',
+                'cupo_limite' => 'required|integer|min:1|max:1000000',
+                'descripcion' => 'required|string',
+                'monto_inicial_asignado' => 'nullable|required_if:tipo_apoyo,Económico|numeric|min:0|max:999999999999.99',
+                'stock_inicial' => 'nullable|required_if:tipo_apoyo,Especie|integer|min:0',
+                'id_categoria' => 'nullable|required_if:tipo_apoyo,Económico|integer|exists:presupuesto_categorias,id_categoria',
+                'unidad_medida' => 'nullable|string|max:30',
+                'costo_unitario' => 'nullable|numeric|min:0',
+                'activo' => 'nullable|boolean',
+                'fechaInicio' => 'required|date_format:Y-m-d',
+                'fechafin' => 'required|date_format:Y-m-d|after_or_equal:fechaInicio',
+                'foto_ruta' => 'nullable|image|max:5120',
+                'documentos_requeridos' => 'nullable|array',
+                'documentos_requeridos.*' => 'integer|exists:Cat_TiposDocumento,id_tipo_doc',
+                'hitos' => 'nullable|array',
+                'hitos.*.titulo' => 'nullable|string|max:150',
+                'hitos.*.fecha_inicio' => 'nullable|date_format:Y-m-d',
+                'hitos.*.fecha_fin' => 'nullable|date_format:Y-m-d',
+                'hitos.*.slug' => 'nullable|string|max:80',
+                'hitos.*.es_base' => 'nullable|boolean',
+                'hitos.*.incluir' => 'nullable|boolean',
+            ], [
+                'nombre_apoyo.required' => 'El nombre del apoyo es obligatorio',
+                'tipo_apoyo.required' => 'Debe seleccionar un tipo de apoyo',
+                'monto_maximo.required' => 'El monto máximo es obligatorio',
+                'cupo_limite.required' => 'El cupo límite es obligatorio',
+                'descripcion.required' => 'La descripción es obligatoria',
+                'monto_inicial_asignado.required_if' => 'El monto inicial debe ser indicado para apoyos económicos',
+                'stock_inicial.required_if' => 'El stock inicial debe ser indicado para apoyos en especie',
+                'id_categoria.required_if' => 'Debe seleccionar una categoría presupuestaria para apoyos económicos',
+                'fechaInicio.required' => 'La fecha de inicio es obligatoria',
+                'fechaInicio.date_format' => 'La fecha de inicio debe tener formato YYYY-MM-DD',
+                'fechafin.required' => 'La fecha de fin es obligatoria',
+                'fechafin.date_format' => 'La fecha de fin debe tener formato YYYY-MM-DD',
+                'fechafin.after_or_equal' => 'La fecha de fin debe ser igual o posterior a la fecha de inicio',
+            ]);
+            
+            \Log::info('Validación pasó', ['validated_data' => $data]);
+
+            // Validar presupuesto disponible si es económico
+            if ($data['tipo_apoyo'] === 'Económico' && $data['id_categoria']) {
+                // Calcular total: monto_máximo × cupo_límite
+                $totalNecesario = ($data['monto_maximo'] ?? 0) * ($data['cupo_limite'] ?? 1);
+                
+                $inventarioService = new GestionInventarioService();
+                $validacion = $inventarioService->validarPresupuestoDisponible(
+                    $data['id_categoria'],
+                    $totalNecesario
+                );
+                if (!$validacion['valido']) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Presupuesto insuficiente. Necesita: $" . 
+                                    number_format($totalNecesario, 2) . 
+                                    " pero disponible es: $" . 
+                                    number_format($validacion['disponible'] ?? 0, 2),
+                    ], 422);
+                }
+            }
+
+            // Validar reglas específicas de hitos (períodos obligatorios, rangos, etc.)
+            $this->validateMilestonesDateRanges($data['hitos'] ?? []);
+
+            \Log::info('Iniciando transacción BD');
+            
             $fotoRuta = null;
             if ($request->hasFile('foto_ruta')) {
                 $fotoRuta = 'storage/' . $request->file('foto_ruta')->store('apoyos', 'public');
+                \Log::info('Foto guardada:', ['foto_ruta' => $fotoRuta]);
             }
 
             $activoRaw = $request->input('activo', true);
@@ -984,16 +1010,27 @@ class ApoyoController extends Controller
                 $payload['descripcion'] = $this->sanitizeDescriptionHtml($data['descripcion'] ?? null);
             }
 
+            \Log::info('Payload para crear Apoyo:', $payload);
+            
             $apoyo = Apoyo::create($payload);
+            
+            \Log::info('Apoyo creado exitosamente', ['id_apoyo' => $apoyo->id_apoyo, 'apoyo' => $apoyo]);
 
             if ($data['tipo_apoyo'] === 'Económico') {
                 // Crear registro en BD_Finanzas
                 $montoAsignado = $data['monto_inicial_asignado'] ?? 0;
+                \Log::info('Insertando en BD_Finanzas', [
+                    'fk_id_apoyo' => $apoyo->id_apoyo,
+                    'monto_asignado' => $montoAsignado
+                ]);
+                
                 DB::table('BD_Finanzas')->insert([
                     'fk_id_apoyo' => $apoyo->id_apoyo,
                     'monto_asignado' => $montoAsignado,
                     'monto_ejercido' => 0,
                 ]);
+                
+                \Log::info('BD_Finanzas insertado exitosamente');
 
                 // Reservar presupuesto en la categoría (total: monto_máximo × cupo_límite)
                 if ($data['id_categoria']) {
@@ -1012,10 +1049,17 @@ class ApoyoController extends Controller
                 }
             } else {
                 // Crear registro en BD_Inventario para apoyo de Especie
+                \Log::info('Insertando en BD_Inventario', [
+                    'fk_id_apoyo' => $apoyo->id_apoyo,
+                    'stock_actual' => $data['stock_inicial'] ?? 0
+                ]);
+                
                 DB::table('BD_Inventario')->insert([
                     'fk_id_apoyo' => $apoyo->id_apoyo,
                     'stock_actual' => $data['stock_inicial'] ?? 0,
                 ]);
+                
+                \Log::info('BD_Inventario insertado exitosamente');
 
                 // Crear material en inventario_material si existe la tabla
                 if (Schema::hasTable('inventario_material')) {
@@ -1053,10 +1097,29 @@ class ApoyoController extends Controller
             $this->syncApoyoMilestones((int) $apoyo->id_apoyo, $hitosProcessed);
 
             DB::commit();
+            
+            \Log::info('=== STORE APOYO COMPLETADO ===', ['id_apoyo' => $apoyo->id_apoyo]);
 
             return response()->json(['success' => true, 'message' => 'Apoyo registrado correctamente.']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            
+            \Log::warning('Error de validación en store', ['errors' => $e->errors()]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Errores de validación',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            \Log::error('=== ERROR EN STORE APOYO ===', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
 
             return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }

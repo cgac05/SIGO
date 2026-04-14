@@ -92,8 +92,39 @@
                             @endif
                         </div>
 
-                        <aside class="xl:col-span-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                            <h4 class="text-xs font-extrabold uppercase tracking-wide text-slate-600">Fechas importantes</h4>
+                        <aside class="xl:col-span-4 space-y-4">
+                            <!-- Información de Presupuesto -->
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                <h4 class="text-xs font-extrabold uppercase tracking-wide text-slate-600">Información del apoyo</h4>
+                                <div class="mt-4 space-y-3 text-sm">
+                                    @if($apoyo->monto_maximo)
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-slate-600">Monto máximo:</span>
+                                            <span class="font-semibold text-slate-900">${{ number_format($apoyo->monto_maximo, 2, '.', ',') }}</span>
+                                        </div>
+                                    @endif
+                                    
+                                    @if($apoyo->cupo_limite)
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-slate-600">Cupo disponible:</span>
+                                            <span class="font-semibold text-slate-900">{{ $apoyo->cupo_limite }} {{ $apoyo->cupo_limite == 1 ? 'beneficiario' : 'beneficiarios' }}</span>
+                                        </div>
+                                    @endif
+
+                                    @if($apoyo->tipo_apoyo)
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-slate-600">Tipo de apoyo:</span>
+                                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold {{ $apoyo->tipo_apoyo === 'Económico' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800' }}">
+                                                {{ $apoyo->tipo_apoyo }}
+                                            </span>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <!-- Fechas Importantes -->
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                <h4 class="text-xs font-extrabold uppercase tracking-wide text-slate-600">Fechas importantes</h4>
                             @if(isset($hitos) && $hitos->count())
                                 <ol class="mt-3 space-y-2">
                                     @foreach($hitos as $hito)
@@ -135,6 +166,7 @@
                             @else
                                 <p class="mt-2 text-xs text-slate-500">Este apoyo no tiene hitos configurados.</p>
                             @endif
+                            </div>
                         </aside>
                     </div>
                 </div>

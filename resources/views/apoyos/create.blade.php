@@ -203,11 +203,13 @@
         #toast {
             position: fixed; bottom: 5rem; right: 1.5rem; z-index: 100;
             background: #1e293b; color: #fff; border-radius: 12px;
-            padding: .75rem 1.25rem; font-size: .85rem; font-weight: 600;
-            box-shadow: 0 8px 24px rgba(0,0,0,.2);
+            padding: 1rem 1.5rem; font-size: .9rem; font-weight: 500;
+            box-shadow: 0 8px 24px rgba(0,0,0,.3);
             transform: translateY(20px); opacity: 0;
             transition: transform .3s, opacity .3s;
-            pointer-events: none; max-width: 320px;
+            pointer-events: none; max-width: 500px; min-width: 320px;
+            white-space: pre-wrap; word-break: break-word; line-height: 1.6;
+            max-height: 60vh; overflow-y: auto;
         }
         #toast.show { transform: translateY(0); opacity: 1; }
         #toast.success { background: #166534; }
@@ -274,16 +276,16 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label class="field-label" for="fechaInicio">Fecha de inicio <span class="req">*</span></label>
-                                    <input id="fechaInicio" name="fechaInicio" type="text"
+                                    <input id="fechaInicio" name="fechaInicio_display" type="text"
                                            class="field-input flatpickr" placeholder="dd/mm/aaaa"
-                                           required value="{{ old('fechaInicio') }}">
+                                           required>
                                 </div>
 
                                 <div>
                                     <label class="field-label" for="fechafin">Fecha de cierre <span class="req">*</span></label>
-                                    <input id="fechafin" name="fechafin" type="text"
+                                    <input id="fechafin" name="fechafin_display" type="text"
                                            class="field-input flatpickr" placeholder="dd/mm/aaaa"
-                                           required value="{{ old('fechafin') }}">
+                                           required>
                                 </div>
                             </div>
                         </div>
@@ -805,33 +807,72 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
 
     <script>
+    console.log('✅ Script iniciando...');
+    
     (function () {
         'use strict';
 
+        // Función para convertir fechas DD/MM/YYYY a YYYY-MM-DD
+        function convertDateFormat(ddmmyyyy) {
+            if (!ddmmyyyy || !ddmmyyyy.trim()) return '';
+            const parts = ddmmyyyy.trim().split('/');
+            if (parts.length !== 3) return '';
+            const [day, month, year] = parts;
+            return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        }
+
         /* ── QUILL ────────────────────────────────────────── */
-        const quill = new Quill('#quill-editor', {
-            theme: 'snow',
-            placeholder: 'Describe el apoyo: objetivos, requisitos generales, proceso de entrega…',
-            modules: {
-                toolbar: [
-                    [{ header: [2, 3, false] }],
-                    ['bold', 'italic', 'underline'],
-                    [{ list: 'ordered' }, { list: 'bullet' }],
-                    ['link'],
-                    ['clean']
-                ]
-            }
-        });
+        let quill;
+        try {
+            quill = new Quill('#quill-editor', {
+                theme: 'snow',
+                placeholder: 'Describe el apoyo: objetivos, requisitos generales, proceso de entrega…',
+                modules: {
+                    toolbar: [
+                        [{ header: [2, 3, false] }],
+                        ['bold', 'italic', 'underline'],
+                        [{ list: 'ordered' }, { list: 'bullet' }],
+                        ['link'],
+                        ['clean']
+                    ]
+                }
+            });
+            console.log('✅ Quill inicializado');
+        } catch (e) {
+            console.error('❌ Error inicializando Quill:', e.message);
+        }
 
         /* ── FLATPICKR ────────────────────────────────────── */
-        const fpOpts = {
-            locale: 'es', dateFormat: 'Y-m-d', allowInput: true,
-            onChange: () => updateChecklist()
-        };
-        const fpInicio = flatpickr('#fechaInicio', fpOpts);
-        const fpFin    = flatpickr('#fechafin', { ...fpOpts,
-            onChange: () => updateChecklist()
-        });
+        try {
+            const fpOpts = {
+                locale: 'es',
+                dateFormat: 'd/m/Y', // Display format (DD/MM/YYYY)
+                allowInput: true,
+                onChange: () => {
+                    if (typeof updateChecklist === 'function') updateChecklist();
+                }
+            };
+            
+            // Initialize Inicio date picker
+            const fpInicio = flatpickr('#fechaInicio', fpOpts);
+            
+            // Initialize Fin date picker
+            const fpFin = flatpickr('#fechafin', fpOpts);
+            console.log('✅ Flatpickr inicializado');
+        } catch (e) {
+            console.error('❌ Error inicializando Flatpickr:', e.message);
+        }
+
+        // Listeners para las fechas
+        const fechaInicioEl = document.getElementById('fechaInicio');
+        const fechaFinEl = document.getElementById('fechafin');
+        
+        fechaInicioEl.addEventListener('change', updateChecklist);
+        fechaInicioEl.addEventListener('blur', updateChecklist);
+        fechaFinEl.addEventListener('change', updateChecklist);
+        fechaFinEl.addEventListener('blur', updateChecklist);
+        
+        console.log('✓ Listeners de fechas configurados');
 
         /* ── REFS ──────────────────────────────────────────── */
         const selTipo          = document.getElementById('tipo_apoyo');
@@ -1242,18 +1283,36 @@
 
         /* ── CHECKLIST / RESUMEN ──────────────────────────── */
         function updateChecklist() {
+            console.log('updateChecklist() called');
             const tipo   = selTipo.value;
             const isEco  = tipo === 'Económico';
             const nombre = inpNombre.value.trim();
-            const inicio = document.getElementById('fechaInicio').value;
-            const fin    = document.getElementById('fechafin').value;
+            
+            // Obtener fechas desde los campos display (DD/MM/YYYY)
+            const inicioDisplay = document.getElementById('fechaInicio').value.trim();
+            const finDisplay = document.getElementById('fechafin').value.trim();
+            
+            // Convertir a YYYY-MM-DD para validación
+            const inicio = convertDateFormat(inicioDisplay);
+            const fin = convertDateFormat(finDisplay);
+            
+            console.log('Fechas detectadas:', { display: { inicioDisplay, finDisplay }, converted: { inicio, fin } });
+            
             const monto  = parseFloat(inpMontoMax.value) || 0;
             const cupo   = parseInt(inpCupo.value, 10);
             const presup = isEco ? (parseFloat(inpMontoAsg.value) || 0)
                                  : (parseInt(inpStockIni.value, 10) || 0);
 
+            // Validar fechas: ambas deben existir y estar en orden correcto
+            const fechasValidas = inicio && fin && (new Date(fin) >= new Date(inicio));
+            console.log('Fechas válidas?', fechasValidas, 'Comparación:', { 
+                inicio: new Date(inicio), 
+                fin: new Date(fin),
+                comparacion: new Date(fin) >= new Date(inicio)
+            });
+
             setChk(chkNombre, nombre.length > 0);
-            setChk(chkFechas, inicio && fin && fin >= inicio);
+            setChk(chkFechas, fechasValidas);
             setChk(chkMonto,  !isEco || monto > 0, !isEco);  // opcional en Especie
             setChk(chkCupo,   !isNaN(cupo) && cupo > 0);
             setChk(chkPresupuesto, presup > 0);
@@ -1270,26 +1329,28 @@
                 }
             }
 
-            // Resumen
+            // Resumen - mostrar en formato DD/MM/YYYY
             resTipo.textContent  = tipo;
             resMonto.textContent = isEco ? (monto > 0 ? fmt(monto) : '—') : (monto > 0 ? fmt(monto) : '—');
             resCupo.textContent  = (!isNaN(cupo) && cupo > 0) ? `${cupo.toLocaleString('es-MX')} beneficiarios` : '—';
             resPresupuesto.textContent = isEco
                 ? (presup > 0 ? fmt(presup) : '—')
                 : (presup > 0 ? `${presup.toLocaleString('es-MX')} uds.` : '—');
-            resVigencia.textContent = (inicio && fin) ? `${inicio} → ${fin}` : '—';
+            resVigencia.textContent = (inicioDisplay && finDisplay) ? `${inicioDisplay} → ${finDisplay}` : '—';
 
             // Habilitar botón
             const hasNombre  = nombre.length > 0;
-            const hasFechas  = inicio && fin && fin >= inicio;
+            const hasFechas  = fechasValidas;
             const hasPresup  = presup > 0;
             const hasCupo    = !isNaN(cupo) && cupo > 0;
             const invOk      = isEco || inventarioAprobado || deficitActual === 0;
             const montoOk    = isEco ? monto > 0 : true;
 
             btnGuardar.disabled = !(hasNombre && hasFechas && hasPresup && hasCupo && invOk && montoOk);
+            console.log('Estado del botón guardar:', { disabled: btnGuardar.disabled, hasNombre, hasFechas, hasPresup, hasCupo, invOk, montoOk });
         }
 
+        // Función para validar que todos los campos requeridos estén completos
         inpNombre.addEventListener('input', updateChecklist);
         inpMontoMax.addEventListener('input', updateChecklist);
         inpMontoAsg.addEventListener('input', updateChecklist);
@@ -1473,6 +1534,14 @@
             }
         });
 
+        /* ── INIT ──────────────────────────────────────────── */
+        onTipoChange();
+        updateChecklist();
+
+    })();
+    </script>
+        });
+
         btnDirConf.addEventListener('click', async () => {
             const email    = dirEmail.value.trim();
             const password = dirPassword.value;
@@ -1534,6 +1603,7 @@
         /* ── SUBMIT ────────────────────────────────────────── */
         form.addEventListener('submit', async function (ev) {
             ev.preventDefault();
+            console.log('🔴 SUBMIT HANDLER EJECUTÁNDOSE!!!');
 
             // Sincronizar descripción Quill
             descHidden.value = quill.root.innerHTML === '<p><br></p>'
@@ -1546,27 +1616,85 @@
             btnSpinner.style.display = 'inline-block';
 
             try {
+                // Crear FormData
+                const formData = new FormData(form);
+                
+                // Obtener valores de fecha en formato display (DD/MM/YYYY)
+                const fechaInicioDisplay = document.getElementById('fechaInicio').value || '';
+                const fechaFinDisplay = document.getElementById('fechafin').value || '';
+                
+                // Convertir a YYYY-MM-DD
+                const fechaInicioConverted = convertDateFormat(fechaInicioDisplay);
+                const fechaFinConverted = convertDateFormat(fechaFinDisplay);
+                
+                console.log('Conversión de fechas:', {
+                    display: { inicio: fechaInicioDisplay, fin: fechaFinDisplay },
+                    converted: { inicio: fechaInicioConverted, fin: fechaFinConverted }
+                });
+                
+                // Remover los campos display del FormData
+                formData.delete('fechaInicio_display');
+                formData.delete('fechafin_display');
+                
+                // Agregar los nuevos campos con fechas convertidas
+                formData.set('fechaInicio', fechaInicioConverted);
+                formData.set('fechafin', fechaFinConverted);
+                
+                console.log('FormData final con fechas convertidas:', {
+                    nombre_apoyo: formData.get('nombre_apoyo'),
+                    tipo_apoyo: formData.get('tipo_apoyo'),
+                    fechaInicio: formData.get('fechaInicio'),
+                    fechafin: formData.get('fechafin'),
+                    monto_maximo: formData.get('monto_maximo'),
+                    cupo_limite: formData.get('cupo_limite')
+                });
+
                 const res = await fetch(form.action, {
                     method: 'POST',
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
-                    body: new FormData(form),
+                    body: formData,
                 });
 
+                console.log('Response status:', res.status, res.ok);
                 const data = await res.json();
+                console.log('Response data completa:', data);
 
-                if (!res.ok || !data.success) {
-                    showToast(data.message || 'Error al guardar el apoyo.', 'error');
+                if (!res.ok) {
+                    // Error del servidor
+                    let mensajeError = 'Error al guardar el apoyo.';
+                    
+                    if (data.message) {
+                        mensajeError = data.message;
+                    }
+                    
+                    if (data.errors) {
+                        const erroresServer = Object.values(data.errors).flat();
+                        mensajeError = erroresServer.join('\n');
+                    }
+                    
+                    showToast('❌ ERROR:\n\n' + mensajeError, 'error');
+                    console.error('Error respuesta completa:', data);
                     btnGuardar.disabled = false;
                     btnLabel.textContent = 'Guardar Apoyo';
                     btnSpinner.style.display = 'none';
                     return;
                 }
 
-                showToast('Apoyo registrado correctamente.', 'success');
-                setTimeout(() => window.location.href = '{{ route('apoyos.index') }}', 1200);
+                if (!data.success) {
+                    showToast('❌ ERROR:\n\n' + (data.message || 'No se pudo guardar el apoyo.'), 'error');
+                    console.error('Error en respuesta exitosa:', data);
+                    btnGuardar.disabled = false;
+                    btnLabel.textContent = 'Guardar Apoyo';
+                    btnSpinner.style.display = 'none';
+                    return;
+                }
+
+                showToast('✅ Apoyo registrado correctamente.', 'success');
+                setTimeout(() => window.location.href = '{{ route('apoyos.index') }}', 1500);
 
             } catch (err) {
-                showToast('Error de conexión. Intenta de nuevo.', 'error');
+                console.error('Error en fetch:', err);
+                showToast('❌ ERROR DE CONEXIÓN:\n\n' + err.message + '\n\nIntenta de nuevo.', 'error');
                 btnGuardar.disabled = false;
                 btnLabel.textContent = 'Guardar Apoyo';
                 btnSpinner.style.display = 'none';
