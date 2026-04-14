@@ -64,10 +64,10 @@
                             <p class="text-lg font-bold text-slate-900 mt-2">{{ $apoyo->nombre_apoyo }}</p>
                         </div>
 
-                        <!-- Monto Solicitado -->
+                        <!-- Monto Entregado -->
                         <div>
-                            <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Monto Solicitado</p>
-                            <p class="text-2xl font-bold text-green-600 mt-2">${{ number_format($solicitud->monto_solicitado, 0) }}</p>
+                            <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Monto Entregado</p>
+                            <p class="text-2xl font-bold text-green-600 mt-2">${{ number_format($solicitud->monto_entregado ?? 0, 0) }}</p>
                         </div>
 
                         <!-- Fecha Solicitud -->
@@ -111,22 +111,22 @@
                                     <div class="flex items-center justify-between">
                                         <div class="flex items-center gap-3 flex-1">
                                             <div class="text-2xl">
-                                                @if(Str::endsWith($doc->ruta_documento, '.pdf'))
+                                                @if(Str::endsWith($doc->ruta_archivo, '.pdf'))
                                                     📕
-                                                @elseif(Str::endsWith($doc->ruta_documento, ['.jpg', '.jpeg', '.png', '.gif']))
+                                                @elseif(Str::endsWith($doc->ruta_archivo, ['.jpg', '.jpeg', '.png', '.gif']))
                                                     🖼️
                                                 @else
                                                     📎
                                                 @endif
                                             </div>
                                             <div class="min-w-0">
-                                                <p class="font-semibold text-slate-900 truncate">{{ basename($doc->ruta_documento) }}</p>
-                                                <p class="text-xs text-slate-500">{{ $doc->tipo_documento ?? 'Documento general' }}</p>
+                                                <p class="font-semibold text-slate-900 truncate">{{ basename($doc->ruta_archivo) }}</p>
+                                                <p class="text-xs text-slate-500">Documento {{ $doc->fk_id_tipo_doc }}</p>
                                             </div>
                                         </div>
                                         <div class="flex gap-2 ml-4">
-                                            <a href="{{ asset($doc->ruta_documento) }}" target="_blank" class="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 transition">Ver</a>
-                                            <a href="{{ asset($doc->ruta_documento) }}" download class="px-3 py-1 text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 rounded hover:bg-slate-200 transition">Descargar</a>
+                                            <a href="{{ asset($doc->ruta_archivo) }}" target="_blank" class="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 transition">Ver</a>
+                                            <a href="{{ asset($doc->ruta_archivo) }}" download class="px-3 py-1 text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 rounded hover:bg-slate-200 transition">Descargar</a>
                                         </div>
                                     </div>
                                 </div>
@@ -186,14 +186,14 @@
                         <!-- Monto a Autorizar -->
                         <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
                             <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Monto a Autorizar</p>
-                            <p class="text-3xl font-bold text-blue-600 mt-2">${{ number_format($solicitud->monto_solicitado, 0) }}</p>
+                            <p class="text-3xl font-bold text-blue-600 mt-2">${{ number_format($solicitud->monto_entregado ?? 0, 0) }}</p>
                         </div>
 
                         <!-- Disponible en Apoyo -->
                         <div class="bg-slate-50 border border-slate-300 rounded-lg p-4">
                             <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Disponible en Apoyo</p>
                             <p class="text-2xl font-bold text-slate-900 mt-1">${{ number_format($presupuestoDisponible, 0) }}</p>
-                            @if($presupuestoDisponible >= $solicitud->monto_solicitado)
+                            @if($presupuestoDisponible >= ($solicitud->monto_entregado ?? 0))
                                 <span class="inline-block mt-2 text-xs font-semibold text-green-600">✓ Suficiente</span>
                             @else
                                 <span class="inline-block mt-2 text-xs font-semibold text-red-600">✗ INSUFICIENTE</span>
@@ -204,7 +204,7 @@
                         <div class="bg-slate-50 border border-slate-300 rounded-lg p-4">
                             <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Disponible en Categoría</p>
                             <p class="text-2xl font-bold text-slate-900 mt-1">${{ number_format($presupuestoCategoriaDisponible, 0) }}</p>
-                            @if($presupuestoCategoriaDisponible >= $solicitud->monto_solicitado)
+                            @if($presupuestoCategoriaDisponible >= ($solicitud->monto_entregado ?? 0))
                                 <span class="inline-block mt-2 text-xs font-semibold text-green-600">✓ Suficiente</span>
                             @else
                                 <span class="inline-block mt-2 text-xs font-semibold text-red-600">✗ INSUFICIENTE</span>
@@ -294,14 +294,14 @@
 
                                         <div class="bg-green-50 border-2 border-green-500 p-4 rounded">
                                             <p class="text-sm text-slate-600 font-semibold">Monto Autorizado</p>
-                                            <p class="text-3xl font-bold text-green-600 mt-1">${{ number_format($solicitud->monto_solicitado, 0) }}</p>
+                                            <p class="text-3xl font-bold text-green-600 mt-1">${{ number_format($solicitud->monto_entregado ?? 0, 0) }}</p>
                                         </div>
 
                                         <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
                                             <p class="text-sm text-yellow-900 font-bold">⚠️ ADVERTENCIA</p>
                                             <p class="text-xs text-yellow-800 mt-2">
                                                 Al firmar, está autorizando IRREVOCABLEMENTE el desembolso de 
-                                                <strong>${{ number_format($solicitud->monto_solicitado, 0) }}</strong>. 
+                                                <strong>${{ number_format($solicitud->monto_entregado ?? 0, 0) }}</strong>. 
                                                 Esta acción será auditada permanentemente.
                                             </p>
                                         </div>
@@ -323,12 +323,27 @@
                             </div>
                         @endif
                     </div>
+                @elseif($estadoActual->nombre_estado === 'APROBADA' && $solicitud->cuv)
+                    <!-- FIRMADO EXITOSAMENTE -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="bg-green-50 border-l-4 border-green-500 p-6 rounded-lg">
+                            <p class="text-green-900 font-bold text-lg">✓ Solicitud Firmada Exitosamente</p>
+                            <p class="text-sm text-green-700 mt-2">La solicitud ha sido aprobada y el CUV ha sido generado.</p>
+                            
+                            <div class="mt-6 pt-6 border-t border-green-300">
+                                <p class="text-sm text-green-900 font-semibold mb-2">Código Único de Verificación (CUV)</p>
+                                <p class="text-base font-mono text-green-800 bg-green-100 px-4 py-3 rounded font-bold break-all">
+                                    {{ $solicitud->cuv }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 @else
                     <div class="bg-blue-50 border border-blue-300 rounded-lg p-6">
                         <p class="text-blue-900 font-bold">📋 Estado Actual</p>
                         <p class="text-sm text-blue-800 mt-2">
                             Esta solicitud está en estado <strong>{{ $estadoActual->nombre_estado }}</strong>.
-                            La fase de firma se habilitará cuando se completen las verificaciones.
+                            {{ $estadoActual->nombre_estado === 'APROBADA' ? 'Solicitud aprobada. Puede descargar el comprobante.' : 'La fase de firma se habilitará cuando se completen las verificaciones.' }}
                         </p>
                     </div>
                 @endif
