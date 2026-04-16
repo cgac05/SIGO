@@ -72,9 +72,20 @@ class PresupuestoController extends Controller
             ? round(($presupuestoDisponible / $totalPresupuesto) * 100, 1)
             : 0;
 
+        // Preparar datos para gráfico con colores
+        $colores = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+        $categoriasData = $categorias->map(function ($c, $indice) use ($colores) {
+            return [
+                'nombre' => $c->nombre,
+                'presupuesto' => (float) $c->presupuesto_anual,
+                'color' => $colores[$indice % count($colores)],
+            ];
+        })->values()->toArray();
+
         return view('admin.presupuesto.dashboard_v2', [
             'ciclo' => $ciclo,
             'categorias' => $categorias,
+            'categoriasData' => $categoriasData,
             'totalPresupuesto' => $totalPresupuesto,
             'presupuestoReservado' => $presupuestoReservado,
             'presupuestoDisponible' => $presupuestoDisponible,
