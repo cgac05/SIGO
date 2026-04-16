@@ -34,7 +34,7 @@ class CicloPresupuestario extends Model
     
     public function categorias()
     {
-        return $this->hasMany(PresupuestoCategoria::class, 'id_ciclo', 'id_ciclo');
+        return $this->hasMany(PresupuestoCategoria::class, 'id_ciclo', 'id');
     }
 
     // ========== SCOPES ==========

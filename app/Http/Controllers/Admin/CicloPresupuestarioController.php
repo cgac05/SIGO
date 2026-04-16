@@ -297,28 +297,55 @@ class CicloPresupuestarioController extends Controller
         $ciclo = CicloPresupuestario::findOrFail($id);
 
         if (!$ciclo->isAbierto()) {
-            return back()->with('error', 'No se pueden agregar categorías a un ciclo cerrado.');
+            $message = 'No se pueden agregar categorías a un ciclo cerrado.';
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+            return back()->with('error', $message);
         }
 
-        $validated = $request->validate([
-            'nombre' => 'required|string|max:100',
-            'descripcion' => 'nullable|string|max:500',
-            'presupuesto_anual' => 'required|numeric|min:0.01',
-        ]);
-
         try {
+            $validated = $request->validate([
+                'nombre' => 'required|string|max:100',
+                'descripcion' => 'nullable|string|max:500',
+                'presupuesto_anual' => 'required|numeric|min:0.01',
+            ]);
+
             PresupuestoCategoria::create([
                 'nombre' => $validated['nombre'],
                 'descripcion' => $validated['descripcion'],
                 'presupuesto_anual' => $validated['presupuesto_anual'],
                 'disponible' => $validated['presupuesto_anual'],
-                'id_ciclo' => $cicloId,
+                'id_ciclo' => $id,
                 'activo' => true,
             ]);
 
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "✅ Categoría '{$validated['nombre']}' agregada exitosamente."
+                ]);
+            }
+
             return back()->with('success', "✅ Categoría '{$validated['nombre']}' agregada exitosamente.");
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error de validación',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+            throw $e;
         } catch (\Exception $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al agregar categoría: ' . $e->getMessage()
+                ], 422);
+            }
+
             return back()->with('error', 'Error al agregar categoría: ' . $e->getMessage());
         }
     }
@@ -335,16 +362,20 @@ class CicloPresupuestarioController extends Controller
         $ciclo = $categoria->ciclo;
 
         if (!$ciclo->isAbierto()) {
-            return back()->with('error', 'No se pueden editar categorías de un ciclo cerrado.');
+            $message = 'No se pueden editar categorías de un ciclo cerrado.';
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+            return back()->with('error', $message);
         }
 
-        $validated = $request->validate([
-            'nombre' => 'required|string|max:100',
-            'descripcion' => 'nullable|string|max:500',
-            'presupuesto_anual' => 'required|numeric|min:0.01',
-        ]);
-
         try {
+            $validated = $request->validate([
+                'nombre' => 'required|string|max:100',
+                'descripcion' => 'nullable|string|max:500',
+                'presupuesto_anual' => 'required|numeric|min:0.01',
+            ]);
+
             // Calcular diferencia de presupuesto
             $diferencia = $validated['presupuesto_anual'] - $categoria->presupuesto_anual;
             
@@ -355,9 +386,32 @@ class CicloPresupuestarioController extends Controller
                 'disponible' => $categoria->disponible + $diferencia,
             ]);
 
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => '✅ Categoría actualizada exitosamente.'
+                ]);
+            }
+
             return back()->with('success', "✅ Categoría actualizada exitosamente.");
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error de validación',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+            throw $e;
         } catch (\Exception $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al actualizar categoría: ' . $e->getMessage()
+                ], 422);
+            }
+
             return back()->with('error', 'Error al actualizar categoría: ' . $e->getMessage());
         }
     }
@@ -366,7 +420,7 @@ class CicloPresupuestarioController extends Controller
      * Desactivar categoría presupuestaria
      * DELETE /admin/ciclos/categorias/{categoriaId}
      */
-    public function deleteCategoria($categoriaId)
+    public function deleteCategoria(Request $request, $categoriaId)
     {
         $this->authorizeDirectivo();
 
@@ -374,15 +428,33 @@ class CicloPresupuestarioController extends Controller
         $ciclo = $categoria->ciclo;
 
         if (!$ciclo->isAbierto()) {
-            return back()->with('error', 'No se pueden eliminar categorías de un ciclo cerrado.');
+            $message = 'No se pueden eliminar categorías de un ciclo cerrado.';
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+            return back()->with('error', $message);
         }
 
         try {
             $categoria->update(['activo' => false]);
 
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => '✅ Categoría desactivada exitosamente.'
+                ]);
+            }
+
             return back()->with('success', "✅ Categoría desactivada exitosamente.");
 
         } catch (\Exception $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al desactivar categoría: ' . $e->getMessage()
+                ], 422);
+            }
+
             return back()->with('error', 'Error al desactivar categoría: ' . $e->getMessage());
         }
     }
