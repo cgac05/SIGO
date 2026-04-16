@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\CicloPresupuestario;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
@@ -15,10 +16,31 @@ class EconomicDashboardController extends Controller
     {
         $user = Auth::user();
         
-        // ===== DATOS DE PRESUPUESTO =====
-        $presupuestoTotal = DB::table('presupuesto_categorias')
-            ->where('activo', 1)
-            ->sum('presupuesto_anual');
+        // ===== OBTENER CICLO PRESUPUESTARIO ACTIVO =====
+        $cicloId = request()->query('ciclo');
+        
+        // Si no se especifica ciclo, usar el ciclo ABIERTO más reciente, o el de este año
+        if (!$cicloId) {
+            $cicloActivo = \App\Models\CicloPresupuestario::abierto()
+                ->orderByDesc('ano_fiscal')
+                ->first() ?? 
+                \App\Models\CicloPresupuestario::orderByDesc('ano_fiscal')->first();
+            
+            $cicloId = $cicloActivo?->id_ciclo;
+        } else {
+            $cicloActivo = \App\Models\CicloPresupuestario::findOrFail($cicloId);
+        }
+        
+        // Obtener lista de ciclos para el selector
+        $ciclosDisponibles = \App\Models\CicloPresupuestario::orderByDesc('ano_fiscal')->get();
+        
+        // ===== DATOS DE PRESUPUESTO (FILTRADO POR CICLO) =====
+        // Usando presupuesto_total del ciclo (presupuesto_total_inicial)
+        $presupuestoTotal = $cicloActivo?->presupuesto_total_inicial ?? 
+                           DB::table('presupuesto_categorias as pc')
+                               ->where('pc.activo', 1)
+                               ->where('pc.id_ciclo', $cicloId)
+                               ->sum('pc.presupuesto_anual');
 
         // Sumar montos entregados (realizado)
         $presupuestoAsignado = DB::table('solicitudes')
@@ -84,7 +106,7 @@ class EconomicDashboardController extends Controller
             ->orderBy('a.nombre_apoyo')
             ->get();
 
-        // ===== PRESUPUESTO POR CATEGORÍA =====
+        // ===== PRESUPUESTO POR CATEGORÍA (FILTRADO POR CICLO) =====
         $presupuestoPorCategoria = DB::table('presupuesto_categorias as pc')
             ->select(
                 'pc.id_categoria',
@@ -93,16 +115,33 @@ class EconomicDashboardController extends Controller
                 'pc.disponible'
             )
             ->where('pc.activo', 1)
+            ->where('pc.id_ciclo', $cicloId)
+            ->orderBy('pc.nombre')
             ->get()
             ->map(function($item) {
-                $item->monto_presupuestado = $item->presupuesto_anual;
-                $item->monto_asignado = 0;  // Simplificado por ahora
-                $item->monto_disponible = max(0, $item->presupuesto_anual - $item->monto_asignado);
-                $item->porcentaje = $item->presupuesto_anual > 0 
-                    ? round(($item->monto_asignado / $item->presupuesto_anual) * 100, 2)
+                // Usar datos del modelo, con fallback a cálculos manuales
+                $item->monto_presupuestado = floatval($item->presupuesto_anual) ?: 0;
+                $item->monto_disponible = floatval($item->disponible) ?: 0;
+                // Calcular asignado = presupuesto - disponible
+                $item->monto_asignado = max(0, $item->monto_presupuestado - $item->monto_disponible);
+                
+                // Porcentaje de utilización
+                $item->porcentaje = $item->monto_presupuestado > 0 
+                    ? round(($item->monto_asignado / $item->monto_presupuestado) * 100, 1)
                     : 0;
-                $item->estado_alerta = $item->porcentaje >= 85 ? 'danger' : 
-                                      ($item->porcentaje >= 70 ? 'warning' : 'success');
+                
+                // Estado con niveles: normal (<60%), alerta (60-85%), peligro (>85%)
+                if ($item->porcentaje >= 90) {
+                    $item->estado_alerta = 'danger';  // Rojo - crítico
+                    $item->estado_badge = '⚠️ Crítico';
+                } elseif ($item->porcentaje >= 75) {
+                    $item->estado_alerta = 'warning';  // Amarillo
+                    $item->estado_badge = '⚡ Alerta';
+                } else {
+                    $item->estado_alerta = 'success';  // Verde
+                    $item->estado_badge = '✅ Normal';
+                }
+                
                 return $item;
             });
 
@@ -145,7 +184,16 @@ class EconomicDashboardController extends Controller
             )
             ->get();
 
+        // ===== TOTALES AGREGADOS DEL CICLO =====
+        $totalCategoriasAsignado = $presupuestoPorCategoria->sum('monto_asignado');
+        $totalCategoriaDisponible = $presupuestoPorCategoria->sum('monto_disponible');
+        $porcentajeCicloUtilizado = $presupuestoTotal > 0 
+            ? round(($totalCategoriasAsignado / $presupuestoTotal) * 100, 1)
+            : 0;
+
         return view('admin.dashboard-economico.index', [
+            'cicloActivo' => $cicloActivo,
+            'ciclosDisponibles' => $ciclosDisponibles,
             'presupuestoTotal' => $presupuestoTotal,
             'presupuestoAsignado' => $presupuestoAsignado,
             'presupuestoDisponible' => $presupuestoDisponible,
@@ -161,6 +209,10 @@ class EconomicDashboardController extends Controller
             'movimientosDetallados' => $movimientosDetallados,
             'alertasPresupuesto' => $alertasPresupuesto,
             'alertasInventario' => $alertasInventario,
+            // Nuevos datos para integración
+            'totalCategoriaAsignado' => $totalCategoriasAsignado,
+            'totalCategoriaDisponible' => $totalCategoriaDisponible,
+            'porcentajeCicloUtilizado' => $porcentajeCicloUtilizado,
         ]);
     }
 

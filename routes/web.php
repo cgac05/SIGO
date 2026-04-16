@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\PresupuestoController;
 use App\Http\Controllers\Admin\EconomicDashboardController;
 use App\Http\Controllers\Admin\DesembolsoController;
 use App\Http\Controllers\Admin\ReconciliacionPresupuestariaController;
+use App\Http\Controllers\Admin\CicloPresupuestarioController;
 use App\Http\Controllers\Admin\CertificacionDigitalController;
 use App\Http\Controllers\Admin\CertificacionReportController;
 use App\Http\Controllers\Admin\VerificacionCertificadoController;
@@ -225,6 +226,21 @@ Route::middleware('auth')->group(function () {
         Route::get('api/historial/{id_categoria}', [PresupuestoController::class, 'apiHistorial'])->middleware('role:2,3')->whereNumber('id_categoria')->name('admin.presupuesto.api.historial');
     });
 
+    // Gestión de Ciclos Presupuestarios
+    Route::prefix('admin/ciclos')->middleware('role:2,3')->group(function () {
+        Route::get('', [CicloPresupuestarioController::class, 'index'])->name('admin.ciclos.index');
+        Route::get('crear', [CicloPresupuestarioController::class, 'create'])->name('admin.ciclos.create');
+        Route::post('', [CicloPresupuestarioController::class, 'store'])->name('admin.ciclos.store');
+        Route::get('{id_ciclo}', [CicloPresupuestarioController::class, 'show'])->name('admin.ciclos.show');
+        Route::get('{id_ciclo}/editar', [CicloPresupuestarioController::class, 'edit'])->name('admin.ciclos.edit');
+        Route::put('{id_ciclo}', [CicloPresupuestarioController::class, 'update'])->name('admin.ciclos.update');
+        Route::patch('{id_ciclo}/cerrar', [CicloPresupuestarioController::class, 'cerrar'])->name('admin.ciclos.cerrar');
+        Route::patch('{id_ciclo}/reabrir', [CicloPresupuestarioController::class, 'reabrir'])->name('admin.ciclos.reabrir');
+        Route::post('{id_ciclo}/categorias', [CicloPresupuestarioController::class, 'storeCategoria'])->name('admin.ciclos.storeCategoria');
+        Route::put('categorias/{categoriaId}', [CicloPresupuestarioController::class, 'updateCategoria'])->name('admin.ciclos.updateCategoria');
+        Route::delete('categorias/{categoriaId}', [CicloPresupuestarioController::class, 'deleteCategoria'])->name('admin.ciclos.deleteCategoria');
+    });
+
     // Dashboard Económico
     Route::prefix('admin/dashboard')->middleware('role:2,3')->group(function () {
         Route::get('economico', [EconomicDashboardController::class, 'index'])->name('admin.dashboard.economico');
@@ -233,7 +249,7 @@ Route::middleware('auth')->group(function () {
         Route::post('test/alertas-presupuesto', function () {
             \Illuminate\Support\Facades\Artisan::call('alertas:presupuesto');
             return redirect()->route('admin.dashboard.economico')->with('status', '✅ Alertas presupuestarias verificadas manualmente.');
-        })->middleware('role:3')->name('admin.dashboard.test-alertas');
+        })->middleware('role:2,3')->name('admin.dashboard.test-alertas');
     });
 
     // Facturas

@@ -8,16 +8,27 @@ class CicloPresupuestario extends Model
 {
     protected $table = 'ciclos_presupuestarios';
     protected $primaryKey = 'id';
+    public $incrementing = true;
     protected $guarded = [];
     protected $casts = [
-        'año_fiscal' => 'integer',
-        'presupuesto_total' => 'decimal:2',
-        'fecha_apertura' => 'datetime',
-        'fecha_cierre_programado' => 'datetime',
-        'fecha_cierre_efectivo' => 'datetime',
+        'ano_fiscal' => 'integer',
+        'presupuesto_total_inicial' => 'decimal:2',
+        'presupuesto_total_aprobado' => 'decimal:2',
+        'fecha_inicio' => 'datetime',
+        'fecha_cierre' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    // ========== ACCESSORS ==========
+    
+    /**
+     * Accessor para presupuesto_total (alias para presupuesto_total_aprobado)
+     */
+    public function getPresupuestoTotalAttribute()
+    {
+        return $this->presupuesto_total_aprobado;
+    }
 
     // ========== RELATIONSHIPS ==========
     
@@ -40,7 +51,7 @@ class CicloPresupuestario extends Model
 
     public function scopeDelAño($query, $año)
     {
-        return $query->where('año_fiscal', $año);
+        return $query->where('ano_fiscal', $año);
     }
 
     // ========== METHODS ==========
@@ -59,7 +70,7 @@ class CicloPresupuestario extends Model
     {
         return $this->update([
             'estado' => 'CERRADO',
-            'fecha_cierre_efectivo' => now(),
+            'fecha_cierre' => now(),
         ]);
     }
 
@@ -67,7 +78,7 @@ class CicloPresupuestario extends Model
     {
         return $this->update([
             'estado' => 'ABIERTO',
-            'fecha_cierre_efectivo' => null,
+            'fecha_cierre' => null,
         ]);
     }
 

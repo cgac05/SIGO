@@ -18,7 +18,7 @@ class TestPresupuestoDashboard extends Command
         $this->info("🔍 Verificando datos del dashboard presupuestación para ciclo {$año}...\n");
         
         // Obtener ciclo
-        $ciclo = CicloPresupuestario::where('año_fiscal', $año)->first();
+        $ciclo = CicloPresupuestario::where('ano_fiscal', $año)->first();
         
         if (!$ciclo) {
             $this->error("❌ Ciclo {$año} no encontrado");

@@ -41,13 +41,13 @@ class PresupuetaryControlService
     public function crearCicloPresupuestario($año_fiscal, $presupuesto_total, $categorias_config = []): CicloPresupuestario
     {
         // Verificar que el año no existe
-        if (CicloPresupuestario::where('año_fiscal', $año_fiscal)->exists()) {
+        if (CicloPresupuestario::where('ano_fiscal', $año_fiscal)->exists()) {
             throw new Exception("Ciclo presupuestario para {$año_fiscal} ya existe");
         }
 
         return DB::transaction(function () use ($año_fiscal, $presupuesto_total, $categorias_config) {
             $ciclo = CicloPresupuestario::create([
-                'año_fiscal' => $año_fiscal,
+                'ano_fiscal' => $año_fiscal,
                 'estado' => 'ABIERTO',
                 'presupuesto_total' => $presupuesto_total,
                 'fecha_apertura' => now(),

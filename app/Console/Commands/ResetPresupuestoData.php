@@ -18,7 +18,7 @@ class ResetPresupuestoData extends Command
         
         // Obtener el ciclo
         $ciclo = DB::table('ciclos_presupuestarios')
-            ->where('año_fiscal', $año)
+            ->where('ano_fiscal', $año)
             ->first();
         
         if (!$ciclo) {
