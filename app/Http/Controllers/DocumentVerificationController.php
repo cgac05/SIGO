@@ -92,6 +92,12 @@ class DocumentVerificationController extends Controller
      * Visualizar documento (local o Google Drive)
      * 
      * GET /admin/documentos/{id}/view
+     * 
+     * ESTRATEGIA DE DETECCIÓN:
+     * 1. Confiar en isLocal() que detecta: origen='local' O (ruta + NO google_id + NO google_path)
+     * 2. Confiar en isFromDrive() que detecta: origen='drive'|'google_drive' + google_id OR solo google_id
+     * 3. Si hay conflicto (origen='google_drive' pero google_id=NULL), buscar como local primero
+     * 4. Si encuentra local, actualizar BD para marcar como local y servir
      */
     public function viewDocument(Request $request, int $id)
     {
@@ -100,18 +106,75 @@ class DocumentVerificationController extends Controller
         $documento = Documento::findOrFail($id);
 
         try {
+            \Log::info("DocumentVerificationController::viewDocument - Iniciando", [
+                'doc_id' => $id,
+                'origen' => $documento->origen_archivo,
+                'ruta' => $documento->ruta_archivo,
+                'google_id' => $documento->google_file_id ?? 'NULL',
+                'isLocal' => $documento->isLocal(),
+                'isFromDrive' => $documento->isFromDrive(),
+            ]);
+
+            // ESTRATEGIA 1: Si detecta como local, servir como local
+            if ($documento->isLocal() && $documento->ruta_archivo) {
+                \Log::info("DocumentVerificationController::viewDocument - Detectado como local");
+                return redirect(route('documentos.view', ['path' => $documento->ruta_archivo]));
+            }
+
+            // ESTRATEGIA 2: Si detecta como Google Drive Y tiene google_file_id, servir desde Drive
+            if ($documento->isFromDrive() && $documento->google_file_id) {
+                \Log::info("DocumentVerificationController::viewDocument - Detectado como Google Drive");
+                return redirect('https://drive.google.com/file/d/' . $documento->google_file_id . '/preview');
+            }
+
+            // ESTRATEGIA 3: CONFLICTO - origen='google_drive' pero google_id=NULL
+            // Intentar buscar como local (puede estar mal marcado en BD)
+            if ($documento->origen_archivo === 'google_drive' && !$documento->google_file_id && $documento->ruta_archivo) {
+                \Log::warning("DocumentVerificationController::viewDocument - CONFLICTO DETECTADO", [
+                    'doc_id' => $id,
+                    'origen' => $documento->origen_archivo,
+                    'ruta' => $documento->ruta_archivo,
+                    'google_id' => 'NULL',
+                ]);
+                
+                // Buscar el archivo en storage
+                if (\Storage::disk('public')->exists($documento->ruta_archivo) || 
+                    file_exists(storage_path('app/public/' . $documento->ruta_archivo))) {
+                    
+                    \Log::warning("DocumentVerificationController::viewDocument - Archivo encontrado localmente, corrigiendo BD", [
+                        'doc_id' => $id,
+                        'ruta' => $documento->ruta_archivo,
+                    ]);
+                    
+                    // Corregir la BD
+                    $documento->update([
+                        'origen_archivo' => 'local',
+                        'google_file_id' => null,
+                    ]);
+                    
+                    // Servir como local
+                    return redirect(route('documentos.view', ['path' => $documento->ruta_archivo]));
+                }
+                
+                \Log::error("DocumentVerificationController::viewDocument - Conflicto no resuelto", [
+                    'doc_id' => $id,
+                    'ruta' => $documento->ruta_archivo,
+                    'paths_checked' => [
+                        storage_path('app/public/' . $documento->ruta_archivo),
+                        public_path('storage/' . $documento->ruta_archivo),
+                    ]
+                ]);
+            }
+
+            // ESTRATEGIA 4: Fallback - intentar por servicio administrativo
             $accessUrl = $this->service->getDocumentAccessUrl($documento);
-
-            // Si es local, devolver el archivo
-            if ($documento->isLocal()) {
-                return redirect($accessUrl);
-            }
-
-            // Si es Google Drive, redirigir a preview
-            if ($documento->isFromDrive()) {
-                return redirect($accessUrl);
-            }
+            return redirect($accessUrl);
         } catch (\Exception $e) {
+            \Log::error("DocumentVerificationController::viewDocument - Error", [
+                'doc_id' => $id,
+                'error' => $e->getMessage(),
+            ]);
+            
             return response()->json([
                 'error' => 'No se pudo acceder al documento: ' . $e->getMessage(),
             ], 400);

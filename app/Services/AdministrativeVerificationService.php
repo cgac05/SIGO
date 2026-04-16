@@ -37,18 +37,32 @@ class AdministrativeVerificationService
 
     /**
      * Obtiene la URL o contenido para visualizar un documento
+     * 
+     * Maneja documentos legacy que pueden no tener origen_archivo establecido
      */
     public function getDocumentAccessUrl(Documento $documento): string|array
     {
-        if ($documento->isLocal()) {
-            return $this->getLocalDocumentUrl($documento);
+        // Si origen_archivo está establecido, usar su valor
+        if ($documento->origen_archivo) {
+            if ($documento->isLocal()) {
+                return $this->getLocalDocumentUrl($documento);
+            }
+            if ($documento->isFromDrive()) {
+                return $this->getGoogleDriveAccessUrl($documento);
+            }
         }
 
-        if ($documento->isFromDrive()) {
+        // Fallback para documentos legacy (origen_archivo = NULL)
+        // Detectar por ruta o por google_file_id
+        if ($documento->google_file_id) {
             return $this->getGoogleDriveAccessUrl($documento);
         }
 
-        throw new \Exception('Origen de documento no soportado: ' . $documento->origen_archivo);
+        if ($documento->ruta_archivo) {
+            return $this->getLocalDocumentUrl($documento);
+        }
+
+        throw new \Exception('Documento sin ruta de acceso especificada. Origen: ' . ($documento->origen_archivo ?? 'NULL'));
     }
 
     /**

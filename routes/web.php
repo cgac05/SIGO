@@ -84,6 +84,40 @@ Route::middleware('auth')->group(function () {
         $lines = array_slice(explode("\n", $content), -100);
         return '<pre style="white-space:pre-wrap;background:#f5f5f5;padding:15px;font-size:12px;">' . htmlspecialchars(implode("\n", $lines)) . '</pre>';
     });
+    Route::get('/debug-docs-1014', function() {
+        return view('debug-docs-1014');
+    });
+    Route::get('/debug-ruta-exacta', function() {
+        return view('debug-ruta-exacta');
+    });
+    Route::get('/check-1013', function() {
+        $docs = \App\Models\Documento::where('fk_folio', 1013)->orderBy('id_doc', 'desc')->get();
+        
+        echo "=== DOCUMENTOS DEL FOLIO 1013 ===\n";
+        echo str_repeat("=", 150) . "\n\n";
+        
+        foreach ($docs as $doc) {
+            echo "ID: {$doc->id_doc} | ";
+            echo "Ruta: {$doc->ruta_archivo} | ";
+            echo "Origen: " . ($doc->origen_archivo ?? 'NULL') . " | ";
+            echo "GoogleID: " . ($doc->google_file_id ?? 'NULL') . " | ";
+            
+            // Verificar existencia
+            $path1 = storage_path('app/public/' . $doc->ruta_archivo);
+            $path2 = public_path('storage/' . $doc->ruta_archivo);
+            $exists1 = file_exists($path1);
+            $exists2 = file_exists($path2);
+            $storageExists = \Illuminate\Support\Facades\Storage::disk('public')->exists($doc->ruta_archivo);
+            
+            echo ($exists1 ? '✓' : '✗') . " path1 | ";
+            echo ($exists2 ? '✓' : '✗') . " path2 | ";
+            echo ($storageExists ? '✓' : '✗') . " Storage\n";
+        }
+        
+        if ($docs->isEmpty()) {
+            echo "No hay documentos para folio 1013\n";
+        }
+    });
 
     // ====================================================================
     // MÓDULO RECURSOS FINANCIEROS (Rol 3) ← AGREGADO

@@ -743,6 +743,14 @@ class GoogleCalendarService
                 throw new \Exception("OAuth error: " . json_encode($token['error']));
             }
 
+            // ⚠️  VALIDAR QUE GOOGLE DEVOLVIÓ REFRESH_TOKEN
+            if (!isset($token['refresh_token']) || empty($token['refresh_token'])) {
+                Log::warning("✅ ALERTA: Google NO devolvió refresh_token. Tokens devueltos: " . json_encode(array_keys($token)));
+                Log::warning("⚠️  Esto ocurre cuando el usuario ya autorizó la app. Necesita revocar permisos en Google Settings.");
+            } else {
+                Log::info("✅ Google devolvió refresh_token: " . substr($token['refresh_token'] ?? '', 0, 20) . "...");
+            }
+
             $this->googleClient->setAccessToken($token);
 
             // Obtener información del usuario (email, calendar_id)
