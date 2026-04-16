@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Rules\Recaptcha;
 use App\Services\PresupuestoService;
 use App\Services\FolioService;
+use App\Models\Documento;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -261,18 +262,20 @@ class SolicitudController extends Controller
 
                     $rutaArchivo = $archivo->store('solicitudes', 'public');
 
-                    DB::table('Documentos_Expediente')->insert([
+                    // ✅ Usar modelo para que se dispare DocumentoObserver
+                    Documento::create([
                         'fk_folio' => $folio,
                         'fk_id_tipo_doc' => $req->fk_id_tipo_doc,
                         'ruta_archivo' => $rutaArchivo,
                         'origen_archivo' => 'local',
                         'estado_validacion' => 'Pendiente',
                         'version' => 1,
-                        'fecha_carga' => DB::raw('GETDATE()')
+                        'fecha_carga' => now()
                     ]);
                 } else {
                     // Guardar referencia de Google Drive
-                    DB::table('Documentos_Expediente')->insert([
+                    // ✅ Usar modelo para que se dispare DocumentoObserver
+                    Documento::create([
                         'fk_folio' => $folio,
                         'fk_id_tipo_doc' => $req->fk_id_tipo_doc,
                         'ruta_archivo' => "google_drive/{$gdriveFileId}",
@@ -281,7 +284,7 @@ class SolicitudController extends Controller
                         'google_file_name' => $gdriveFileName,
                         'estado_validacion' => 'Pendiente',
                         'version' => 1,
-                        'fecha_carga' => DB::raw('GETDATE()')
+                        'fecha_carga' => now()
                     ]);
                 }
             }

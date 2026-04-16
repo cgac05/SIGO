@@ -5,7 +5,9 @@ namespace App\Providers;
 use App\Events\SolicitudRechazada;
 use App\Listeners\EnviarNotificacionRechazo;
 use App\Models\HitosApoyo;
+use App\Models\Documento;
 use App\Observers\HitosApoyoObserver;
+use App\Observers\DocumentoObserver;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -32,6 +34,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Registrar observers para modelos
         HitosApoyo::observe(HitosApoyoObserver::class);
+        Documento::observe(DocumentoObserver::class);
     }
 }
 

@@ -125,8 +125,8 @@
                                             </div>
                                         </div>
                                         <div class="flex gap-2 ml-4">
-                                            <a href="{{ asset($doc->ruta_archivo) }}" target="_blank" class="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 transition">Ver</a>
-                                            <a href="{{ asset($doc->ruta_archivo) }}" download class="px-3 py-1 text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 rounded hover:bg-slate-200 transition">Descargar</a>
+                                            <a href="{{ route('documentos.view', ['path' => $doc->ruta_archivo]) }}" target="_blank" class="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 transition">Ver</a>
+                                            <a href="{{ route('documentos.download', ['path' => $doc->ruta_archivo]) }}" download class="px-3 py-1 text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 rounded hover:bg-slate-200 transition">Descargar</a>
                                         </div>
                                     </div>
                                 </div>

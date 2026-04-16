@@ -22,6 +22,7 @@ use App\Http\Controllers\Admin\ArchivadoCertificadoController;
 use App\Http\Controllers\FacturaCompraController;
 use App\Http\Controllers\FirmaController;
 use App\Http\Controllers\RecursosFinancierosController; // ← AGREGADO
+use App\Http\Controllers\DocumentController;
 use App\Models\Beneficiario;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -101,6 +102,11 @@ Route::middleware('auth')->group(function () {
     // Apoyos
     Route::get('/apoyos',                  [ApoyoController::class, 'index'])->name('apoyos.index');
     Route::get('/apoyos/imagen/{path}',    [ApoyoController::class, 'image'])->where('path', '.*')->name('apoyos.image');
+    
+    // Documentos (servir con validación)
+    Route::get('/documentos/descargar/{path}', [DocumentController::class, 'download'])->where('path', '.*')->name('documentos.download');
+    Route::get('/documentos/ver/{path}', [DocumentController::class, 'view'])->where('path', '.*')->name('documentos.view');
+    
     Route::get('/apoyos/{id}/comentarios', [ApoyoController::class, 'comments'])->name('apoyos.comments');
     Route::post('/apoyos/{id}/comentarios', [ApoyoController::class, 'storeComment'])->name('apoyos.comments.store');
     Route::put('/apoyos/{id}/comentarios/{commentId}', [ApoyoController::class, 'updateComment'])->name('apoyos.comments.update');
