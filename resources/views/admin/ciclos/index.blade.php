@@ -73,16 +73,16 @@
                             </td>
                             <td class="px-6 py-4 text-center">
                                 <div class="flex justify-center gap-2">
-                                    <a href="{{ route('admin.ciclos.show', $ciclo->id_ciclo) }}" 
+                                    <a href="{{ route('admin.ciclos.show', $ciclo->id) }}" 
                                        class="text-blue-600 hover:text-blue-800 font-medium text-sm">
                                         👁️ Ver
                                     </a>
                                     @if($ciclo->isAbierto())
-                                        <a href="{{ route('admin.ciclos.edit', $ciclo->id_ciclo) }}" 
+                                        <a href="{{ route('admin.ciclos.edit', $ciclo->id) }}" 
                                            class="text-amber-600 hover:text-amber-800 font-medium text-sm">
                                             ✏️ Editar
                                         </a>
-                                        <form action="{{ route('admin.ciclos.cerrar', $ciclo->id_ciclo) }}" method="POST" class="inline">
+                                        <form action="{{ route('admin.ciclos.cerrar', $ciclo->id) }}" method="POST" class="inline">
                                             @csrf
                                             @method('PATCH')
                                             <button type="submit" onclick="return confirm('¿Cerrar ciclo {{ $ciclo->ano_fiscal }}?')"
@@ -91,7 +91,7 @@
                                             </button>
                                         </form>
                                     @else
-                                        <form action="{{ route('admin.ciclos.reabrir', $ciclo->id_ciclo) }}" method="POST" class="inline">
+                                        <form action="{{ route('admin.ciclos.reabrir', $ciclo->id) }}" method="POST" class="inline">
                                             @csrf
                                             @method('PATCH')
                                             <button type="submit" onclick="return confirm('¿Reabrir ciclo {{ $ciclo->ano_fiscal }}?')"

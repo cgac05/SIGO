@@ -7,7 +7,7 @@
     <div class="container mx-auto px-4 max-w-2xl">
         <!-- Header -->
         <div class="mb-8">
-            <a href="{{ route('admin.ciclos.show', $ciclo->id_ciclo) }}" class="text-blue-600 hover:text-blue-800 text-sm font-medium mb-4 inline-block">
+            <a href="{{ route('admin.ciclos.show', $ciclo->id) }}" class="text-blue-600 hover:text-blue-800 text-sm font-medium mb-4 inline-block">
                 ← Volver al Ciclo
             </a>
             <h1 class="text-4xl font-bold text-gray-900">✏️ Editar Ciclo Presupuestario {{ $ciclo->ano_fiscal }}</h1>
@@ -32,7 +32,7 @@
                 <h2 class="text-white text-xl font-semibold">📋 Información del Ciclo</h2>
             </div>
 
-            <form action="{{ route('admin.ciclos.update', $ciclo->id_ciclo) }}" method="POST" class="p-8">
+            <form action="{{ route('admin.ciclos.update', $ciclo->id) }}" method="POST" class="p-8">
                 @csrf
                 @method('PUT')
 
@@ -106,7 +106,7 @@
 
                 <!-- Botones -->
                 <div class="flex gap-4 pt-6 border-t">
-                    <a href="{{ route('admin.ciclos.show', $ciclo->id_ciclo) }}" 
+                    <a href="{{ route('admin.ciclos.show', $ciclo->id) }}" 
                        class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg transition text-center">
                         Cancelar
                     </a>

@@ -231,12 +231,12 @@ Route::middleware('auth')->group(function () {
         Route::get('', [CicloPresupuestarioController::class, 'index'])->name('admin.ciclos.index');
         Route::get('crear', [CicloPresupuestarioController::class, 'create'])->name('admin.ciclos.create');
         Route::post('', [CicloPresupuestarioController::class, 'store'])->name('admin.ciclos.store');
-        Route::get('{id_ciclo}', [CicloPresupuestarioController::class, 'show'])->name('admin.ciclos.show');
-        Route::get('{id_ciclo}/editar', [CicloPresupuestarioController::class, 'edit'])->name('admin.ciclos.edit');
-        Route::put('{id_ciclo}', [CicloPresupuestarioController::class, 'update'])->name('admin.ciclos.update');
-        Route::patch('{id_ciclo}/cerrar', [CicloPresupuestarioController::class, 'cerrar'])->name('admin.ciclos.cerrar');
-        Route::patch('{id_ciclo}/reabrir', [CicloPresupuestarioController::class, 'reabrir'])->name('admin.ciclos.reabrir');
-        Route::post('{id_ciclo}/categorias', [CicloPresupuestarioController::class, 'storeCategoria'])->name('admin.ciclos.storeCategoria');
+        Route::get('{id}', [CicloPresupuestarioController::class, 'show'])->name('admin.ciclos.show');
+        Route::get('{id}/editar', [CicloPresupuestarioController::class, 'edit'])->name('admin.ciclos.edit');
+        Route::put('{id}', [CicloPresupuestarioController::class, 'update'])->name('admin.ciclos.update');
+        Route::patch('{id}/cerrar', [CicloPresupuestarioController::class, 'cerrar'])->name('admin.ciclos.cerrar');
+        Route::patch('{id}/reabrir', [CicloPresupuestarioController::class, 'reabrir'])->name('admin.ciclos.reabrir');
+        Route::post('{id}/categorias', [CicloPresupuestarioController::class, 'storeCategoria'])->name('admin.ciclos.storeCategoria');
         Route::put('categorias/{categoriaId}', [CicloPresupuestarioController::class, 'updateCategoria'])->name('admin.ciclos.updateCategoria');
         Route::delete('categorias/{categoriaId}', [CicloPresupuestarioController::class, 'deleteCategoria'])->name('admin.ciclos.deleteCategoria');
     });

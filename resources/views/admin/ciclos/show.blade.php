@@ -16,11 +16,11 @@
             </div>
             <div class="flex gap-2">
                 @if($ciclo->isAbierto())
-                    <a href="{{ route('admin.ciclos.edit', $ciclo->id_ciclo) }}" 
+                    <a href="{{ route('admin.ciclos.edit', $ciclo->id) }}" 
                        class="bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-4 rounded-lg transition">
                         ✏️ Editar
                     </a>
-                    <form action="{{ route('admin.ciclos.cerrar', $ciclo->id_ciclo) }}" method="POST" class="inline">
+                    <form action="{{ route('admin.ciclos.cerrar', $ciclo->id) }}" method="POST" class="inline">
                         @csrf
                         @method('PATCH')
                         <button type="submit" onclick="return confirm('¿Cerrar ciclo {{ $ciclo->ano_fiscal }}? No se podrán hacer cambios después.')"
@@ -29,7 +29,7 @@
                         </button>
                     </form>
                 @else
-                    <form action="{{ route('admin.ciclos.reabrir', $ciclo->id_ciclo) }}" method="POST" class="inline">
+                    <form action="{{ route('admin.ciclos.reabrir', $ciclo->id) }}" method="POST" class="inline">
                         @csrf
                         @method('PATCH')
                         <button type="submit" onclick="return confirm('¿Reabrir ciclo {{ $ciclo->ano_fiscal }}?')"
@@ -301,7 +301,7 @@ document.getElementById('formCategoria').addEventListener('submit', function(e) 
         }
     } else {
         // Crear
-        this.action = "{{ route('admin.ciclos.storeCategoria', $ciclo->id_ciclo) }}";
+        this.action = "{{ route('admin.ciclos.storeCategoria', $ciclo->id) }}";
         let putInput = this.querySelector('input[name="_method"]');
         if (putInput) putInput.remove();
     }

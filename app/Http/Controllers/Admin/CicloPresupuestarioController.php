@@ -164,11 +164,11 @@ class CicloPresupuestarioController extends Controller
      * Ver detalle del ciclo presupuestario
      * GET /admin/ciclos/{id}
      */
-    public function show($id_ciclo)
+    public function show($id)
     {
         $this->authorizeDirectivo();
 
-        $ciclo = CicloPresupuestario::with('categorias')->findOrFail($id_ciclo);
+        $ciclo = CicloPresupuestario::with('categorias')->findOrFail($id);
 
         // Calcular ejecución
         $totalPresupuestoAsignado = $ciclo->categorias->sum('presupuesto_anual');
@@ -190,13 +190,13 @@ class CicloPresupuestarioController extends Controller
 
     /**
      * Formulario para editar ciclo presupuestario
-     * GET /admin/ciclos/{id_ciclo}/editar
+     * GET /admin/ciclos/{id}/editar
      */
-    public function edit($id_ciclo)
+    public function edit($id)
     {
         $this->authorizeDirectivo();
 
-        $ciclo = CicloPresupuestario::findOrFail($id_ciclo);
+        $ciclo = CicloPresupuestario::findOrFail($id);
 
         return view('admin.ciclos.edit', [
             'ciclo' => $ciclo,
@@ -205,13 +205,13 @@ class CicloPresupuestarioController extends Controller
 
     /**
      * Actualizar ciclo presupuestario
-     * PUT /admin/ciclos/{id_ciclo}
+     * PUT /admin/ciclos/{id}
      */
-    public function update(Request $request, $id_ciclo)
+    public function update(Request $request, $id)
     {
         $this->authorizeDirectivo();
 
-        $ciclo = CicloPresupuestario::findOrFail($id_ciclo);
+        $ciclo = CicloPresupuestario::findOrFail($id);
 
         $validated = $request->validate([
             'presupuesto_total' => 'required|numeric|min:0.01',
@@ -229,7 +229,7 @@ class CicloPresupuestarioController extends Controller
             DB::commit();
 
             return redirect()
-                ->route('admin.ciclos.show', $ciclo->id_ciclo)
+                ->route('admin.ciclos.show', $ciclo->id)
                 ->with('success', "✅ Ciclo presupuestario actualizado exitosamente.");
 
         } catch (\Exception $e) {
@@ -240,13 +240,13 @@ class CicloPresupuestarioController extends Controller
 
     /**
      * Cerrar ciclo presupuestario
-     * PATCH /admin/ciclos/{id_ciclo}/cerrar
+     * PATCH /admin/ciclos/{id}/cerrar
      */
-    public function cerrar($id_ciclo)
+    public function cerrar($id)
     {
         $this->authorizeDirectivo();
 
-        $ciclo = CicloPresupuestario::findOrFail($id_ciclo);
+        $ciclo = CicloPresupuestario::findOrFail($id);
 
         if ($ciclo->isCerrado()) {
             return back()->with('warning', 'El ciclo ya está cerrado.');
@@ -264,13 +264,13 @@ class CicloPresupuestarioController extends Controller
 
     /**
      * Reabrir ciclo presupuestario
-     * PATCH /admin/ciclos/{id_ciclo}/reabrir
+     * PATCH /admin/ciclos/{id}/reabrir
      */
-    public function reabrir($id_ciclo)
+    public function reabrir($id)
     {
         $this->authorizeDirectivo();
 
-        $ciclo = CicloPresupuestario::findOrFail($id_ciclo);
+        $ciclo = CicloPresupuestario::findOrFail($id);
 
         if ($ciclo->isAbierto()) {
             return back()->with('warning', 'El ciclo ya está abierto.');
@@ -288,13 +288,13 @@ class CicloPresupuestarioController extends Controller
 
     /**
      * Agregar nueva categoría presupuestaria al ciclo
-     * POST /admin/ciclos/{id_ciclo}/categorias
+     * POST /admin/ciclos/{id}/categorias
      */
-    public function storeCategoria(Request $request, $id_ciclo)
+    public function storeCategoria(Request $request, $id)
     {
         $this->authorizeDirectivo();
 
-        $ciclo = CicloPresupuestario::findOrFail($id_ciclo);
+        $ciclo = CicloPresupuestario::findOrFail($id);
 
         if (!$ciclo->isAbierto()) {
             return back()->with('error', 'No se pueden agregar categorías a un ciclo cerrado.');
