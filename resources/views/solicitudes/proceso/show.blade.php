@@ -229,7 +229,7 @@
                 </div>
 
                 <!-- ACCIONES (FASE 2: FIRMA) -->
-                @if($estadoActual->nombre_estado === 'DOCUMENTOS_VERIFICADOS')
+                @if($estadoActual->nombre_estado === 'DOCUMENTOS_VERIFICADOS' || $estadoActual->nombre_estado === 'Aprobado')
                     <div class="bg-white rounded-lg shadow p-6">
                         <h3 class="text-lg font-bold text-slate-900 mb-4">🔐 Fase 2: Firma</h3>
                         
@@ -323,7 +323,7 @@
                             </div>
                         @endif
                     </div>
-                @elseif($estadoActual->nombre_estado === 'APROBADA' && $solicitud->cuv)
+                @elseif(($estadoActual->nombre_estado === 'Aprobado' || $estadoActual->nombre_estado === 'APROBADA') && $solicitud->cuv)
                     <!-- FIRMADO EXITOSAMENTE -->
                     <div class="bg-white rounded-lg shadow p-6">
                         <div class="bg-green-50 border-l-4 border-green-500 p-6 rounded-lg">
@@ -338,12 +338,20 @@
                             </div>
                         </div>
                     </div>
+                @elseif($estadoActual->nombre_estado === 'Aprobado' || $estadoActual->nombre_estado === 'APROBADA')
+                    <!-- APROBADO - HABILITADO PARA FIRMA -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="bg-amber-50 border-l-4 border-amber-500 p-6 rounded-lg">
+                            <p class="text-amber-900 font-bold text-lg">✓ Solicitud Aprobada - Lista para Firma</p>
+                            <p class="text-sm text-amber-700 mt-2">La solicitud ha sido aprobada. Haga clic en "Firmar" para completar el proceso y generar el CUV.</p>
+                        </div>
+                    </div>
                 @else
                     <div class="bg-blue-50 border border-blue-300 rounded-lg p-6">
                         <p class="text-blue-900 font-bold">📋 Estado Actual</p>
                         <p class="text-sm text-blue-800 mt-2">
                             Esta solicitud está en estado <strong>{{ $estadoActual->nombre_estado }}</strong>.
-                            {{ $estadoActual->nombre_estado === 'APROBADA' ? 'Solicitud aprobada. Puede descargar el comprobante.' : 'La fase de firma se habilitará cuando se completen las verificaciones.' }}
+                            La fase de firma se habilitará cuando se completen las verificaciones.
                         </p>
                     </div>
                 @endif

@@ -146,8 +146,9 @@ class AdministrativeVerificationService
                     ->count();
 
                 if ($documentsCount > 0 && $documentsCount === $acceptedCount) {
-                    // Todos aprobados → cambiar a "Aprobada" (id=3) para el directivo
-                    $solicitud->update(['fk_id_estado' => 3]);
+                    // Todos aprobados → cambiar a "Aprobada" (id=4) para el directivo
+                    // ID 4 = "Aprobado" en Cat_EstadosSolicitud
+                    $solicitud->update(['fk_id_estado' => 4]);
                 }
             }
         }

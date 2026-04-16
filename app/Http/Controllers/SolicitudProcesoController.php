@@ -702,7 +702,7 @@ class SolicitudProcesoController extends Controller
             ->join('Apoyos', 'Solicitudes.fk_id_apoyo', '=', 'Apoyos.id_apoyo')
             ->where('Solicitudes.fk_curp', $beneficiario->curp)
             ->where('Solicitudes.folio', '!=', $solicitud->folio)
-            ->where('Solicitudes.fk_id_estado', 3) // Solo aprobadas
+            ->where('Solicitudes.fk_id_estado', 4) // Solo aprobadas
             ->select(
                 'Solicitudes.folio',
                 'Apoyos.nombre_apoyo',
@@ -722,7 +722,7 @@ class SolicitudProcesoController extends Controller
         // Total de apoyos previos
         $totalApoyosPrevios = DB::table('Solicitudes')
             ->where('fk_curp', $beneficiario->curp)
-            ->where('fk_id_estado', 3) // Aprobadas
+            ->where('fk_id_estado', 4) // Aprobadas
             ->count();
 
         return view('solicitudes.proceso.show', [
@@ -766,8 +766,8 @@ class SolicitudProcesoController extends Controller
             return back()->withErrors(['error' => 'Solicitud no encontrada']);
         }
 
-        // Validar estado (debe ser 10 = DOCUMENTOS_VERIFICADOS)
-        if ($solicitud->fk_id_estado != 10) {
+        // Validar estado (debe ser 10 = DOCUMENTOS_VERIFICADOS O 4 = Aprobado)
+        if (!in_array($solicitud->fk_id_estado, [4, 10])) {
             $estado = DB::table('Cat_EstadosSolicitud')
                 ->where('id_estado', $solicitud->fk_id_estado)
                 ->first(['nombre_estado']);
@@ -797,7 +797,7 @@ class SolicitudProcesoController extends Controller
             // Actualizar solicitud con los datos críticos
             DB::table('Solicitudes')->where('folio', $folio)->update([
                 'cuv' => $cuv,
-                'fk_id_estado' => 3, // APROBADA (puede variar según el sistema)
+                'fk_id_estado' => 4, // APROBADA (ID 4 en Cat_EstadosSolicitud)
                 'presupuesto_confirmado' => 1,
             ]);
 

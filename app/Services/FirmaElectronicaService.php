@@ -210,7 +210,7 @@ class FirmaElectronicaService
                 // Actualizar solicitud
                 DB::table('Solicitudes')->where('folio', $folio)->update([
                     'cuv' => $cuv,
-                    'fk_id_estado' => 3, // APROBADA
+                    'fk_id_estado' => 4, // APROBADA (ID 4 en Cat_EstadosSolicitud)
                     'fecha_actualizacion' => now(),
                 ]);
 
