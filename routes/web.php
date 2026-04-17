@@ -169,6 +169,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/solicitudes/proceso/{folio}/firmar', [SolicitudProcesoController::class, 'firmar'])
         ->whereNumber('folio')
         ->name('solicitudes.proceso.firmar');
+    Route::post('/solicitudes/proceso/{folio}/rechazar', [SolicitudProcesoController::class, 'rechazar'])
+        ->whereNumber('folio')
+        ->name('solicitudes.proceso.rechazar');
     Route::get('/solicitudes/{folio}/timeline', [SolicitudProcesoController::class, 'timeline'])
         ->whereNumber('folio')->name('solicitudes.proceso.timeline');
     Route::post('/solicitudes/proceso/revisar-documento', [SolicitudProcesoController::class, 'revisarDocumento'])
