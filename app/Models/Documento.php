@@ -83,18 +83,55 @@ class Documento extends Model
 
     /**
      * Verifica si el documento es de origen local
+     * 
+     * Tolerante con documentos donde el origen está mal marcado
      */
     public function isLocal(): bool
     {
-        return $this->origen_archivo === 'local';
+        // Si está explícitamente marcado como local
+        if ($this->origen_archivo === 'local') {
+            return true;
+        }
+
+        // Si tiene ruta_archivo pero NO es ruta de Google Drive Y NO tiene google_file_id
+        // Asumir que es local (por si está mal marcado)
+        if ($this->ruta_archivo && 
+            !str_starts_with($this->ruta_archivo, 'google_drive/') && 
+            !$this->google_file_id) {
+            return true;
+        }
+
+        // Legacy: Si no tiene google_file_id y tiene ruta_archivo local, asumir que es local
+        if (!$this->google_file_id && $this->ruta_archivo && !str_starts_with($this->ruta_archivo, 'google_drive/')) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
      * Verifica si el documento es de Google Drive
+     * 
+     * Tolerante con documentos donde el origen está mal marcado
      */
     public function isFromDrive(): bool
     {
-        return $this->origen_archivo === 'drive' || $this->origen_archivo === 'google_drive';
+        // Si está explícitamente marcado como drive Y tiene google_file_id
+        if (($this->origen_archivo === 'drive' || $this->origen_archivo === 'google_drive') && $this->google_file_id) {
+            return true;
+        }
+
+        // Si tiene google_file_id, es de Drive (sin importar cómo esté marcado)
+        if ($this->google_file_id) {
+            return true;
+        }
+
+        // Si la ruta comienza con google_drive/, probablemente es de Drive
+        if ($this->ruta_archivo && str_starts_with($this->ruta_archivo, 'google_drive/')) {
+            return true;
+        }
+
+        return false;
     }
 
     /**

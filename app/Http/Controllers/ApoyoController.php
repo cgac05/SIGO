@@ -1167,7 +1167,7 @@ $categoriasPresupuesto = PresupuestoCategoria::select('id_categoria', 'nombre', 
         
         // Verificar si hay solicitudes aprobadas
         $solicitudesAprobadas = Solicitud::where('fk_id_apoyo', $id)
-            ->whereIn('fk_id_estado', [3])
+            ->whereIn('fk_id_estado', [4])
             ->exists();
         
         // Cargar presupuesto actual

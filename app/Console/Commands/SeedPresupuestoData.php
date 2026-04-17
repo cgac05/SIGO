@@ -18,7 +18,7 @@ class SeedPresupuestoData extends Command
         $año = $this->option('ciclo');
         
         // Obtener ciclo
-        $ciclo = CicloPresupuestario::where('año_fiscal', $año)->first();
+        $ciclo = CicloPresupuestario::where('ano_fiscal', $año)->first();
         
         if (!$ciclo) {
             $this->error("Ciclo fiscal {$año} no encontrado");

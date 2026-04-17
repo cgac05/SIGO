@@ -56,6 +56,7 @@ class SolicitudProcesoController extends Controller
                 'Solicitudes.presupuesto_confirmado',
                 'Solicitudes.monto_entregado',
                 'Apoyos.nombre_apoyo',
+                'Apoyos.monto_maximo',
                 'Beneficiarios.nombre as beneficiario_nombre',
                 'Beneficiarios.apellido_paterno',
                 'Beneficiarios.apellido_materno',
@@ -85,13 +86,49 @@ class SolicitudProcesoController extends Controller
             $solicitudesQuery->whereNull('Solicitudes.cuv');
         }
 
+        // ✅ FILTRO CRÍTICO: Solo mostrar solicitudes si TODOS sus documentos están aprobados por admin
+        // Las solicitudes deben tener al menos 1 documento
+        $solicitudesQuery->whereExists(function ($query) {
+            $query->select(DB::raw(1))
+                ->from('Documentos_Expediente')
+                ->whereColumn('Documentos_Expediente.fk_folio', 'Solicitudes.folio')
+                ->where('Documentos_Expediente.admin_status', 'aceptado');
+        });
+
+        // Y NO deben tener ningún documento pendiente/rechazado
+        $solicitudesQuery->whereNotExists(function ($query) {
+            $query->select(DB::raw(1))
+                ->from('Documentos_Expediente')
+                ->whereColumn('Documentos_Expediente.fk_folio', 'Solicitudes.folio')
+                ->where('admin_status', '!=', 'aceptado')
+                ->whereNotNull('admin_status');
+        });
+
         // Obtener solicitudes paginadas
         $solicitudes = $solicitudesQuery->orderByDesc('Solicitudes.folio')->paginate(10);
 
         // Estadísticas
         $hoy = now()->startOfDay();
+        
+        // Contar solo solicitudes pendientes que tienen TODOS documentos aprobados
+        $pendientesQuery = DB::table('Solicitudes')
+            ->whereNull('Solicitudes.cuv')
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('Documentos_Expediente')
+                    ->whereColumn('Documentos_Expediente.fk_folio', 'Solicitudes.folio')
+                    ->where('Documentos_Expediente.admin_status', 'aceptado');
+            })
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('Documentos_Expediente')
+                    ->whereColumn('Documentos_Expediente.fk_folio', 'Solicitudes.folio')
+                    ->where('admin_status', '!=', 'aceptado')
+                    ->whereNotNull('admin_status');
+            });
+        
         $stats = [
-            'pendientes' => DB::table('Solicitudes')->whereNull('Solicitudes.cuv')->count(),
+            'pendientes' => $pendientesQuery->count(),
             'firmadas' => DB::table('Solicitudes')->whereNotNull('Solicitudes.cuv')->count(),
             'aprobadas_hoy' => DB::table('Solicitudes')
                 ->where('Solicitudes.cuv', '!=', null)
@@ -694,15 +731,15 @@ class SolicitudProcesoController extends Controller
         $presupuestoDisponible = $this->obtenerPresupuestoDisponibleSolicitud($solicitud->folio);
         $presupuestoCategoriaDisponible = $this->obtenerPresupuestoCategoriaDisponible($apoyo->id_categoria ?? 0);
 
-        $puedeAprobarse = ($presupuestoDisponible >= ($solicitud->monto_entregado ?? 0)) 
-                         && ($presupuestoCategoriaDisponible >= ($solicitud->monto_entregado ?? 0));
+        $puedeAprobarse = ($presupuestoDisponible >= ($apoyo->monto_maximo ?? 0)) 
+                         && ($presupuestoCategoriaDisponible >= ($apoyo->monto_maximo ?? 0));
 
         // ========== HISTORIAL DE APOYOS PREVIOS ==========
         $historialApoyos = DB::table('Solicitudes')
             ->join('Apoyos', 'Solicitudes.fk_id_apoyo', '=', 'Apoyos.id_apoyo')
             ->where('Solicitudes.fk_curp', $beneficiario->curp)
             ->where('Solicitudes.folio', '!=', $solicitud->folio)
-            ->where('Solicitudes.fk_id_estado', 3) // Solo aprobadas
+            ->where('Solicitudes.fk_id_estado', 4) // Solo aprobadas
             ->select(
                 'Solicitudes.folio',
                 'Apoyos.nombre_apoyo',
@@ -722,7 +759,7 @@ class SolicitudProcesoController extends Controller
         // Total de apoyos previos
         $totalApoyosPrevios = DB::table('Solicitudes')
             ->where('fk_curp', $beneficiario->curp)
-            ->where('fk_id_estado', 3) // Aprobadas
+            ->where('fk_id_estado', 4) // Aprobadas
             ->count();
 
         return view('solicitudes.proceso.show', [
@@ -766,8 +803,8 @@ class SolicitudProcesoController extends Controller
             return back()->withErrors(['error' => 'Solicitud no encontrada']);
         }
 
-        // Validar estado (debe ser 10 = DOCUMENTOS_VERIFICADOS)
-        if ($solicitud->fk_id_estado != 10) {
+        // Validar estado (debe ser 10 = DOCUMENTOS_VERIFICADOS O 4 = Aprobado)
+        if (!in_array($solicitud->fk_id_estado, [4, 10])) {
             $estado = DB::table('Cat_EstadosSolicitud')
                 ->where('id_estado', $solicitud->fk_id_estado)
                 ->first(['nombre_estado']);
@@ -797,7 +834,7 @@ class SolicitudProcesoController extends Controller
             // Actualizar solicitud con los datos críticos
             DB::table('Solicitudes')->where('folio', $folio)->update([
                 'cuv' => $cuv,
-                'fk_id_estado' => 3, // APROBADA (puede variar según el sistema)
+                'fk_id_estado' => 4, // APROBADA (ID 4 en Cat_EstadosSolicitud)
                 'presupuesto_confirmado' => 1,
             ]);
 
@@ -865,6 +902,98 @@ class SolicitudProcesoController extends Controller
                     - ($presupuesto->monto_aprobado ?? 0);
 
         return max(0, $disponible);
+    }
+
+    /**
+     * ⭐ Rechazar una solicitud
+     */
+    public function rechazar($folio, Request $request)
+    {
+        $user = $this->authorizePersonal($request, 2); // 2 = Directivo
+
+        $request->validate([
+            'password' => 'required|string',
+            'motivo' => 'nullable|string|max:1000',
+        ]);
+
+        if (!Hash::check($request->input('password'), $user->password)) {
+            return back()->withErrors(['password' => 'Contraseña incorrecta']);
+        }
+
+        // Obtener solicitud
+        $solicitud = DB::table('Solicitudes')
+            ->where('folio', $folio)
+            ->first();
+
+        if (!$solicitud) {
+            return back()->withErrors(['error' => 'Solicitud no encontrada']);
+        }
+
+        // Validar estado
+        if (!in_array($solicitud->fk_id_estado, [4, 10])) {
+            return back()->withErrors(['error' => 'La solicitud no puede ser rechazada en este estado']);
+        }
+
+        // Obtener datos del beneficiario y apoyo (con email desde tabla Usuarios)
+        $beneficiario = DB::table('Beneficiarios')
+            ->join('Usuarios', 'Beneficiarios.fk_id_usuario', '=', 'Usuarios.id_usuario')
+            ->select('Beneficiarios.*', 'Usuarios.email')
+            ->where('Beneficiarios.curp', $solicitud->fk_curp)
+            ->first();
+
+        $apoyo = DB::table('Apoyos')
+            ->where('id_apoyo', $solicitud->fk_id_apoyo)
+            ->first();
+
+        DB::beginTransaction();
+
+        try {
+            // Construir nueva observación con timestamp
+            $motivo = $request->input('motivo') ?? 'Sin motivo especificado';
+            $timestamp = now()->format('Y-m-d H:i:s');
+            $nuevaObservacion = "\n[RECHAZADA POR DIRECTIVO $timestamp] $motivo";
+            $observacionesActuales = $solicitud->observaciones_internas ?? '';
+
+            // Actualizar estado a rechazada (ID 5 generalmente es RECHAZADA)
+            DB::table('Solicitudes')->where('folio', $folio)->update([
+                'fk_id_estado' => 5, // RECHAZADA
+                'observaciones_internas' => $observacionesActuales . $nuevaObservacion,
+            ]);
+
+            // Enviar correo de rechazo al beneficiario
+            if ($beneficiario && $beneficiario->email) {
+                \App\Services\NotificacionRechazoService::enviarNotificacionRechazo(
+                    $folio,
+                    $beneficiario,
+                    $apoyo,
+                    $request->input('motivo')
+                );
+            }
+
+            // Log
+            \Log::info('Solicitud rechazada', [
+                'folio' => $folio,
+                'directivo' => $user->email,
+                'beneficiario' => $beneficiario->email ?? 'sin correo',
+                'motivo' => $request->input('motivo') ?? 'sin motivo',
+                'timestamp' => now(),
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('solicitudes.proceso.show', $folio)
+                ->with('success', '✓ Solicitud rechazada. Se envió notificación al beneficiario.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error al rechazar solicitud: ' . $e->getMessage(), [
+                'folio' => $folio,
+                'usuario' => $user->email,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return back()->withErrors(['error' => 'Error al rechazar: ' . $e->getMessage()]);
+        }
     }
 
     /**

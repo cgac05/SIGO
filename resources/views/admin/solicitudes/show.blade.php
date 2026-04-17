@@ -101,7 +101,7 @@
                                 </div>
 
                                 <!-- View Button -->
-                                <a href="/admin/solicitudes/{{ $documento->id_doc }}/view" target="_blank"
+                                <a href="{{ route('admin.documentos.view', ['id' => $documento->id_doc]) }}" target="_blank"
                                    class="ml-4 px-3 py-1 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 transition-colors">
                                     Ver
                                 </a>

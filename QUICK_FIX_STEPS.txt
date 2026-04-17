@@ -1,0 +1,82 @@
+🔧 SOLUCIÓN RÁPIDA - EJECUTA ESTO EN ORDEN
+═════════════════════════════════════════════════════════════════
+
+PROBLEMA: "The provided client secret is invalid."
+
+CAUSA: El GOOGLE_CLIENT_SECRET NO ES VÁLIDO según Google
+
+SOLUCIÓN RÁPIDA (ejecuta estos comandos en orden):
+
+════════════════════════════════════════════════════════════════
+PASO 1: Limpiar caché de configuración
+════════════════════════════════════════════════════════════════
+php artisan config:clear
+php artisan cache:clear
+
+════════════════════════════════════════════════════════════════
+PASO 2: Resetear la autenticación
+════════════════════════════════════════════════════════════════
+php reset_and_reauth_oauth.php
+
+(Esto genera un nuevo link de Google)
+
+════════════════════════════════════════════════════════════════
+PASO 3: Abre el link en tu navegador
+════════════════════════════════════════════════════════════════
+- Selecciona "Usar otra cuenta"
+- Ingresa: guillermoavilamora2@gmail.com
+- Click "Permitir"
+
+════════════════════════════════════════════════════════════════
+PASO 4: Verifica en vueltas a la aplicación
+════════════════════════════════════════════════════════════════
+Deberías verse:
+  ✅ Conectado
+  ✅ Con email: guillermoavilamora2@gmail.com
+
+Si SIGUE diciendo "Desconectado":
+
+════════════════════════════════════════════════════════════════
+PASO 5: DEBUG - Verificar qué está pasando
+════════════════════════════════════════════════════════════════
+php diagnose_oauth_complete.php
+
+Si muestra: ❌ PROBLEMA DETECTADO - Google NO devolvió refresh_token
+
+Entonces:
+1. Abre: https://myaccount.google.com/permissions
+2. BUSCA y ELIMINA el acceso de tu app SIGO
+3. Vuelve a ejecutar: php reset_and_reauth_oauth.php
+4. Abre el link nuevo
+
+════════════════════════════════════════════════════════════════
+OPCIONAL: Si el secret de Google cambió
+════════════════════════════════════════════════════════════════
+
+Si regeneraste credenciales en Google Cloud:
+
+1. Abre: https://console.cloud.google.com/apis/credentials
+2. Busca tu app (OAuth 2.0 Client IDs)
+3. Click en ella
+4. Copia el nuevo "Client secret"
+5. Ejecuta: php update_client_secret.php
+6. Pega el nuevo secret cuando pida
+7. Repite desde PASO 1
+
+════════════════════════════════════════════════════════════════
+
+¿CUÁL ES TU SIGUIENTE PASO?
+
+Opción A: "Ya ejecuté todo y SIGUE sin funcionar"
+  → Ejecuta: php diagnose_oauth_complete.php
+  → Muéstrame el output
+
+Opción B: "Vi error 'invalid_client' en Google"
+  → El secret está MAL
+  → Opción OPCIONAL arriba
+
+Opción C: "Se ve conectado pero dice desconectado en web"
+  → Usa: php diagnose_oauth_complete.php
+  → Verifica: php -r "echo config('services.google.client_secret');"
+
+════════════════════════════════════════════════════════════════

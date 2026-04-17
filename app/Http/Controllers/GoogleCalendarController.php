@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Apoyo;
 use App\Models\DirectivoCalendarioPermiso;
 use App\Models\CalendarioSincronizacionLog;
 use App\Models\OAuthState;
@@ -165,11 +166,11 @@ class GoogleCalendarController extends Controller
     }
 
     /**
-     * Sincronizar manualmente desde Google Calendar → SIGO
+     * Sincronizar bidireccional: Google Calendar → SIGO + SIGO → Google Calendar
      * 
      * Acciones:
-     * 1. Obtener directivo actual
-     * 2. Llamar sincronización
+     * 1. Crear eventos faltantes en Google (SIGO → Google)
+     * 2. Traer cambios desde Google (Google → SIGO)
      * 3. Retornar resumen de cambios
      * 
      * POST /admin/calendario/sync
@@ -190,19 +191,40 @@ class GoogleCalendarController extends Controller
                     ->with('error', 'No has conectado Google Calendar. Conecta primero.');
             }
 
-            $resultado = $this->googleCalendarService->sincronizarDesdeGoogle($directivo_id);
+            $totalCambios = 0;
 
-            if ($resultado['cambios_procesados'] > 0) {
+            // PASO 1: Crear eventos nuevos en Google (SIGO → Google)
+            Log::info("GoogleCalendarController: Sincronizando SIGO → Google");
+            $apoyos = \App\Models\Apoyo::where('sincronizar_calendario', 1)->get();
+            
+            foreach ($apoyos as $apoyo) {
+                // Crear evento para cada hito que no tenga Google ID
+                foreach ($apoyo->hitos as $hito) {
+                    if (empty($hito->google_calendar_event_id) && $hito->google_calendar_sync) {
+                        $resultado = $this->googleCalendarService->crearEventoHito($hito->id_hito);
+                        if ($resultado['exito']) {
+                            $totalCambios++;
+                        }
+                    }
+                }
+            }
+
+            // PASO 2: Traer cambios desde Google (Google → SIGO)
+            Log::info("GoogleCalendarController: Sincronizando Google → SIGO");
+            $resultado = $this->googleCalendarService->sincronizarDesdeGoogle($directivo_id);
+            $totalCambios += $resultado['cambios_procesados'];
+
+            if ($totalCambios > 0) {
                 return redirect('/admin/calendario')
-                    ->with('success', "Se sincronizaron {$resultado['cambios_procesados']} cambios.");
+                    ->with('success', "Sincronización completada: {$totalCambios} cambios procesados.");
             } else {
                 return redirect('/admin/calendario')
-                    ->with('info', 'No hay cambios nuevos para sincronizar.');
+                    ->with('info', 'Sincronización completada. No hay cambios nuevos.');
             }
         } catch (\Exception $e) {
             Log::error('Error al sincronizar Google Calendar: ' . $e->getMessage());
             return redirect('/admin/calendario')
-                ->with('error', 'Error al sincronizar. Intente nuevamente.');
+                ->with('error', 'Error al sincronizar: ' . $e->getMessage());
         }
     }
 

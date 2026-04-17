@@ -18,11 +18,17 @@ return new class extends Migration
         
         Schema::create('auditoria_verificacion', function (Blueprint $table) {
             $table->id('id_auditoria');
-            $table->unsignedBigInteger('id_historico');
+            
+            // Cambiado a unsignedInteger para coincidir con increments() de historico_cierre
+            $table->unsignedInteger('id_historico'); 
+            
             $table->string('tipo_verificacion', 100)->comment('Tipo de verificación realizada');
             $table->json('detalles')->nullable()->comment('Detalles de la verificación en formato JSON');
             $table->string('ip_terminal', 45)->nullable()->comment('IP desde donde se realizó la validación');
-            $table->unsignedBigInteger('id_usuario_validador');
+            
+            // También lo cambiamos aquí por precaución si la tabla usuarios usa increments
+            $table->unsignedInteger('id_usuario_validador'); 
+            
             $table->timestamps();
 
             // Foreign keys
@@ -34,7 +40,7 @@ return new class extends Migration
             $table->foreign('id_usuario_validador')
                 ->references('id_usuario')
                 ->on('usuarios')
-                ->onDelete('restrict');
+                ->onDelete('no action');
 
             // Indexes
             $table->index('id_historico');
