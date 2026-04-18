@@ -157,7 +157,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/apoyos/check-inventario',   [ApoyoController::class, 'checkInventario'])->name('apoyos.check-inventario');
     Route::post('/apoyos/aprobar-inventario', [ApoyoController::class, 'aprobarInventario'])->name('apoyos.aprobar-inventario');
     Route::get('/apoyos/{id}/edit',        [ApoyoController::class, 'edit'])->name('apoyos.edit');
-    Route::post('/apoyos/{id}',            [ApoyoController::class, 'update'])->name('apoyos.update');
+    Route::put('/apoyos/{id}',             [ApoyoController::class, 'update'])->name('apoyos.update');
+    Route::delete('/apoyos/{id}',          [ApoyoController::class, 'destroy'])->name('apoyos.destroy');
     Route::delete('/apoyos/{id}',          [ApoyoController::class, 'destroy'])->name('apoyos.destroy');
 
     // Flujo de solicitudes
