@@ -64,10 +64,10 @@
                             <p class="text-lg font-bold text-slate-900 mt-2">{{ $apoyo->nombre_apoyo }}</p>
                         </div>
 
-                        <!-- Monto Entregado -->
+                        <!-- Monto por Beneficiario -->
                         <div>
-                            <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Monto Entregado</p>
-                            <p class="text-2xl font-bold text-green-600 mt-2">${{ number_format($solicitud->monto_entregado ?? 0, 0) }}</p>
+                            <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Monto por Beneficiario</p>
+                            <p class="text-2xl font-bold text-green-600 mt-2">${{ number_format($apoyo->monto_maximo ?? 0, 2) }}</p>
                         </div>
 
                         <!-- Fecha Solicitud -->
@@ -186,14 +186,14 @@
                         <!-- Monto a Autorizar -->
                         <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
                             <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Monto a Autorizar</p>
-                            <p class="text-3xl font-bold text-blue-600 mt-2">${{ number_format($solicitud->monto_entregado ?? 0, 0) }}</p>
+                            <p class="text-3xl font-bold text-blue-600 mt-2">${{ number_format($apoyo->monto_maximo ?? 0, 2) }}</p>
                         </div>
 
                         <!-- Disponible en Apoyo -->
                         <div class="bg-slate-50 border border-slate-300 rounded-lg p-4">
                             <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Disponible en Apoyo</p>
                             <p class="text-2xl font-bold text-slate-900 mt-1">${{ number_format($presupuestoDisponible, 0) }}</p>
-                            @if($presupuestoDisponible >= ($solicitud->monto_entregado ?? 0))
+                            @if($presupuestoDisponible >= ($apoyo->monto_maximo ?? 0))
                                 <span class="inline-block mt-2 text-xs font-semibold text-green-600">✓ Suficiente</span>
                             @else
                                 <span class="inline-block mt-2 text-xs font-semibold text-red-600">✗ INSUFICIENTE</span>
@@ -204,7 +204,7 @@
                         <div class="bg-slate-50 border border-slate-300 rounded-lg p-4">
                             <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Disponible en Categoría</p>
                             <p class="text-2xl font-bold text-slate-900 mt-1">${{ number_format($presupuestoCategoriaDisponible, 0) }}</p>
-                            @if($presupuestoCategoriaDisponible >= ($solicitud->monto_entregado ?? 0))
+                            @if($presupuestoCategoriaDisponible >= ($apoyo->monto_maximo ?? 0))
                                 <span class="inline-block mt-2 text-xs font-semibold text-green-600">✓ Suficiente</span>
                             @else
                                 <span class="inline-block mt-2 text-xs font-semibold text-red-600">✗ INSUFICIENTE</span>
@@ -262,6 +262,106 @@
                                 </button>
                             </form>
 
+                            <!-- SEPARADOR -->
+                            <div class="relative my-6">
+                                <div class="absolute inset-0 flex items-center">
+                                    <div class="w-full border-t border-slate-300"></div>
+                                </div>
+                                <div class="relative flex justify-center text-sm">
+                                    <span class="px-3 bg-white text-slate-600 font-medium">O</span>
+                                </div>
+                            </div>
+
+                            <!-- BOTÓN RECHAZAR (abre modal) -->
+                            <button type="button" 
+                                    class="w-full rounded-lg bg-red-700 text-white px-6 py-3 font-bold hover:bg-red-800 transition text-lg"
+                                    onclick="document.getElementById('modalRechazo').classList.remove('hidden')">
+                                ✗ Rechazar Solicitud
+                            </button>
+
+                            <!-- MODAL RECHAZO -->
+                            <div id="modalRechazo" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                                <div class="bg-white rounded-lg max-w-2xl w-full p-8 max-h-96 overflow-y-auto">
+                                    <h3 class="text-2xl font-bold text-red-900 mb-2">⚠️ Rechazar Solicitud</h3>
+                                    <p class="text-sm text-slate-600 mb-6">Si considera que la solicitud no cumple con los requisitos, puede rechazarla. Se enviará una notificación al beneficiario inmediatamente.</p>
+                                    
+                                    <form action="{{ route('solicitudes.proceso.rechazar', $solicitud->folio) }}" method="POST" class="space-y-4">
+                                        @csrf
+
+                                        <!-- Detalles de la Solicitud -->
+                                        <div class="space-y-3 bg-slate-50 p-4 rounded-lg mb-4">
+                                            <div class="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <p class="text-xs text-slate-600 font-semibold">Folio</p>
+                                                    <p class="text-lg font-bold text-slate-900 mt-1">#{{ $solicitud->folio }}</p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-xs text-slate-600 font-semibold">Beneficiario</p>
+                                                    <p class="text-lg font-bold text-slate-900 mt-1">{{ $beneficiario->nombre }}</p>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p class="text-xs text-slate-600 font-semibold">Programa</p>
+                                                <p class="text-sm font-bold text-slate-900 mt-1">{{ $apoyo->nombre_apoyo }}</p>
+                                            </div>
+                                        </div>
+
+                                        <!-- Campo Motivo -->
+                                        <div>
+                                            <label class="block text-sm font-semibold text-slate-700 mb-2">Motivo del Rechazo (Opcional)</label>
+                                            <textarea name="motivo" 
+                                                      rows="4"
+                                                      class="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                                      placeholder="Explica el motivo del rechazo. Este mensaje se incluirá en la notificación al beneficiario."></textarea>
+                                            <p class="text-xs text-slate-500 mt-1">💡 Si no escribes un motivo, se enviarán motivos generales</p>
+                                        </div>
+
+                                        <!-- Campo Contraseña -->
+                                        <div>
+                                            <label class="block text-sm font-semibold text-slate-700 mb-2">Contraseña</label>
+                                            <input type="password" 
+                                                   name="password" 
+                                                   required
+                                                   class="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                                   placeholder="Confirma tu contraseña">
+                                            <p class="text-xs text-slate-500 mt-1">Requerida para confirmar el rechazo</p>
+                                        </div>
+
+                                        <!-- Advertencia -->
+                                        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                                            <p class="text-sm text-red-900 font-bold">⚠️ Advertencia</p>
+                                            <p class="text-xs text-red-700 mt-2">
+                                                El rechazo es <strong>PERMANENTE</strong> y <strong>NO SE PUEDE DESHACER</strong>. 
+                                                El beneficiario será notificado inmediatamente por correo. 
+                                                Esta acción será registrada en auditoría.
+                                            </p>
+                                        </div>
+
+                                        <!-- Botones de Acción -->
+                                        <div class="flex gap-3 mt-6 pt-4 border-t border-slate-200">
+                                            <button type="button" 
+                                                    onclick="document.getElementById('modalRechazo').classList.add('hidden')"
+                                                    class="flex-1 rounded-lg bg-slate-300 text-slate-900 px-4 py-2 font-semibold hover:bg-slate-400 transition">
+                                                Cancelar
+                                            </button>
+                                            <button type="submit" 
+                                                    class="flex-1 rounded-lg bg-red-700 text-white px-4 py-3 font-bold hover:bg-red-800 transition">
+                                                ✓ Confirmar Rechazo
+                                            </button>
+                                        </div>
+                                    </form>
+
+                                    <!-- Cierre al hacer click fuera -->
+                                    <script>
+                                        document.getElementById('modalRechazo').addEventListener('click', function(e) {
+                                            if (e.target === this) {
+                                                this.classList.add('hidden');
+                                            }
+                                        });
+                                    </script>
+                                </div>
+                            </div>
+
                             <!-- MODAL RESUMEN -->
                             <div id="modalResumen" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                                 <div class="bg-white rounded-lg max-w-2xl w-full p-8 max-h-96 overflow-y-auto">
@@ -294,14 +394,14 @@
 
                                         <div class="bg-green-50 border-2 border-green-500 p-4 rounded">
                                             <p class="text-sm text-slate-600 font-semibold">Monto Autorizado</p>
-                                            <p class="text-3xl font-bold text-green-600 mt-1">${{ number_format($solicitud->monto_entregado ?? 0, 0) }}</p>
+                                            <p class="text-3xl font-bold text-green-600 mt-1">${{ number_format($apoyo->monto_maximo ?? 0, 2) }}</p>
                                         </div>
 
                                         <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
                                             <p class="text-sm text-yellow-900 font-bold">⚠️ ADVERTENCIA</p>
                                             <p class="text-xs text-yellow-800 mt-2">
                                                 Al firmar, está autorizando IRREVOCABLEMENTE el desembolso de 
-                                                <strong>${{ number_format($solicitud->monto_entregado ?? 0, 0) }}</strong>. 
+                                                <strong>${{ number_format($apoyo->monto_maximo ?? 0, 2) }}</strong>. 
                                                 Esta acción será auditada permanentemente.
                                             </p>
                                         </div>
