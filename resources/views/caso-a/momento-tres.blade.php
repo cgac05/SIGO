@@ -18,7 +18,7 @@
         </div>
 
         <!-- Formulario de Validación -->
-        <form action="{{ route('caso-a.momento-tres.validar') }}" method="POST" class="space-y-6">
+        <form action="{{ route('caso-a.validar-momento-tres') }}" method="POST" class="space-y-6">
             @csrf
 
             <!-- Campo Folio -->

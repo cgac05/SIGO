@@ -222,6 +222,24 @@
             <form id="formCategoria" method="POST" class="p-6">
                 @csrf
                 
+                <!-- Sección de Errores AJAX -->
+                <div id="categoriaErrorBox" class="hidden mb-4 bg-red-50 border-l-4 border-red-600 rounded-lg p-4">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <span class="text-red-600 text-xl">⚠️</span>
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <h3 class="text-red-800 font-semibold text-sm" id="categoriaErrorTitle">Error</h3>
+                            <div id="categoriaErrorContent" class="text-red-700 text-sm mt-1"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección de Éxito AJAX -->
+                <div id="categoriaSuccessBox" class="hidden mb-4 bg-green-50 border-l-4 border-green-600 rounded-lg p-4">
+                    <p id="categoriaSuccessMessage" class="text-green-800 font-medium text-sm"></p>
+                </div>
+                
                 <input type="hidden" id="categoriaId" name="categoria_id">
 
                 <div class="mb-4">
@@ -231,6 +249,7 @@
                     <input type="text" id="categoria_nombre" name="nombre" 
                            required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                            placeholder="Ej: Becas Educativas">
+                    <p id="errorNombre" class="text-red-600 text-sm mt-1 hidden"></p>
                 </div>
 
                 <div class="mb-4">
@@ -240,6 +259,7 @@
                     <textarea id="categoria_descripcion" name="descripcion" rows="2"
                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                               placeholder="Descripción de la categoría..."></textarea>
+                    <p id="errorDescripcion" class="text-red-600 text-sm mt-1 hidden"></p>
                 </div>
 
                 <div class="mb-6">
@@ -253,6 +273,7 @@
                                class="w-full px-4 py-2 pl-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                placeholder="0.00">
                     </div>
+                    <p id="errorPresupuesto" class="text-red-600 text-sm mt-1 hidden"></p>
                 </div>
 
                 <div class="flex gap-4 pt-4 border-t">
@@ -286,25 +307,77 @@ function editarCategoria(id, nombre, descripcion, presupuesto) {
 }
 
 document.getElementById('formCategoria').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Limpiar errores previos
+    document.getElementById('categoriaErrorBox').classList.add('hidden');
+    document.getElementById('categoriaSuccessBox').classList.add('hidden');
+    document.querySelectorAll('[id^="error"]').forEach(el => el.classList.add('hidden'));
+    
     const categoriaId = document.getElementById('categoriaId').value;
+    const url = categoriaId 
+        ? "{{ url('admin/ciclos/categorias') }}/" + categoriaId
+        : "{{ route('admin.ciclos.storeCategoria', $ciclo->id) }}";
+    
+    const formData = new FormData(this);
     if (categoriaId) {
-        // Editar
-        this.action = "{{ url('admin/ciclos/categorias') }}/" + categoriaId;
-        // Asegurar que tenga PUT
-        let putInput = this.querySelector('input[name="_method"]');
-        if (!putInput) {
-            putInput = document.createElement('input');
-            putInput.type = 'hidden';
-            putInput.name = '_method';
-            putInput.value = 'PUT';
-            this.appendChild(putInput);
-        }
-    } else {
-        // Crear
-        this.action = "{{ route('admin.ciclos.storeCategoria', $ciclo->id) }}";
-        let putInput = this.querySelector('input[name="_method"]');
-        if (putInput) putInput.remove();
+        formData.append('_method', 'PUT');
     }
+    
+    fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(json => {
+                throw { status: response.status, data: json };
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            document.getElementById('categoriaSuccessMessage').textContent = data.message;
+            document.getElementById('categoriaSuccessBox').classList.remove('hidden');
+            
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        }
+    })
+    .catch(error => {
+        let errorMessage = 'Error desconocido';
+        let errors = {};
+        
+        if (error.data) {
+            errorMessage = error.data.message || 'Error al procesar la solicitud';
+            errors = error.data.errors || {};
+        } else {
+            errorMessage = error.message || 'Error de conexión';
+        }
+        
+        // Mostrar mensaje general de error
+        if (Object.keys(errors).length > 0) {
+            document.getElementById('categoriaErrorTitle').textContent = 'Errores de validación';
+            let errorHTML = '<ul class="list-disc list-inside">';
+            for (const [field, messages] of Object.entries(errors)) {
+                errorHTML += `<li><strong>${field}:</strong> ${messages[0]}</li>`;
+                document.getElementById(`error${field.charAt(0).toUpperCase() + field.slice(1).replace(/_./g, m => m[1].toUpperCase())}`).textContent = messages[0];
+                document.getElementById(`error${field.charAt(0).toUpperCase() + field.slice(1).replace(/_./g, m => m[1].toUpperCase())}`).classList.remove('hidden');
+            }
+            errorHTML += '</ul>';
+            document.getElementById('categoriaErrorContent').innerHTML = errorHTML;
+        } else {
+            document.getElementById('categoriaErrorContent').textContent = errorMessage;
+        }
+        
+        document.getElementById('categoriaErrorBox').classList.remove('hidden');
+    });
 });
 </script>
 

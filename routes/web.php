@@ -157,7 +157,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/apoyos/check-inventario',   [ApoyoController::class, 'checkInventario'])->name('apoyos.check-inventario');
     Route::post('/apoyos/aprobar-inventario', [ApoyoController::class, 'aprobarInventario'])->name('apoyos.aprobar-inventario');
     Route::get('/apoyos/{id}/edit',        [ApoyoController::class, 'edit'])->name('apoyos.edit');
-    Route::post('/apoyos/{id}',            [ApoyoController::class, 'update'])->name('apoyos.update');
+    Route::put('/apoyos/{id}',             [ApoyoController::class, 'update'])->name('apoyos.update');
+    Route::delete('/apoyos/{id}',          [ApoyoController::class, 'destroy'])->name('apoyos.destroy');
     Route::delete('/apoyos/{id}',          [ApoyoController::class, 'destroy'])->name('apoyos.destroy');
 
     // Flujo de solicitudes
@@ -169,6 +170,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/solicitudes/proceso/{folio}/firmar', [SolicitudProcesoController::class, 'firmar'])
         ->whereNumber('folio')
         ->name('solicitudes.proceso.firmar');
+    Route::post('/solicitudes/proceso/{folio}/rechazar', [SolicitudProcesoController::class, 'rechazar'])
+        ->whereNumber('folio')
+        ->name('solicitudes.proceso.rechazar');
     Route::get('/solicitudes/{folio}/timeline', [SolicitudProcesoController::class, 'timeline'])
         ->whereNumber('folio')->name('solicitudes.proceso.timeline');
     Route::post('/solicitudes/proceso/revisar-documento', [SolicitudProcesoController::class, 'revisarDocumento'])
@@ -426,5 +430,89 @@ Route::middleware('auth')->prefix('api/notificaciones')->group(function () {
     Route::post('/marcar-todas-leidas', [\App\Http\Controllers\Api\NotificacionesApiController::class, 'marcarTodasLeidas'])->name('api.notificaciones.marcarTodasLeidas');
     Route::delete('/{id}', [\App\Http\Controllers\Api\NotificacionesApiController::class, 'destroy'])->whereNumber('id')->name('api.notificaciones.destroy');
 });
+
+// CASO A: Carga Híbrida Asincrónica (Público + Admin)
+// Momento 3: Consulta privada (PÚBLICA - sin autenticación)
+Route::get('/consulta-privada', [\App\Http\Controllers\CasoAController::class, 'momentoTresForm'])
+    ->name('caso-a.momento-tres-form');
+
+Route::post('/consulta-privada/validar', [\App\Http\Controllers\CasoAController::class, 'validarMomentoTres'])
+    ->name('caso-a.validar-momento-tres');
+
+Route::get('/consulta-privada/resumen', [\App\Http\Controllers\CasoAController::class, 'mostrarResumenMomentoTres'])
+    ->name('caso-a.resumen-momento-tres');
+
+// Caso A: Admin Routes (Momento 1 y 2)
+Route::middleware(['auth', 'role:1,2'])->group(function () {
+    Route::prefix('admin/caso-a')->name('admin.caso-a.')->group(function () {
+        // MOMENTO 1: Crear expediente presencial
+        Route::get('/momento-uno', [\App\Http\Controllers\CasoAController::class, 'momentoUno'])
+            ->name('momento-uno');
+        
+        Route::post('/momento-uno/guardar', [\App\Http\Controllers\CasoAController::class, 'guardarMomentoUno'])
+            ->name('guardar-momento-uno');
+
+        Route::get('/resumen/{folio}', [\App\Http\Controllers\CasoAController::class, 'mostrarResumenMomentoUno'])
+            ->name('resumen-momento-uno');
+
+        // MOMENTO 2: Escaneo de documentos
+        Route::get('/momento-dos', [\App\Http\Controllers\CasoAController::class, 'momentoDos'])
+            ->name('momento-dos');
+
+        Route::post('/momento-dos/cargar', [\App\Http\Controllers\CasoAController::class, 'cargarDocumentoMomentoDos'])
+            ->name('cargar-documento-momento-dos');
+
+        Route::post('/momento-dos/confirmar', [\App\Http\Controllers\CasoAController::class, 'confirmarCargaMomentoDos'])
+            ->name('confirmar-carga-momento-dos');
+    });
+});
+
+// API: Búsqueda de beneficiarios (pública para autocomplete)
+Route::get('/api/beneficiarios/buscar', function (\Illuminate\Http\Request $request) {
+    $query = $request->input('q', '');
+    
+    if (strlen($query) < 2) {
+        return response()->json([]);
+    }
+    
+    $beneficiarios = \DB::table('Beneficiarios')
+        ->join('Usuarios', 'Beneficiarios.fk_id_usuario', '=', 'Usuarios.id_usuario')
+        ->where(function ($q) use ($query) {
+            $q->where('Beneficiarios.curp', 'LIKE', "%$query%")
+              ->orWhere('Beneficiarios.nombre', 'LIKE', "%$query%")
+              ->orWhere('Usuarios.email', 'LIKE', "%$query%");
+        })
+        ->select(
+            'Beneficiarios.curp',
+            'Beneficiarios.nombre',
+            'Beneficiarios.apellido_paterno',
+            'Beneficiarios.apellido_materno',
+            'Beneficiarios.telefono',
+            'Beneficiarios.fecha_nacimiento',
+            'Beneficiarios.genero',
+            'Usuarios.id_usuario as fk_id_usuario',
+            'Usuarios.email'
+        )
+        ->limit(10)
+        ->get();
+    
+    // Enriquecer con nombre completo
+    $beneficiarios = $beneficiarios->map(function ($b) {
+        return (object)[
+            'curp' => $b->curp,
+            'nombre_completo' => trim($b->nombre . ' ' . ($b->apellido_paterno ?? '') . ' ' . ($b->apellido_materno ?? '')),
+            'nombre' => $b->nombre,
+            'apellido_paterno' => $b->apellido_paterno,
+            'apellido_materno' => $b->apellido_materno,
+            'email' => $b->email,
+            'telefono' => $b->telefono,
+            'fecha_nacimiento' => $b->fecha_nacimiento,
+            'genero' => $b->genero,
+            'fk_id_usuario' => $b->fk_id_usuario,
+        ];
+    });
+    
+    return response()->json($beneficiarios);
+})->name('api.beneficiarios.buscar');
 
 require __DIR__.'/auth.php';

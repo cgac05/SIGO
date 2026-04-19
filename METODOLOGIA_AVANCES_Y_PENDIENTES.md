@@ -2683,121 +2683,107 @@ TRAINING REQUERIDO:
 **Impacto:** SOCIAL (permite acceso a usuarios sin alfabetización digital)
 
 #### 3.5.1 CASO A: Digitación Presencial con Carga Asincrónica
-- ✅ **Estado:** Diseñado (pendiente ejecución)
-- **Objetivo:** Permitir que beneficiarios dejen documentos físicos en oficina y reciban seguimiento digital sin esperar a escaneo
+
+**✨ ARQUITECTURA: FUSIONADA CON FLUJO ORDINARIO (ÓPTIMA)**
 
 **Diferencia clave con Carga Fría:**
 - **Carga Fría:** Admin carga documentos EN NOMBRE del beneficiario (beneficiario no presente)
-- **Caso A:** Beneficiario PRESENTA documentos físicamente, admin crea solicitud parcial, beneficiario se retira, admin escanea DESPUÉS
+- **Caso A:** Beneficiario PRESENTA documentos físicamente, admin crea solicitud, beneficiario se retira, admin escanea DESPUÉS
+- **🔑 Arquitectura:** Caso A crea solicitud **ORDINARIA** que entra al flujo normal (no flujo separado)
 
-**Flujo Caso A (3 Momentos):**
+**Ventajas de la Fusión:**
+- ✅ UNA sola interfaz de verificación (sin duplicación de código)
+- ✅ UN solo flujo de aprobación (compartido)
+- ✅ Menos estados en BD (sin DOCUMENTOS_CARGADOS_Y_VERIFICADOS especial)
+- ✅ Código DRY (Don't Repeat Yourself)
+- ✅ Más escalable y mantenible
+
+**Flujo Caso A (3 Momentos) - FUSIONADO:**
 
 ```
 MOMENTO 1 - Beneficiary en Oficina (5 mins):
 ├─ Beneficiary llega CON documentos físicos
-├─ Admin: [Digitación de Expediente] → [Crear Solicitud Presencial]
-├─ Admin captura: datos beneficiary, tipo apoyo, "✓ Documentos entregados en oficina"
+├─ Admin: [Panel Admin] → [Caso A - Momento 1]
+├─ Admin captura: datos beneficiary, tipo apoyo, documentos listados
 ├─ SISTEMA GENERA:
+│  ├─ Solicitud ORDINARIA (origen_solicitud = 'admin_caso_a')
+│  ├─ Estado: DOCUMENTOS_PENDIENTE_VERIFICACIÓN (mismo del flujo normal)
 │  ├─ Folio: 001-2026-TEP
-│  ├─ Status: EXPEDIENTE_CREADO_PRESENCIAL
-│  ├─ Clave Única: KX7M-9P2W-5LQ8 (alphanumeric 16-char)
-│  ├─ Hash: SHA256(folio + beneficiary_id + secret_key) ← para verificación
-│  └─ ⚠️ PRINT TICKET (folio + clave + QR)
+│  ├─ Clave Privada: KX7M-9P2W-5LQ8 (alphanumeric 16-char)
+│  ├─ Hash: SHA256(folio + beneficiary_id + secret_key)
+│  └─ Ticket: Impresión (folio + clave + QR)
 │
-└─ Beneficiary SE RETIRA (no espera). Email: "Tu solicitud fue radicada"
+└─ Beneficiary SE RETIRA (sin esperar). Email: "Tu solicitud fue radicada"
 
 MOMENTO 2 - Admin Escanea Después (Batch):
-├─ Admin: [Panel Admin] → [Documentos Pendientes de Escaneo]
-├─ Filtra por fecha/rango
-├─ Clicks: [ESCANEAR] para folio 001
+├─ Admin: [Caso A - Momento 2]
+├─ Ingresa folio (o escanea QR)
 ├─ Para cada documento:
-│  ├─ Foto/escaneo (JPG/PDF)
-│  ├─ Drag-drop upload
-│  ├─ Validación: MIME, tamaño < 5MB
+│  ├─ Drag-drop upload (PDF/JPG, <5MB)
+│  ├─ Validación: MIME, tamaño
 │  └─ [✓ Aceptar]
 │
 ├─ SISTEMA EJECUTA AUTOMÁTICAMENTE:
 │  ├─ ✅ Watermark: "INJUVE · 001-2026-TEP · [Date]"
 │  ├─ ✅ QR: folio + doc_type + timestamp + admin_id + hash
 │  ├─ ✅ Digital Chain: SHA256(prev_doc) → SHA256(curr_doc)
-│  ├─ ✅ HMAC Signature: HMAC-SHA256(..., encryption_key) ← immutable
+│  ├─ ✅ HMAC Signature: HMAC-SHA256(..., encryption_key)
 │  ├─ ✅ Guardar en BD con origin = "admin_escaneo_presencial"
 │  └─ ✅ Audit entry: evento, admin_id, IP, navegador
 │
-├─ Status actualizado: DOCUMENTOS_CARGADOS_Y_VERIFICADOS
-└─ Email beneficiary: "✅ Documentos recibidos y procesados"
+├─ Email beneficiary: "✅ Documentos recibidos y procesados"
+│
+└─ 🔄 FLUJO ORDINARIO:
+   └─ Solicitud entra al VERIFICADOR NORMAL (Admin abre para verificar)
+      ├─ MISMO interfaz que para beneficiarios
+      ├─ MISMA lógica de validación
+      └─ Aprueба/rechaza documentos
 
 MOMENTO 3 - Beneficiary Consulta (Solo con Clave):
 ├─ Abre: https://sigo.injuve.mx/consulta-privada
 ├─ Ingresa: Folio + Clave Secreta
 ├─ Sistema verifica: Hash(folio + clave + secret_key) == stored_hash
-├─ 🔒 ACCESO PROTEGIDO: Sin clave, NO se ve nada (documentos sensibles)
+├─ 🔒 ACCESO PROTEGIDO: Sin clave, NO se ve nada
 └─ Dashboard privado:
    ├─ Status: Documentos Cargados
-   ├─ Documentos:
-   │  ├─ ✅ Cédula: 28/03 14:32 [Ver con QR] [Descargar]
-   │  ├─ ✅ Comprobante: 28/03 14:34 [Ver con QR] [Descargar]
-   │  └─ ✅ RFC: 28/03 14:35 [Ver con QR] [Descargar]
+   ├─ Timeline: Admin escaneó → Verificador aprobó → Directivo va a firmar
+   ├─ Documentos con QR verificable
    └─ Integridad: [Verificar Cadena Digital]
+
+FLUJO POSTERIOR (ORDINARIO - igual para todos):
+├─ Directivo accede a firma digital
+├─ Firma solicitud (MISMA interfaz que si fue carga beneficiario)
+├─ Presupuesto se asigna (MISMO proceso)
+└─ Solicitud → APROBADA
+   └─ MOMENTO 3: Beneficiario puede consultar con folio+clave
 ```
 
 **Campos Base de Datos (Modificaciones a Tablas Existentes):**
 
 ```sql
--- 1. Documentos_Expediente (agregar 8 campos):
-ALTER TABLE Documentos_Expediente ADD (
+-- 1. Documentos_Expediente (agregar campos para Caso A):
+ALTER TABLE documentos_expediente ADD (
     origen_carga NVARCHAR(50),              -- 'beneficiario'|'admin_escaneo_presencial'
-    cargado_por INT FK,                     -- Usuario que cargó (nullable para beneficiary self-upload)
+    cargado_por INT FK,                     -- Usuario que cargó
     marca_agua_aplicada BIT,                -- ¿Se aplicó watermark?
     qr_seguimiento NVARCHAR(510),           -- QR code data/image path
-    hash_documento VARCHAR(64),             -- SHA256(document content) ← para integridad
-    hash_anterior VARCHAR(64),              -- Prev hash ← digital chain link
-    firma_admin NVARCHAR(255),              -- HMAC-SHA256 signature ← immutable
-    fecha_carga DATETIME,                   -- Timestamp de carga
-    FOREIGN KEY (cargado_por) REFERENCES Usuarios(id_usuario)
+    hash_documento VARCHAR(64),             -- SHA256(document content)
+    hash_anterior VARCHAR(64),              -- Prev hash (digital chain)
+    firma_admin NVARCHAR(255),              -- HMAC-SHA256 signature
+    fecha_carga DATETIME,
+    FOREIGN KEY (cargado_por) REFERENCES usuarios(id_usuario)
 );
 
--- 2. Claves de Seguimiento (NUEVA TABLA - Caso A):
-CREATE TABLE claves_seguimiento_privadas (
-    id_clave INT PRIMARY KEY IDENTITY(1,1),
-    folio NVARCHAR(50) UNIQUE,
-    clave_alfanumerica NVARCHAR(20),        -- "KX7M-9P2W-5LQ8" ÚNICA
-    hash_clave VARCHAR(64),                 -- SHA256(folio + clave + secret_key)
-    beneficiario_id INT FK,
-    fecha_creacion DATETIME DEFAULT GETDATE(),
-    fecha_ultimo_acceso DATETIME,
-    intentos_fallidos INT DEFAULT 0,        -- 5 failed attempts = bloqueada
-    bloqueada BIT DEFAULT 0,
-    FOREIGN KEY (beneficiario_id) REFERENCES Usuarios(id_usuario)
+-- 2. Solicitudes (agregar para rastrear origen de Caso A):
+ALTER TABLE solicitudes ADD (
+    origen_solicitud NVARCHAR(50) DEFAULT 'beneficiario', -- 'beneficiario'|'admin_caso_a'
+    creada_por_admin BIT DEFAULT 0,         -- ¿Fue creada por admin presencialmente?
+    admin_creador INT FK                    -- Admin que presencialmente registró
 );
 
--- 3. Cadena Digital (NUEVA TABLA - Caso A):
-CREATE TABLE cadena_digital_documentos (
-    id_cadena INT PRIMARY KEY IDENTITY(1,1),
-    fk_id_documento INT FK,
-    folio NVARCHAR(50),
-    hash_actual VARCHAR(64),                -- Current document hash
-    hash_anterior VARCHAR(64),              -- Previous document hash (chain link)
-    admin_creador INT FK,
-    timestamp_creacion DATETIME DEFAULT GETDATE(),
-    firma_hmac NVARCHAR(255),               -- HMAC signature (verification key)
-    razon_cambio NVARCHAR(255),
-    FOREIGN KEY (fk_id_documento) REFERENCES Documentos_Expediente(id_documento),
-    FOREIGN KEY (admin_creador) REFERENCES Usuarios(id_usuario)
-);
-
--- 4. Auditoría de Carga Material (NUEVA TABLA - Caso A):
-CREATE TABLE auditorias_carga_material (
-    id_auditoria INT PRIMARY KEY IDENTITY(1,1),
-    folio NVARCHAR(50),
-    evento NVARCHAR(50),                    -- 'escaneo_completado', 'marca_agua_aplicada'
-    admin_id INT FK,
-    cantidad_docs INT,
-    fecha_evento DATETIME DEFAULT GETDATE(),
-    ip_admin NVARCHAR(45),
-    navegador_agente NVARCHAR(255),
-    detalles_evento NVARCHAR(MAX),          -- JSON with extra info
-    FOREIGN KEY (admin_id) REFERENCES Usuarios(id_usuario)
+-- NOTA: No agregamos estado especial "DOCUMENTOS_CARGADOS_Y_VERIFICADOS"
+-- porque la solicitud entra al FLUJO ORDINARIO (mismo verificador)
+```
 );
 
 -- 5. Políticas de Retención (NUEVA TABLA - Compliance):
@@ -2813,10 +2799,10 @@ CREATE TABLE politicas_retencion_documentos (
     FOREIGN KEY (fk_id_documento) REFERENCES Documentos_Expediente(id_documento)
 );
 
--- 6. Cat_EstadosSolicitud (ADD 2 NEW STATES):
-INSERT INTO Cat_EstadosSolicitud (nombre_estado) VALUES
-    ('EXPEDIENTE_CREADO_PRESENCIAL'),       -- 6: Caso A - Initial capture
-    ('DOCUMENTOS_CARGADOS_Y_VERIFICADOS');  -- 7: After admin scans + chain verified
+-- 6. NOTA: NO agregamos estados especiales para Caso A
+-- La solicitud entra al FLUJO ORDINARIO con estado "DOCUMENTOS_PENDIENTE_VERIFICACIÓN"
+-- El campo "origen_solicitud" marca si fue admin_caso_a o beneficiario
+-- De esta manera: UNA interfaz de verificación (fusionada, sin duplicación)
 ```
 
 **Seguridad Caso A:**
@@ -3051,17 +3037,45 @@ class CasoADocumentService {
 **Rutas (web.php):**
 
 ```php
-// Caso A: Consulta privada (solo con clave)
-Route::get('/consulta-privada', function () {
-    return view('public.consulta-privada');
-})->name('consulta-privada');
+// CASO A: Solo para crear solicitud presencial (Momentos 1 + 2)
+// Momento 3 es pública (sin auth)
+
+// MOMENTO 3: Consulta privada (PÚBLICA - sin autenticación)
+Route::get('/consulta-privada', [CasoAController::class, 'consultaPrivada'])
+    ->name('caso-a.consulta-privada');
 
 Route::post('/verificar-acceso-privado', [CasoAController::class, 'verificarAcceso'])
-    ->name('verificar-acceso-privado');
+    ->name('caso-a.verificar-acceso');
 
 Route::get('/documentos-privados/{folio}', [CasoAController::class, 'mostrarDocumentosPrivados'])
-    ->middleware('verificado.privado')
-    ->name('documentos-privados');
+    ->middleware('verified.privado')
+    ->name('caso-a.documentos-privados');
+
+// MOMENTOS 1 + 2: Admin solamente
+Route::middleware(['auth', 'role:1,2'])->group(function () {
+    Route::prefix('admin/caso-a')->group(function () {
+        // MOMENTO 1: Registro presencial
+        Route::get('/momento-uno', [CasoAController::class, 'momentoUno'])
+            ->name('caso-a.momento-uno');
+        Route::post('/momento-uno/guardar', [CasoAController::class, 'guardarMomentoUno'])
+            ->name('caso-a.guardar-momento-uno');
+        
+        // MOMENTO 2: Escaneo async
+        Route::get('/momento-dos', [CasoAController::class, 'momentoDos'])
+            ->name('caso-a.momento-dos');
+        Route::post('/momento-dos/cargar', [CasoAController::class, 'cargarDocumentoMomentoDos'])
+            ->name('caso-a.cargar-documento-momento-dos');
+        
+        // ✨ NOTA: Después, admin va al verificador ORDINARIO
+        // - Route: /admin/verificar-documentos (mismo para todos)
+        // - Solicitud entra con origen_solicitud = 'admin_caso_a'
+        // - Misma interfaz, misma lógica
+    });
+});
+
+// API: Búsqueda beneficiarios
+Route::get('/api/beneficiarios/buscar', [CasoAController::class, 'buscarBeneficiarios'])
+    ->name('api.beneficiarios.buscar');
 ```
 
 **Vistas (Blade):**

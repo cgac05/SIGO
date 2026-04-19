@@ -20,5 +20,16 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException $e, $request) {
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'message' => 'Operación no permitida',
+                    'error' => 'El método usado no es válido para esta acción'
+                ], 405);
+            }
+
+            return response()->view('errors.405', [
+                'message' => 'No se puede completar esta acción'
+            ], 405);
+        });
     })->create();
