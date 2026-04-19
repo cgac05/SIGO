@@ -59,4 +59,4 @@ return new class extends Migration
     }
 };
 
-// Corrección final de tipos de datos y restricciones
+// Sincronización final de tipos de datos para SQL Server - Erick Vargas
