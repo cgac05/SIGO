@@ -58,3 +58,5 @@ return new class extends Migration
         Schema::dropIfExists('auditoria_verificacion');
     }
 };
+
+// Corrección final de tipos de datos y restricciones
