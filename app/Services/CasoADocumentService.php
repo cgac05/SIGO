@@ -3,7 +3,8 @@
 namespace App\Services;
 
 use App\Models\User;
-use App\Models\Solicitudes;
+use App\Models\Solicitud;
+use App\Models\Apoyo;
 use App\Models\DocumentoExpediente;
 use App\Models\ClaveSegumientoPrivada;
 use App\Models\CadenaDigitalDocumento;
@@ -25,70 +26,154 @@ use Carbon\Carbon;
 class CasoADocumentService
 {
     /**
-     * MOMENTO 1: Beneficiario presente entrega documentos físicos
+     * Crear beneficiario parcial (sin fk_id_usuario) para registros manuales
      * 
-     * @param int $beneficiario_id
-     * @param int $solicitud_id
-     * @param string $documento_identidad (cédula/pasaporte número)
-     * @param array $documentos_listados (tipos de docs que trae)
-     * @return array ['folio', 'clave_acceso', 'fecha_entrega']
+     * @param string $curp
+     * @param string $nombre
+     * @param string $apellido_paterno
+     * @param string $apellido_materno
+     * @param string|null $telefono
+     * @return bool
      * @throws \Exception
      */
-    public function crearExpedientePresencial($beneficiario_id, $solicitud_id, $documento_identidad, $documentos_listados)
+    private function crearBeneficiarioPartial($curp, $nombre, $apellido_paterno, $apellido_materno, $telefono = null)
+    {
+        try {
+            // Verificar si ya existe
+            $existe = DB::table('Beneficiarios')
+                ->where('curp', $curp)
+                ->exists();
+            
+            if ($existe) {
+                return true;  // Ya existe, no hacer nada
+            }
+            
+            // Crear registro parcial (fk_id_usuario será NULL)
+            DB::table('Beneficiarios')->insert([
+                'curp' => $curp,
+                'fk_id_usuario' => null,  // ← Sin usuario del sistema
+                'nombre' => $nombre,
+                'apellido_paterno' => $apellido_paterno,
+                'apellido_materno' => $apellido_materno,
+                'telefono' => $telefono,
+                'fecha_nacimiento' => now(),  // Placeholder, puede actualizarse después
+                'fecha_registro' => DB::raw('GETDATE()'),
+            ]);
+            
+            return true;
+        } catch (\Exception $e) {
+            \Log::error('Error creating partial beneficiary: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * MOMENTO 1: Beneficiario presente entrega documentos físicos
+     * ✨ FUSIONADO: Crea solicitud ORDINARIA que entra al flujo normal
+     * 
+     * @param int $beneficiario_id
+     * @param int $apoyo_id
+     * @param string $documento_identidad (cédula/pasaporte número)
+     * @param array $documentos_listados (tipos de docs que trae)
+     * @param int $admin_id (admin que está registrando)
+     * @return array ['folio', 'clave_acceso', 'solicitud_id', 'fecha_entrega']
+     * @throws \Exception
+     */
+    public function crearExpedientePresencial($beneficiario_id, $datoBeneficiario, $apoyo_id, $documentos_listados, $admin_id = null, $notas = null)
     {
         DB::beginTransaction();
         
         try {
             // 1. Validaciones
-            $beneficiario = Usuarios::findOrFail($beneficiario_id);
-            $solicitud = Solicitudes::findOrFail($solicitud_id);
+            $apoyo = Apoyo::findOrFail($apoyo_id);
+            $admin_id = $admin_id ?? auth()->id() ?? 1;
             
-            if (!$documento_identidad || strlen($documento_identidad) < 10) {
-                throw new \Exception('Documento de identidad inválido');
+            // 2. Determinar CURP (del beneficiario registrado o capturado)
+            $curp = $datoBeneficiario->curp ?? null;
+            
+            // ✅ Validar que CURP NO sea NULL (requerido en BD)
+            if (!$curp || empty(trim($curp))) {
+                throw new \Exception('CURP es obligatorio. No se puede procesar el registro sin CURP.');
             }
             
-            // 2. Generar folio único
-            $folio = $this->generarFolio($beneficiario_id);
+            // 3. Si es beneficiario no registrado (manual entry), crear registro parcial
+            if (!$beneficiario_id) {
+                $this->crearBeneficiarioPartial(
+                    $curp,
+                    $datoBeneficiario->nombre_completo,
+                    // Dividir nombre_completo en apellido_paterno y apellido_materno
+                    // Format: "NOMBRE APELLIDO_PATERNO APELLIDO_MATERNO"
+                    explode(' ', $datoBeneficiario->nombre_completo)[0] ?? '',  // Placeholder
+                    explode(' ', $datoBeneficiario->nombre_completo)[1] ?? '',  // Placeholder
+                    $datoBeneficiario->telefono ?? null
+                );
+            } else {
+                // Si es beneficiario registrado, verificar que tenga CURP
+                $ben = \App\Models\Beneficiario::find($beneficiario_id);
+                if (!$ben || !$ben->curp) {
+                    throw new \Exception('El beneficiario registrado no tiene CURP asignado.');
+                }
+                $curp = $ben->curp;
+            }
             
-            // 3. Generar clave privada
+            // 4. Preparar observaciones
+            $observaciones = ($notas ? trim($notas) : '') . " | Nombre: " . $datoBeneficiario->nombre_completo . " | Email: " . ($datoBeneficiario->email ?? 'N/A') . " | Tel: " . ($datoBeneficiario->telefono ?? 'N/A');
+            
+            // 5. Crear Solicitud usando raw SQL con GETDATE()
+            // (GETDATE() es más seguro que intentar convertir Carbon datetime en ODBC+SQL Server)
+            $folio = DB::table('Solicitudes')->insertGetId([
+                'fk_id_apoyo' => $apoyo_id,
+                'fk_id_estado' => 1,  // PENDIENTE
+                'estado_solicitud' => 'DOCUMENTOS_PENDIENTE_VERIFICACIÓN',
+                'origen_solicitud' => 'admin_caso_a',
+                'creada_por_admin' => 1,
+                'admin_creador' => $admin_id,
+                'beneficiario_id' => $beneficiario_id,  // NULL para beneficiarios no registrados
+                'apoyo_id' => $apoyo_id,
+                'observaciones_internas' => $observaciones,
+                'fk_curp' => $curp,
+                'fecha_creacion' => \DB::raw('GETDATE()'),
+                'fecha_cambio_estado' => \DB::raw('GETDATE()'),
+            ], 'folio');
+            
+            // 6. Recuperar solicitud creada
+            $solicitud = Solicitud::find($folio);
+            
+            // 7. Generar clave privada
             $clave_alfanumerica = $this->generarClavePrivada();
             $hash_clave = hash('sha256', $folio . $clave_alfanumerica . config('app.key'));
             
-            // 4. Guardar clave en BD
-            $clave = ClaveSegumientoPrivada::create([
+            // 8. Guardar clave privada (vinculada a folio + solicitud)
+            // Usar DB::table() en lugar de Eloquent para evitar casting de DB::raw()
+            // Para beneficiarios no registrados, usar NULL en beneficiario_id
+            $beneficiario_id_clave = $beneficiario_id;  // NULL es permitido ahora
+            
+            DB::table('claves_seguimiento_privadas')->insert([
                 'folio' => $folio,
                 'clave_alfanumerica' => $clave_alfanumerica,
                 'hash_clave' => $hash_clave,
-                'beneficiario_id' => $beneficiario_id,
-                'fecha_creacion' => now(),
+                'beneficiario_id' => $beneficiario_id_clave,
+                'fecha_creacion' => \DB::raw('GETDATE()'),
                 'intentos_fallidos' => 0,
-                'bloqueada' => false,
-            ]);
-            
-            // 5. Cambiar estado solicitud a EXPEDIENTE_CREADO_PRESENCIAL
-            $estadoId = DB::table('Cat_EstadosSolicitud')
-                ->where('nombre_estado', 'EXPEDIENTE_PRESENCIAL')
-                ->value('id_estado') ?? 6;
-                
-            $solicitud->update([
-                'estado_solicitud' => $estadoId,
-                'fecha_cambio_estado' => now(),
+                'bloqueada' => 0,
             ]);
             
             // 6. Registrar auditoría presencial
-            AuditoriaCargaMaterial::create([
+            // Usar DB::table() en lugar de Eloquent para evitar casting de DB::raw()
+            DB::table('auditorias_carga_material')->insert([
                 'folio' => $folio,
-                'evento' => 'expediente_creado_presencial',
-                'admin_id' => auth()->id() ?? 1,
+                'evento' => 'caso_a_momento_1_presencial',
+                'admin_id' => $admin_id,
                 'cantidad_docs' => count($documentos_listados),
-                'fecha_evento' => now(),
+                'fecha_evento' => \DB::raw('GETDATE()'),
                 'ip_admin' => request()->ip(),
                 'navegador_agente' => request()->header('User-Agent'),
                 'detalles_evento' => json_encode([
                     'beneficiario_id' => $beneficiario_id,
-                    'documento_identidad' => substr($documento_identidad, -4), // No guardar completo
+                    'nombre_beneficiario' => $datoBeneficiario->nombre_completo,
+                    'apoyo_id' => $apoyo_id,
+                    'es_beneficiario_registrado' => $beneficiario_id ? true : false,
                     'documentos_listados' => $documentos_listados,
-                    'admin_id' => auth()->id(),
                 ]),
             ]);
             
@@ -97,13 +182,16 @@ class CasoADocumentService
             return [
                 'folio' => $folio,
                 'clave_acceso' => $clave_alfanumerica,
+                'solicitud_id' => $solicitud->folio,
                 'fecha_entrega' => now()->format('Y-m-d H:i:s'),
-                'documento_identidad_verificado' => true,
+                'beneficiario_nombre' => $datoBeneficiario->nombre_completo,
                 'documentos_esperados' => count($documentos_listados),
+                'estado_solicitud' => 'DOCUMENTOS_PENDIENTE_VERIFICACIÓN',
             ];
             
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Error Caso A Momento 1: ' . $e->getMessage());
             throw $e;
         }
     }
@@ -127,7 +215,7 @@ class CasoADocumentService
             $this->validarArchivo($archivo);
             
             // 2. Obtener solicitud para folio
-            $solicitud = Solicitudes::with('beneficiario')->findOrFail($solicitud_id);
+            $solicitud = Solicitud::with('beneficiario')->findOrFail($solicitud_id);
             $folio = $solicitud->folio ?? 'UNKN-' . $solicitud_id;
             
             // 3. Generar hash SHA256 del contenido
@@ -284,7 +372,7 @@ class CasoADocumentService
         ]);
         
         // 6. Obtener datos del apoyo
-        $solicitud = Solicitudes::where('beneficiario_id', $clave->beneficiario_id)->first();
+        $solicitud = Solicitud::where('beneficiario_id', $clave->beneficiario_id)->first();
         
         $datos_apoyo = [
             'folio' => $folio,
@@ -297,7 +385,7 @@ class CasoADocumentService
             'hitos' => $solicitud?->apoyo?->hitos?->map(function ($hito) {
                 return [
                     'nombre' => $hito->nombre_hito,
-                    'fecha' => $hito->fecha_hito_aproximada?->format('Y-m-d'),
+                    'fecha' => $hito->fecha_inicio?->format('Y-m-d'),
                 ];
             })->toArray() ?? [],
         ];
@@ -341,14 +429,20 @@ class CasoADocumentService
      */
     private function generarFolio($beneficiario_id)
     {
-        $basefolio = 'SIGO-2026-CASO-A-' . $beneficiario_id . '-' . uniqid();
+        // Generar folio como número auto-incremental
+        // Obtener el último folio y sumar 1
+        $ultimoFolio = DB::table('Solicitudes')
+            ->where('origen_solicitud', 'admin_caso_a')
+            ->max('folio') ?? 1000;
         
-        // Verificar unicidad
-        while (ClaveSegumientoPrivada::where('folio', $basefolio)->exists()) {
-            $basefolio = 'SIGO-2026-CASO-A-' . $beneficiario_id . '-' . uniqid();
+        $nuevoFolio = $ultimoFolio + 1;
+        
+        // Verificar que no exista
+        while (Solicitud::find($nuevoFolio)) {
+            $nuevoFolio++;
         }
         
-        return $basefolio;
+        return $nuevoFolio;
     }
 
     /**

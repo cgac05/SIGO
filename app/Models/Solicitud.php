@@ -25,6 +25,14 @@ class Solicitud extends Model
         'presupuesto_confirmado',
         'fecha_confirmacion_presupuesto',
         'directivo_autorizo',
+        // Columnas para Caso A
+        'origen_solicitud',
+        'creada_por_admin',
+        'admin_creador',
+        'beneficiario_id',
+        'apoyo_id',
+        'estado_solicitud',
+        'fecha_cambio_estado',
     ];
 
     protected $casts = [

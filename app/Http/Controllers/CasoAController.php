@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Models\Solicitudes;
+use App\Models\Solicitud;
 use App\Models\DocumentoExpediente;
 use App\Models\Apoyo;
 use App\Services\CasoADocumentService;
@@ -52,72 +52,207 @@ class CasoAController extends Controller
             return Redirect::to('/')->with('error', 'Acceso denegado');
         }
 
-        // Obtener apoyos activos (en estado RECEPCION)
-        $apoyos = Apoyo::where('estado_apoyo', 'RECEPCION')
-            ->orWhere('estado_apoyo', 'ACTIVO')
-            ->get();
+        // Obtener apoyos activos con hitos relacionados
+        $apoyos = Apoyo::where('activo', 1)
+            ->with('hitos')
+            ->get()
+            ->map(function($apoyo) {
+                // Contar solicitudes aprobadas para este apoyo
+                // fk_id_estado = 4 corresponde a "Aprobado"
+                $aprobadas = Solicitud::where('fk_id_apoyo', $apoyo->id_apoyo)
+                    ->where('fk_id_estado', 4)
+                    ->count();
+                
+                $apoyo->total_aprobadas = $aprobadas;
+                
+                // Cargar documentos requeridos para este apoyo
+                $documentosRequeridos = \DB::table('Requisitos_Apoyo')
+                    ->join('Cat_TiposDocumento', 'Requisitos_Apoyo.fk_id_tipo_doc', '=', 'Cat_TiposDocumento.id_tipo_doc')
+                    ->where('Requisitos_Apoyo.fk_id_apoyo', $apoyo->id_apoyo)
+                    ->select(
+                        'Cat_TiposDocumento.id_tipo_doc',
+                        'Cat_TiposDocumento.nombre_documento',
+                        'Requisitos_Apoyo.es_obligatorio'
+                    )
+                    ->get();
+                
+                $apoyo->documentos_requeridos = $documentosRequeridos;
+                
+                // Verificar si está en período de RECEPCION
+                $hitoRecepcion = $apoyo->hitos->firstWhere('clave_hito', 'RECEPCION');
+                $ahora = now();
+                
+                if ($hitoRecepcion && $hitoRecepcion->activo) {
+                    $apoyo->en_periodo_recepcion = $ahora->between(
+                        $hitoRecepcion->fecha_inicio,
+                        $hitoRecepcion->fecha_fin
+                    );
+                } else {
+                    $apoyo->en_periodo_recepcion = false;
+                }
+                
+                return $apoyo;
+            });
+
+        // Filtrar solo apoyos en período de recepción
+        $apoyosFiltrados = $apoyos->filter(fn($a) => $a->en_periodo_recepcion);
 
         // Historial de expedientes creados hoy (por este admin)
         $expedientesHoy = \App\Models\ClaveSegumientoPrivada::whereDate('fecha_creacion', today())->get();
 
         return view('admin.caso-a.momento-uno', [
-            'apoyos' => $apoyos,
+            'apoyos' => $apoyosFiltrados->values(),
+            'apoyosTodos' => $apoyos,
             'expedientesHoy' => $expedientesHoy,
             'adminNombre' => $user->nombre,
         ]);
     }
 
     /**
-     * MOMENTO 1: Guardar expediente presencial
+     * MOMENTO 1: Guardar expediente presencial (FUSIONADO con flujo ordinario)
      * 
      * Acciones:
      * 1. Validar datos ingresados
-     * 2. Verificar beneficiario existe
-     * 3. Verificar apoyo existe y está en estado RECEPCION
-     * 4. Llamar $casoAService->crearExpedientePresencial()
-     * 5. Generar folio + clave privada
-     * 6. Mostrar resumen para imprimir
+     * 2. Crear SOLICITUD ORDINARIA con origen_solicitud = 'admin_caso_a'
+     * 3. Generar folio + clave privada
+     * 4. Estado: DOCUMENTOS_PENDIENTE_VERIFICACIÓN (mismo del flujo normal)
+     * 5. Retornar ticket para imprimir
+     * 
+     * La solicitud entra al FLUJO ORDINARIO (no separado)
+     * - Admin verifica documentos (misma interfaz que beneficiarios)
+     * - Directivo firma (mismo proceso)
      * 
      * POST /admin/caso-a/momento-uno
      * 
      * @param Request $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function guardarMomentoUno(Request $request)
     {
         // Validaciones
-        $validated = $request->validate([
-            'beneficiario_id' => 'required|integer|exists:usuarios,id_usuario',
-            'apoyo_id' => 'required|integer|exists:apoyos,id_apoyo',
-            'documento_identidad' => 'required|string|min:7|max:20',
-            'documentos_listados' => 'required|array|min:1'
-        ]);
+        $esRegistrado = $request->has('es_beneficiario_registrado') && $request->input('es_beneficiario_registrado') === '1';
+        
+        if ($esRegistrado) {
+            // Validar beneficiario registrado
+            $validated = $request->validate([
+                'beneficiario_id' => 'required|integer|exists:usuarios,id_usuario',
+                'apoyo_id' => 'required|integer|exists:apoyos,id_apoyo',
+                'documentos_listados' => 'required|array|min:1',
+                'notas' => 'nullable|string|max:1000'
+            ]);
+            $beneficiario_id = $validated['beneficiario_id'];
+        } else {
+            // Validar captura manual
+            $validated = $request->validate([
+                'manual_nombre' => 'required|string|max:255',
+                'manual_curp' => 'required|string|size:18|regex:/^[A-Z0-9]{18}$/',
+                'manual_email' => 'nullable|email|max:255',
+                'manual_telefono' => 'nullable|string|regex:/^\(\d{3}\) \d{3}-\d{4}$/',
+                'apoyo_id' => 'required|integer|exists:apoyos,id_apoyo',
+                'documentos_listados' => 'required|array|min:1',
+                'notas' => 'nullable|string|max:1000'
+            ], [
+                'manual_curp.required' => 'El CURP es obligatorio para beneficiarios no registrados',
+                'manual_curp.size' => 'El CURP debe tener exactamente 18 caracteres',
+                'manual_curp.regex' => 'El CURP debe contener solo letras mayúsculas y números',
+                'manual_telefono.regex' => 'El teléfono debe tener el formato (123) 456-7890'
+            ]);
+            $beneficiario_id = null;  // Sin beneficiario registrado
+        }
 
         try {
-            $beneficiario = Usuarios::findOrFail($validated['beneficiario_id']);
             $apoyo = Apoyo::findOrFail($validated['apoyo_id']);
             $adminId = Auth::id();
 
-            // Crear expediente presencial
+            // Preparar datos del beneficiario
+            if ($esRegistrado) {
+                $usuario = User::findOrFail($beneficiario_id);
+                
+                // Obtener CURP desde tabla Beneficiarios (relacionada por fk_id_usuario)
+                $beneficiarioRecord = \DB::table('Beneficiarios')
+                    ->where('fk_id_usuario', $beneficiario_id)
+                    ->select('curp', 'nombre', 'apellido_paterno', 'apellido_materno')
+                    ->first();
+                
+                if (!$beneficiarioRecord) {
+                    throw new \Exception(
+                        'El usuario "' . $usuario->email . '" existe en el sistema pero NO está registrado como beneficiario. ' .
+                        'Solo se pueden usar beneficiarios que se hayan registrado completa y oficialmente.'
+                    );
+                }
+                
+                if (!$beneficiarioRecord->curp) {
+                    throw new \Exception(
+                        'El beneficiario "' . $usuario->email . '" no tiene CURP registrado. ' .
+                        'Contacte al administrador para completar los datos.'
+                    );
+                }
+                
+                $datoBeneficiario = (object)[
+                    'id_usuario' => $usuario->id_usuario,
+                    'nombre_completo' => trim(
+                        ($beneficiarioRecord->nombre ?? '') . ' ' .
+                        ($beneficiarioRecord->apellido_paterno ?? '') . ' ' .
+                        ($beneficiarioRecord->apellido_materno ?? '')
+                    ),
+                    'curp' => $beneficiarioRecord->curp,
+                    'email' => $usuario->email,
+                    'telefono' => null,
+                ];
+            } else {
+                $datoBeneficiario = (object) [
+                    'id_usuario' => null,
+                    'nombre_completo' => $validated['manual_nombre'],
+                    'curp' => $validated['manual_curp'],  // Siempre presente (ya validado)
+                    'email' => $validated['manual_email'] ?? null,
+                    'telefono' => $validated['manual_telefono'] ?? null,
+                ];
+            }
+
+            // Crear expediente presencial (retorna solicitud + folio/clave)
             $resultado = $this->casoAService->crearExpedientePresencial(
-                $validated['beneficiario_id'],
+                $beneficiario_id,
+                $datoBeneficiario,
                 $validated['apoyo_id'],
-                $validated['documento_identidad'],
-                $validated['documentos_listados']
+                $validated['documentos_listados'],
+                $adminId,  // admin que está creando
+                $validated['notas'] ?? null  // notas administrativas
             );
 
-            // Guardar folio y clave en sesión para mostrar resumen
+            // Guardar datos en sesión para mostrar ticket
             session([
                 'caso_a_folio' => $resultado['folio'],
                 'caso_a_clave' => $resultado['clave_acceso'],
+                'caso_a_solicitud_id' => $resultado['solicitud_id'],
             ]);
 
-            return redirect()->route('caso-a.resumen-momento-uno', ['folio' => $resultado['folio']])
-                ->with('success', 'Expediente presencial creado exitosamente');
+            // Si es petición AJAX/fetch, retornar JSON
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Expediente presencial creado exitosamente',
+                    'folio' => $resultado['folio'],
+                    'clave_acceso' => $resultado['clave_acceso'],
+                    'solicitud_id' => $resultado['solicitud_id'],
+                ]);
+            }
+
+            // Si no es AJAX, retornar redirect
+            return redirect()->route('admin.caso-a.resumen-momento-uno', ['folio' => $resultado['folio']])
+                ->with('success', 'Expediente presencial creado. Folio generado. Beneficiario entra a flujo ordinario.');
 
         } catch (\Exception $e) {
-            Log::error('Error al crear expediente presencial: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'No se pudo crear el expediente. Intente nuevamente.');
+            Log::error('Error Caso A Momento 1: ' . $e->getMessage());
+            
+            // Si es petición AJAX/fetch, retornar JSON
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error: ' . $e->getMessage(),
+                ], 400);
+            }
+
+            return redirect()->back()->with('error', 'Error: ' . $e->getMessage());
         }
     }
 
@@ -143,23 +278,60 @@ class CasoAController extends Controller
             return Redirect::to('/')->with('error', 'Acceso denegado');
         }
 
-        // Buscar clave en BD
-        $clave = \App\Models\ClaveSegumientoPrivada::where('folio', $folio)->first();
+        // Buscar solicitud por folio
+        $solicitud = Solicitud::where('folio', $folio)->first();
         
-        if (!$clave) {
+        if (!$solicitud) {
             return Redirect::back()->with('error', 'Folio no encontrado');
         }
 
-        $beneficiario = $clave->beneficiario;
-        $solicitud = Solicitudes::where('beneficiario_id', $clave->beneficiario_id)->first();
-        $apoyo = $solicitud?->apoyo;
+        // Buscar clave
+        $clave = \App\Models\ClaveSegumientoPrivada::where('folio', $folio)->first();
+        
+        if (!$clave) {
+            return Redirect::back()->with('error', 'Clave privada no encontrada');
+        }
+
+        // Obtener datos del beneficiario (registrado o manual)
+        $beneficiario = null;
+        
+        if ($solicitud->beneficiario_id && $solicitud->beneficiario_id != 20) {
+            // Beneficiario registrado
+            $beneficiario = \DB::table('Beneficiarios')
+                ->join('Usuarios', 'Beneficiarios.fk_id_usuario', '=', 'Usuarios.id_usuario')
+                ->where('Beneficiarios.fk_id_usuario', $solicitud->beneficiario_id)
+                ->select(
+                    'Beneficiarios.nombre',
+                    'Beneficiarios.apellido_paterno',
+                    'Beneficiarios.apellido_materno',
+                    'Beneficiarios.telefono',
+                    'Beneficiarios.curp',
+                    'Usuarios.email'
+                )
+                ->first();
+        } else {
+            // Beneficiario no registrado o manual - obtener de observaciones
+            // Los datos se guardaron en observaciones_internas durante la creación
+            $beneficiario = (object)[
+                'nombre' => 'Información',
+                'apellido_paterno' => 'Disponible',
+                'apellido_materno' => 'en Detalles',
+                'telefono' => null,
+                'curp' => $solicitud->fk_curp,
+                'email' => 'Ver observaciones'
+            ];
+        }
+        
+        // Apoyo
+        $apoyo = $solicitud->apoyo;
 
         return view('admin.caso-a.resumen-momento-uno', [
             'folio' => $folio,
             'clave' => $clave->clave_alfanumerica,
             'beneficiario' => $beneficiario,
             'apoyo' => $apoyo,
-            'fechaCreacion' => $clave->fecha_creacion,
+            'solicitud' => $solicitud,
+            'fechaCreacion' => $clave->fecha_creacion->format('d/m/Y H:i:s'),
             'qrData' => base64_encode($folio),
         ]);
     }
@@ -227,6 +399,29 @@ class CasoAController extends Controller
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
+    /**
+     * MOMENTO 2: Cargar documento escaneado
+     * 
+     * ✨ FUSIONADO: Solicitud ya está en estado DOCUMENTOS_PENDIENTE_VERIFICACIÓN
+     * Este método SOLO carga documentos, NO cambia estado
+     * 
+     * Procesa:
+     * 1. Validación del archivo (MIME, tamaño)
+     * 2. Cálculo de hash SHA256 (integridad)
+     * 3. Generación de watermark (INJUVE + folio + fecha)
+     * 4. Generación de QR (folio + tipo_doc + timestamp + admin_id)
+     * 5. Firma HMAC-SHA256 (inmutable)
+     * 6. Cadena digital (hash anterior → hash actual)
+     * 7. Auditoría (evento, admin_id, IP, navegador)
+     * 
+     * NOTA: Después, admin va al verificador ORDINARIO
+     * (route: /admin/verificar-documentos con filtro origen_solicitud)
+     * 
+     * POST /admin/caso-a/momento-dos/cargar
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function cargarDocumentoMomentoDos(Request $request)
     {
         // Validaciones
@@ -241,9 +436,21 @@ class CasoAController extends Controller
             $adminId = Auth::id();
             $archivo = $request->file('documento');
 
-            // Obtener clave + solicitud
+            // Obtener clave + solicitud (por folio)
             $clave = \App\Models\ClaveSegumientoPrivada::where('folio', $validated['folio'])->first();
-            $solicitud = Solicitudes::where('beneficiario_id', $clave->beneficiario_id)->first();
+            
+            if (!$clave) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Folio no encontrado'
+                ], 404);
+            }
+
+            // Obtener solicitud (por beneficiario_id + origen_solicitud='admin_caso_a')
+            $solicitud = Solicitud::where('beneficiario_id', $clave->beneficiario_id)
+                ->where('origen_solicitud', 'admin_caso_a')
+                ->latest()  // Última por si hay múltiples
+                ->first();
 
             if (!$solicitud) {
                 return response()->json([
@@ -252,7 +459,7 @@ class CasoAController extends Controller
                 ], 404);
             }
 
-            // Procesar documento con el servicio
+            // Procesar documento con el servicio (watermark, hash, firma, etc.)
             $documento = $this->casoAService->escanearDocumentoPresencial(
                 $solicitud->id_solicitud,
                 $adminId,
@@ -266,14 +473,15 @@ class CasoAController extends Controller
                     'id' => $documento->id_documento,
                     'tipo' => $documento->tipo_documento,
                     'folio' => $clave->folio,
+                    'origen' => 'admin_escaneo_presencial',
                     'fecha' => $documento->fecha_carga->format('Y-m-d H:i:s'),
-                    'hash' => substr($documento->hash_documento, 0, 16) . '...',
+                    'hash_preview' => substr($documento->hash_documento, 0, 16) . '...',
                 ],
-                'mensaje' => 'Documento cargado y verificado exitosamente'
+                'mensaje' => 'Documento cargado exitosamente ✓'
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error al cargar documento: ' . $e->getMessage());
+            Log::error('Error Caso A Momento 2 - Cargar documento: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'error' => 'No se pudo cargar el documento. Intente nuevamente.'
@@ -282,18 +490,22 @@ class CasoAController extends Controller
     }
 
     /**
-     * MOMENTO 2: Confirmar carga de todos los documentos
+     * MOMENTO 2: Confirmar carga de documentos (resumen)
      * 
-     * Acciones:
+     * ✨ FUSIONADO: NO cambiamos estado (ya está en DOCUMENTOS_PENDIENTE_VERIFICACIÓN)
+     * 
+     * Solo:
      * 1. Validar que folio tiene mínimo N documentos
-     * 2. Cambiar estado solicitud a DOCUMENTOS_CARGADOS_Y_VERIFICADOS
-     * 3. Generar resumen de auditoría
-     * 4. Notificar beneficiario que puede consultar
+     * 2. Generar resumen de auditoría
+     * 3. Notificar beneficiario: "Documentos cargados, espera verificación"
+     * 4. Mostrar ticket de referencia
+     * 
+     * DESPUÉS: Admin va a /admin/verificar-documentos (mismo para todos)
      * 
      * POST /admin/caso-a/momento-dos/confirmar
      * 
      * @param Request $request
-     * @return \Illuminate\Http\RedirectResponse
+     * @return \Illuminate\Http\JsonResponse
      */
     public function confirmarCargaMomentoDos(Request $request)
     {
@@ -303,59 +515,91 @@ class CasoAController extends Controller
         ]);
 
         try {
-            // Buscar expediente
+            // Buscar expediente (por folio)
             $clave = \App\Models\ClaveSegumientoPrivada::where('folio', $validated['folio'])->first();
-            $solicitud = Solicitudes::where('beneficiario_id', $clave->beneficiario_id)->first();
+            
+            if (!$clave) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Folio no encontrado'
+                ], 404);
+            }
+
+            // Obtener solicitud
+            $solicitud = Solicitud::where('beneficiario_id', $clave->beneficiario_id)
+                ->where('origen_solicitud', 'admin_caso_a')
+                ->latest()
+                ->first();
 
             if (!$solicitud) {
-                return redirect()->back()->with('error', 'Solicitud no encontrada');
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Solicitud no encontrada'
+                ], 404);
             }
 
             // Contar documentos cargados
-            $cantidadDocs = DocumentoExpediente::where('fk_id_solicitud', $solicitud->id_solicitud)->count();
-            $minimoRequerido = 3; // Mínimo de documentos
+            $cantidadDocs = DocumentoExpediente::where('fk_id_solicitud', $solicitud->id_solicitud)
+                ->where('origen_carga', 'admin_escaneo_presencial')  // Solo los escaneados (Momento 2)
+                ->count();
+
+            $minimoRequerido = 2; // Mínimo de documentos para confirmar
 
             if ($cantidadDocs < $minimoRequerido) {
-                return redirect()->back()->with('error', 
-                    "Debe cargar al menos {$minimoRequerido} documentos. Actualmente tiene {$cantidadDocs}."
-                );
+                return response()->json([
+                    'success' => false,
+                    'error' => "Debe cargar al menos {$minimoRequerido} documentos. Actualmente tiene {$cantidadDocs}.",
+                    'documentosActuales' => $cantidadDocs
+                ], 400);
             }
 
-            // Cambiar estado solicitud
-            $estadoId = DB::table('Cat_EstadosSolicitud')
-                ->where('nombre_estado', 'DOCUMENTOS_CARGADOS_Y_VERIFICADOS')
-                ->value('id_estado') ?? 7;
+            // ✨ NOTA: NO cambiar estado (ya está en DOCUMENTOS_PENDIENTE_VERIFICACIÓN)
+            // La solicitud ENTRA AL FLUJO ORDINARIO
 
-            $solicitud->update([
-                'estado_solicitud' => $estadoId,
-                'fecha_cambio_estado' => now(),
-            ]);
-
-            // Registrar auditoría final
+            // Registrar auditoría final (confirmación de carga)
             \App\Models\AuditoriaCargaMaterial::create([
                 'folio' => $validated['folio'],
-                'evento' => 'carga_confirmada',
+                'evento' => 'caso_a_momento_2_carga_confirmada',
                 'admin_id' => Auth::id(),
                 'cantidad_docs' => $cantidadDocs,
                 'fecha_evento' => now(),
                 'ip_admin' => $request->ip(),
                 'navegador_agente' => $request->header('User-Agent'),
                 'detalles_evento' => json_encode([
+                    'solicitud_id' => $solicitud->id_solicitud,
                     'folio' => $validated['folio'],
-                    'beneficiario_id' => $clave->beneficiario_id,
-                    'cantidad_documentos' => $cantidadDocs,
+                    'documentos_confirmados' => $cantidadDocs,
+                    'estado_actual' => 'DOCUMENTOS_PENDIENTE_VERIFICACIÓN',
+                    'siguiente_paso' => 'Ir a verificador ordinario (/admin/verificar-documentos)',
                 ]),
             ]);
 
-            // TODO: Enviar email a beneficiario
-            // Mail::to($clave->beneficiario->email)->send(new CargaConfirmadaMail($validated['folio']));
+            // Notificar beneficiario
+            $beneficiario = User::find($clave->beneficiario_id);
+            if ($beneficiario && $beneficiario->email) {
+                // TODO: Enviar email: "Documentos cargados, en proceso de verificación"
+                // $beneficiario->notify(new DocumentosCargadosNotification($solicitud));
+            }
 
-            return redirect()->route('admin.dashboard')
-                ->with('success', 'Carga completada y confirmada exitosamente');
+            return response()->json([
+                'success' => true,
+                'resumen' => [
+                    'folio' => $validated['folio'],
+                    'solicitud_id' => $solicitud->id_solicitud,
+                    'documentos_cargados' => $cantidadDocs,
+                    'estado_actual' => 'DOCUMENTOS_PENDIENTE_VERIFICACIÓN',
+                    'siguiente_paso' => 'Ir a panel de verificación ordinario',
+                    'url_verificador' => route('admin.solicitudes.index'),
+                ],
+                'mensaje' => "✓ {$cantidadDocs} documentos confirmados. La solicitud entra al flujo ordinario."
+            ]);
 
         } catch (\Exception $e) {
-            Log::error('Error al confirmar carga: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'No se pudo confirmar la carga.');
+            Log::error('Error Caso A Momento 2 - Confirmar carga: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'No se pudo confirmar la carga. Intente nuevamente.'
+            ], 500);
         }
     }
 
@@ -481,10 +725,10 @@ class CasoAController extends Controller
         }
 
         // Obtener solicitud + documentos
-        $solicitud = Solicitudes::where('beneficiario_id', $clave->beneficiario_id)->first();
+        $solicitud = Solicitud::where('beneficiario_id', $clave->beneficiario_id)->first();
         $documentos = $solicitud?->documentos()->get() ?? [];
         $apoyo = $solicitud?->apoyo;
-        $hitos = $apoyo?->hitos()->orderBy('fecha_hito_aproximada')->get() ?? [];
+        $hitos = $apoyo?->hitos()->orderBy('orden_hito')->get() ?? [];
 
         return view('caso-a.resumen-privado', [
             'folio' => $folio,

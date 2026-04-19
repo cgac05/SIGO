@@ -201,7 +201,7 @@
                 </svg>
                 Imprimir
             </button>
-            <form action="{{ route('caso-a.momento-tres.logout') }}" method="POST" class="flex-1">
+            <form action="{{ route('logout') }}" method="POST" class="flex-1">
                 @csrf
                 <button 
                     type="submit"
