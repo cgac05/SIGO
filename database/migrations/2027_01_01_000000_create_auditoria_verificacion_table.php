@@ -58,3 +58,5 @@ return new class extends Migration
         Schema::dropIfExists('auditoria_verificacion');
     }
 };
+
+// Sincronización final de tipos de datos para SQL Server - Erick Vargas

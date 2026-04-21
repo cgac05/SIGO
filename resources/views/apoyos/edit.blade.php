@@ -158,6 +158,7 @@ $customMilestones = $normalizedMilestones->where('es_base', 0)->values();
 
     <form id="formularioEditarApoyo" method="POST" action="{{ route('apoyos.update', $apoyo->id_apoyo) }}" enctype="multipart/form-data" novalidate>
         @csrf
+        @method('PUT')
         <input type="hidden" name="descripcion" id="descripcion-hidden">
         <input type="hidden" name="documentos_requeridos_present" value="1">
 

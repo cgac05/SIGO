@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Apoyo;
+use App\Models\PresupuestoApoyo;
 use App\Models\PresupuestoCategoria;
+use App\Models\Solicitud;
 use App\Services\GestionInventarioService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -1171,8 +1173,10 @@ $categoriasPresupuesto = PresupuestoCategoria::select('id_categoria', 'nombre', 
             ->exists();
         
         // Cargar presupuesto actual
-        $presupuestoActual = PresupuestoApoyo::where('id_apoyo', $id)
-            ->where('estado', 'RESERVADO')
+        // PresupuestoApoyo uses 'folio' from Solicitud, not id_apoyo
+        $presupuestoActual = PresupuestoApoyo::whereIn('folio', 
+            Solicitud::where('fk_id_apoyo', $id)->pluck('folio')
+        )->where('estado', 'RESERVADO')
             ->first();
 
         return view('apoyos.form', compact('apoyo', 'tiposDocumentos', 'requisitosActuales', 'montoInicialAsignado', 'stockInicial', 'milestonesBase', 'existingMilestones', 'categoriasPresupuesto', 'presupuestoActual', 'solicitudesAprobadas'));
