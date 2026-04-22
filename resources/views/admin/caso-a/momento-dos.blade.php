@@ -152,14 +152,6 @@
                         </div>
                     </div>
 
-                    <!-- Documentos Requeridos -->
-                    <div class="p-4 bg-purple-50 rounded border border-purple-200">
-                        <h3 class="text-sm font-semibold text-gray-700 uppercase mb-3">📋 Documentos Requeridos</h3>
-                        <div id="documentosRequeridosList" class="space-y-2">
-                            <p class="text-gray-600 text-sm italic">Cargando documentos...</p>
-                        </div>
-                    </div>
-
                     <!-- Áreas de Carga por Documento -->
                     <div id="areasCarguaDocumentos" class="space-y-4">
                         <!-- Se llena dinámicamente desde JavaScript -->
@@ -453,42 +445,13 @@
         document.getElementById('apoyoTipo').textContent = datos.apoyo.tipo || '--';
         document.getElementById('apoyoMonto').textContent = '$ ' + (datos.apoyo.monto_maximo ? datos.apoyo.monto_maximo.toLocaleString('es-MX') : '0');
 
-        // Llenar documentos requeridos
-        const listaDocumentos = document.getElementById('documentosRequeridosList');
-        listaDocumentos.innerHTML = '';
-
         // Generar áreas de carga por documento
         const areasCargas = document.getElementById('areasCarguaDocumentos');
         areasCargas.innerHTML = '';
 
         if (datos.documentos_requeridos && datos.documentos_requeridos.length > 0) {
             datos.documentos_requeridos.forEach(doc => {
-                // 1. Agregar a lista de documentos
-                const docDiv = document.createElement('div');
-                docDiv.className = 'flex items-center p-2 bg-white rounded border-l-4 ' + 
-                    (doc.ya_cargado ? 'border-green-500 opacity-60' : 'border-purple-500');
-                
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.className = 'mr-3 w-4 h-4 text-green-600 rounded';
-                checkbox.checked = doc.ya_cargado;
-                checkbox.disabled = doc.ya_cargado;
-
-                const label = document.createElement('div');
-                label.className = 'flex-1';
-                label.innerHTML = `
-                    <p class="text-sm font-semibold text-gray-900">${doc.nombre_documento}</p>
-                    <p class="text-xs text-gray-600">
-                        ${doc.es_obligatorio ? '✓ Obligatorio' : '○ Opcional'} 
-                        ${doc.ya_cargado ? ' • Ya cargado' : ''}
-                    </p>
-                `;
-
-                docDiv.appendChild(checkbox);
-                docDiv.appendChild(label);
-                listaDocumentos.appendChild(docDiv);
-
-                // 2. Crear área de carga para cada documento NO cargado
+                // Crear área de carga para cada documento NO cargado
                 if (!doc.ya_cargado) {
                     const areaCarga = document.createElement('div');
                     areaCarga.className = 'bg-white p-6 rounded-lg border-2 border-dashed border-green-300 hover:border-green-500 transition';
@@ -545,7 +508,6 @@
 
             document.getElementById('botonesEnvio').classList.remove('hidden');
         } else {
-            listaDocumentos.innerHTML = '<p class="text-gray-600 text-sm italic">No hay documentos requeridos</p>';
             document.getElementById('botonesEnvio').classList.add('hidden');
         }
 
@@ -747,25 +709,43 @@
                     credentials: 'include'
                 });
 
-                const result = await response.json();
+                let result;
+                try {
+                    result = await response.json();
+                } catch (e) {
+                    // Si no es JSON válido, crear objeto de error
+                    result = {
+                        success: false,
+                        error: `Respuesta inválida del servidor (HTTP ${response.status})`
+                    };
+                }
 
                 if (result.success) {
                     exitosos++;
                     document.getElementById('statusText').textContent = `Enviando documentos... ${i + 1}/${archivosSeleccionados.length} ✓`;
                 } else {
-                    errores.push(tipoDoc + ': ' + result.error);
-                    document.getElementById('statusText').innerHTML = `<p>${i + 1}/${archivosSeleccionados.length} - Error: ${result.error}</p>`;
+                    const errorMsg = result.error || result.message || `Error desconocido (HTTP ${response.status})`;
+                    errores.push({
+                        tipoDoc: tipoDoc,
+                        error: errorMsg,
+                        status: response.status
+                    });
+                    document.getElementById('statusText').innerHTML = `<p>${i + 1}/${archivosSeleccionados.length} - ${errorMsg}</p>`;
                 }
             } catch (error) {
-                errores.push(tipoDoc + ': ' + error.message);
-                document.getElementById('statusText').innerHTML = `<p>Error: ${error.message}</p>`;
+                errores.push({
+                    tipoDoc: tipoDoc,
+                    error: error.message,
+                    status: 'NETWORK'
+                });
+                document.getElementById('statusText').innerHTML = `<p>Error de red: ${error.message}</p>`;
             }
         }
 
         // Mostrar resultado final
         setTimeout(() => {
             if (errores.length === 0) {
-                statusDiv.className = 'fixed bottom-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg';
+                statusDiv.className = 'fixed bottom-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg z-50';
                 statusDiv.innerHTML = `<p>✓ Todos los ${exitosos} documento(s) se cargaron exitosamente</p>`;
                 setTimeout(() => {
                     document.getElementById('formCargarDocumento').reset();
@@ -774,8 +754,12 @@
                     location.reload();
                 }, 2000);
             } else {
-                statusDiv.className = 'fixed bottom-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg';
-                statusDiv.innerHTML = `<p>✓ ${exitosos} cargados, ✗ ${errores.length} errores</p>`;
+                statusDiv.className = 'fixed bottom-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg z-50 max-w-md max-h-96 overflow-y-auto';
+                let errorHtml = `<p class="font-semibold mb-3">✓ ${exitosos} cargados, ✗ ${errores.length} errores:</p>`;
+                errores.forEach(err => {
+                    errorHtml += `<p class="text-sm mb-2"><strong>${err.tipoDoc}:</strong> ${err.error}</p>`;
+                });
+                statusDiv.innerHTML = errorHtml;
             }
         }, 500);
     });

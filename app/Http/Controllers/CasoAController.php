@@ -497,12 +497,30 @@ class CasoAController extends Controller
      */
     public function cargarDocumentoMomentoDos(Request $request)
     {
-        // Validaciones básicas
-        $validated = $request->validate([
-            'folio' => 'required|string|exists:claves_seguimiento_privadas,folio',
-            'documento' => 'required|file|max:5120',
-            'tipo_documento' => 'required|string|exists:Cat_TiposDocumento,id_tipo_doc'
-        ]);
+        try {
+            // Validaciones básicas
+            $validated = $request->validate([
+                'folio' => 'required|string|exists:claves_seguimiento_privadas,folio',
+                'documento' => 'required|file|max:5120',
+                'tipo_documento' => 'required|string|exists:Cat_TiposDocumento,id_tipo_doc'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validación falló en cargarDocumentoMomentoDos', [
+                'errors' => $e->errors(),
+                'folio' => $request->input('folio'),
+                'tipo_documento' => $request->input('tipo_documento')
+            ]);
+            
+            $mensajeError = 'Validación fallida: ';
+            foreach ($e->errors() as $field => $messages) {
+                $mensajeError .= implode(', ', $messages) . ' ';
+            }
+            
+            return response()->json([
+                'success' => false,
+                'error' => trim($mensajeError)
+            ], 422);
+        }
 
         try {
             // Obtener datos
@@ -510,15 +528,25 @@ class CasoAController extends Controller
             $archivo = $request->file('documento');
             $tipoDocId = $validated['tipo_documento'];
 
+            \Log::info('Iniciando carga de documento', [
+                'folio' => $validated['folio'],
+                'tipo_doc_id' => $tipoDocId,
+                'admin_id' => $adminId,
+                'archivo_nombre' => $archivo->getClientOriginalName(),
+                'archivo_tamaño' => $archivo->getSize(),
+                'archivo_extension' => $archivo->getClientOriginalExtension()
+            ]);
+
             // Obtener configuración del tipo de documento
             $tipoDocumento = \DB::table('Cat_TiposDocumento')
                 ->where('id_tipo_doc', $tipoDocId)
                 ->first();
             
             if (!$tipoDocumento) {
+                \Log::error('Tipo de documento no encontrado', ['id_tipo_doc' => $tipoDocId]);
                 return response()->json([
                     'success' => false,
-                    'error' => 'Tipo de documento no configurado'
+                    'error' => 'Tipo de documento no configurado en el sistema'
                 ], 404);
             }
 
@@ -529,10 +557,18 @@ class CasoAController extends Controller
                 
                 $extensionArchivo = strtolower($archivo->getClientOriginalExtension());
                 
+                \Log::info('Validando tipo de archivo', [
+                    'extension_archivo' => $extensionArchivo,
+                    'tipos_permitidos' => $tiposPermitidos,
+                    'validar_tipo_archivo' => $tipoDocumento->validar_tipo_archivo
+                ]);
+                
                 if (!in_array($extensionArchivo, $tiposPermitidos)) {
+                    $error = 'Tipo de archivo no permitido. Formatos aceptados: ' . strtoupper(implode(', ', $tiposPermitidos));
+                    \Log::warning('Tipo de archivo rechazado', ['error' => $error, 'extension' => $extensionArchivo]);
                     return response()->json([
                         'success' => false,
-                        'error' => 'Tipo de archivo no permitido. Formatos aceptados: ' . strtoupper(implode(', ', $tiposPermitidos))
+                        'error' => $error
                     ], 422);
                 }
             }
@@ -541,10 +577,18 @@ class CasoAController extends Controller
             $pesoMaximoMb = $tipoDocumento->peso_maximo_mb ?? 5;
             $pesoMaximoBytes = $pesoMaximoMb * 1024 * 1024;
             
+            \Log::info('Validando peso del archivo', [
+                'peso_bytes' => $archivo->getSize(),
+                'peso_maximo_bytes' => $pesoMaximoBytes,
+                'peso_maximo_mb' => $pesoMaximoMb
+            ]);
+            
             if ($archivo->getSize() > $pesoMaximoBytes) {
+                $error = "El archivo excede el tamaño máximo de {$pesoMaximoMb} MB (tamaño: " . round($archivo->getSize() / 1024 / 1024, 2) . " MB)";
+                \Log::warning('Archivo muy grande', ['error' => $error]);
                 return response()->json([
                     'success' => false,
-                    'error' => "El archivo excede el tamaño máximo de {$pesoMaximoMb} MB"
+                    'error' => $error
                 ], 422);
             }
 
@@ -552,23 +596,36 @@ class CasoAController extends Controller
             $clave = \App\Models\ClaveSegumientoPrivada::where('folio', $validated['folio'])->first();
             
             if (!$clave) {
+                \Log::error('Folio no encontrado', ['folio' => $validated['folio']]);
                 return response()->json([
                     'success' => false,
                     'error' => 'Folio no encontrado'
                 ], 404);
             }
 
-            // Obtener solicitud (por beneficiario_id + origen_solicitud='admin_caso_a')
-            $solicitud = Solicitud::where('beneficiario_id', $clave->beneficiario_id)
-                ->where('origen_solicitud', 'admin_caso_a')
-                ->latest()  // Última por si hay múltiples
-                ->first();
+            // Obtener solicitud usando el folio (que es la primary key)
+            $solicitud = Solicitud::find($clave->folio);
 
             if (!$solicitud) {
+                \Log::error('Solicitud no encontrada para folio', [
+                    'folio' => $clave->folio
+                ]);
                 return response()->json([
                     'success' => false,
-                    'error' => 'Solicitud no encontrada'
+                    'error' => 'Solicitud no encontrada para el folio'
                 ], 404);
+            }
+
+            // Validar que sea Caso A
+            if ($solicitud->origen_solicitud !== 'admin_caso_a') {
+                \Log::warning('Solicitud no es de Caso A', [
+                    'folio' => $clave->folio,
+                    'origen' => $solicitud->origen_solicitud
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Esta solicitud no es de Caso A'
+                ], 422);
             }
 
             // Procesar documento con el servicio (watermark, hash, firma, etc.)
@@ -578,6 +635,11 @@ class CasoAController extends Controller
                 $archivo,
                 $validated['tipo_documento']
             );
+
+            \Log::info('Documento cargado exitosamente', [
+                'documento_id' => $documento->id_doc,
+                'folio' => $validated['folio']
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -592,10 +654,16 @@ class CasoAController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error Caso A Momento 2 - Cargar documento: ' . $e->getMessage());
+            \Log::error('Error en CasoA Momento 2 - Cargar documento', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
-                'error' => 'No se pudo cargar el documento. Intente nuevamente.'
+                'error' => 'Error al procesar el documento: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -636,11 +704,8 @@ class CasoAController extends Controller
                 ], 404);
             }
 
-            // Obtener solicitud
-            $solicitud = Solicitud::where('beneficiario_id', $clave->beneficiario_id)
-                ->where('origen_solicitud', 'admin_caso_a')
-                ->latest()
-                ->first();
+            // Obtener solicitud usando el folio (que es la primary key)
+            $solicitud = Solicitud::find($clave->folio);
 
             if (!$solicitud) {
                 return response()->json([

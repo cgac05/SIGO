@@ -489,13 +489,13 @@ Route::get('/api/beneficiarios/buscar', function (\Illuminate\Http\Request $requ
 })->middleware('auth')->name('api.beneficiarios.buscar');
 
 // API: Datos del folio para Momento 2 (dinámico)
-Route::get('/api/caso-a/folio/{folio}', [\App\Http\Controllers\CasoAController::class, 'obtenerDatosDelFolio'])
-    ->middleware(['auth', 'role:1,2'])
-    ->name('api.caso-a.datos-folio');
+Route::middleware(['auth', 'role:1,2'])->group(function () {
+    Route::get('/api/caso-a/folio/{folio}', [\App\Http\Controllers\CasoAController::class, 'obtenerDatosDelFolio'])
+        ->name('api.caso-a.datos-folio');
 
-// API: Folios pendientes de escaneo
-Route::get('/api/caso-a/pendientes-escaneo', [\App\Http\Controllers\CasoAController::class, 'obtenerPendientesEscaneo'])
-    ->middleware(['auth', 'role:1,2'])
-    ->name('api.caso-a.pendientes-escaneo');
+    // API: Folios pendientes de escaneo
+    Route::get('/api/caso-a/pendientes-escaneo', [\App\Http\Controllers\CasoAController::class, 'obtenerPendientesEscaneo'])
+        ->name('api.caso-a.pendientes-escaneo');
+});
 
 require __DIR__.'/auth.php';
