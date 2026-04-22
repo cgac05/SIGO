@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Solicitud;
-use App\Models\DocumentoExpediente;
+use App\Models\Documento;
 use App\Models\Apoyo;
+use App\Models\Beneficiario;
+use App\Models\ClaveSegumientoPrivada;
 use App\Services\CasoADocumentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -325,6 +327,16 @@ class CasoAController extends Controller
         // Apoyo
         $apoyo = $solicitud->apoyo;
 
+        // Generar URL para QR (acceso directo sin formulario)
+        $urlAccesoQr = route('caso-a.acceso-qr', [
+            'folio' => $folio,
+            'clave' => $clave->clave_alfanumerica
+        ], absolute: true);
+        
+        // Generar imagen QR usando QR Server API (gratuita, confiable)
+        // URL codificada para pasar al servicio
+        $qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' . urlencode($urlAccesoQr);
+
         return view('admin.caso-a.resumen-momento-uno', [
             'folio' => $folio,
             'clave' => $clave->clave_alfanumerica,
@@ -332,8 +344,69 @@ class CasoAController extends Controller
             'apoyo' => $apoyo,
             'solicitud' => $solicitud,
             'fechaCreacion' => $clave->fecha_creacion->format('d/m/Y H:i:s'),
-            'qrData' => base64_encode($folio),
+            'qrImageUrl' => $qrImageUrl,  // URL directo a imagen QR
+            'urlAccesoQr' => $urlAccesoQr,  // URL para tooltip
         ]);
+    }
+
+    /**
+     * Acceso directo vía QR (PÚBLICA - sin autenticación)
+     * 
+     * Flujo:
+     * 1. Se escanea QR de ticket presencial
+     * 2. URL contiene folio + clave como parámetros GET
+     * 3. Este método valida la combinación
+     * 4. Si es válida, muestra resumen sin pasos adicionales
+     * 5. Si es inválida, redirige al formulario de consulta
+     * 
+     * Uso: Beneficiario escanea QR con celular → abre directo al resumen
+     * 
+     * GET /consulta-privada/acceso-qr?folio=1035&clave=XXXX-XXXX-XXXX-XXXX
+     * 
+     * @param Request $request
+     * @return \Illuminate\View\View | \Illuminate\Http\RedirectResponse
+     */
+    public function accesoDirectoQr(Request $request)
+    {
+        $request->validate([
+            'folio' => 'required|string',
+            'clave' => 'required|string'
+        ]);
+
+        $folio = $request->folio;
+        $clave = $request->clave;
+
+        try {
+            // Buscar clave privada por folio + clave
+            $claveRecord = \App\Models\ClaveSegumientoPrivada::where('folio', $folio)
+                ->where('clave_alfanumerica', $clave)
+                ->first();
+
+            if (!$claveRecord) {
+                return redirect()->route('caso-a.momento-tres-form')
+                    ->with('error', 'Folio o Clave no válidos. Intenta nuevamente.');
+            }
+
+            // Validar que no esté bloqueada por intentos fallidos
+            if ($claveRecord->bloqueada) {
+                return redirect()->route('caso-a.momento-tres-form')
+                    ->with('error', 'Esta clave ha sido bloqueada por múltiples intentos fallidos. Contacta al administrador.');
+            }
+
+            // Guardar en sesión y redirigir directo al resumen
+            session([
+                'caso_a_folio' => $folio,  // Variable correcta esperada por mostrarResumenMomentoTres()
+                'caso_a_privada' => true,   // Indicador de acceso válido
+            ]);
+
+            // Ir directo al resumen sin pasos intermedios
+            return redirect()->route('caso-a.resumen-momento-tres');
+
+        } catch (\Exception $e) {
+            \Log::error('Error QR access: ' . $e->getMessage());
+            return redirect()->route('caso-a.momento-tres-form')
+                ->with('error', 'Error procesando QR. Intenta nuevamente.');
+        }
     }
 
     /**
@@ -362,16 +435,16 @@ class CasoAController extends Controller
 
         // Obtener documentos cargados hoy por este admin
         $adminId = Auth::id();
-        $documentosHoy = DocumentoExpediente::whereDate('fecha_carga', today())
-            ->where('cargado_por', $adminId)
+        $documentosHoy = Documento::whereDate('fecha_carga', today())
+            ->where('id_admin', $adminId)
             ->with('solicitud')
             ->get();
 
         // Estadísticas
         $estadisticas = [
-            'pendientes' => DocumentoExpediente::where('estado_verificacion', 'PENDIENTE')->count(),
-            'completados' => DocumentoExpediente::where('estado_verificacion', 'VERIFICADO')->count(),
-            'conError' => DocumentoExpediente::where('estado_verificacion', 'RECHAZADO')->count(),
+            'pendientes' => Documento::where('estado_validacion', 'PENDIENTE')->count(),
+            'completados' => Documento::where('estado_validacion', 'VERIFICADO')->count(),
+            'conError' => Documento::where('estado_validacion', 'RECHAZADO')->count(),
         ];
 
         return view('admin.caso-a.momento-dos', [
@@ -424,17 +497,56 @@ class CasoAController extends Controller
      */
     public function cargarDocumentoMomentoDos(Request $request)
     {
-        // Validaciones
+        // Validaciones básicas
         $validated = $request->validate([
             'folio' => 'required|string|exists:claves_seguimiento_privadas,folio',
-            'documento' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'tipo_documento' => 'required|string'
+            'documento' => 'required|file|max:5120',
+            'tipo_documento' => 'required|string|exists:Cat_TiposDocumento,id_tipo_doc'
         ]);
 
         try {
             // Obtener datos
             $adminId = Auth::id();
             $archivo = $request->file('documento');
+            $tipoDocId = $validated['tipo_documento'];
+
+            // Obtener configuración del tipo de documento
+            $tipoDocumento = \DB::table('Cat_TiposDocumento')
+                ->where('id_tipo_doc', $tipoDocId)
+                ->first();
+            
+            if (!$tipoDocumento) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Tipo de documento no configurado'
+                ], 404);
+            }
+
+            // Validar tipo de archivo si está configurada la validación
+            if ($tipoDocumento->validar_tipo_archivo) {
+                $tiposPermitidos = explode(',', strtolower($tipoDocumento->tipo_archivo_permitido ?? 'pdf,jpg,jpeg,png'));
+                $tiposPermitidos = array_map('trim', $tiposPermitidos);
+                
+                $extensionArchivo = strtolower($archivo->getClientOriginalExtension());
+                
+                if (!in_array($extensionArchivo, $tiposPermitidos)) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'Tipo de archivo no permitido. Formatos aceptados: ' . strtoupper(implode(', ', $tiposPermitidos))
+                    ], 422);
+                }
+            }
+
+            // Validar peso máximo
+            $pesoMaximoMb = $tipoDocumento->peso_maximo_mb ?? 5;
+            $pesoMaximoBytes = $pesoMaximoMb * 1024 * 1024;
+            
+            if ($archivo->getSize() > $pesoMaximoBytes) {
+                return response()->json([
+                    'success' => false,
+                    'error' => "El archivo excede el tamaño máximo de {$pesoMaximoMb} MB"
+                ], 422);
+            }
 
             // Obtener clave + solicitud (por folio)
             $clave = \App\Models\ClaveSegumientoPrivada::where('folio', $validated['folio'])->first();
@@ -470,12 +582,11 @@ class CasoAController extends Controller
             return response()->json([
                 'success' => true,
                 'documento' => [
-                    'id' => $documento->id_documento,
-                    'tipo' => $documento->tipo_documento,
+                    'id' => $documento->id_doc,
+                    'tipo' => $validated['tipo_documento'],
                     'folio' => $clave->folio,
                     'origen' => 'admin_escaneo_presencial',
                     'fecha' => $documento->fecha_carga->format('Y-m-d H:i:s'),
-                    'hash_preview' => substr($documento->hash_documento, 0, 16) . '...',
                 ],
                 'mensaje' => 'Documento cargado exitosamente ✓'
             ]);
@@ -539,8 +650,8 @@ class CasoAController extends Controller
             }
 
             // Contar documentos cargados
-            $cantidadDocs = DocumentoExpediente::where('fk_id_solicitud', $solicitud->id_solicitud)
-                ->where('origen_carga', 'admin_escaneo_presencial')  // Solo los escaneados (Momento 2)
+            $cantidadDocs = Documento::where('fk_folio', $solicitud->folio)
+                ->where('origen_archivo', 'admin_escaneo_presencial')  // Solo los escaneados (Momento 2)
                 ->count();
 
             $minimoRequerido = 2; // Mínimo de documentos para confirmar
@@ -715,7 +826,7 @@ class CasoAController extends Controller
         // Obtener folio de sesión
         $folio = session('caso_a_folio');
 
-        // Buscar expediente
+        // Buscar expediente por folio en claves_seguimiento_privadas
         $clave = \App\Models\ClaveSegumientoPrivada::where('folio', $folio)->first();
         
         if (!$clave) {
@@ -724,15 +835,35 @@ class CasoAController extends Controller
                 ->with('error', 'Expediente no encontrado');
         }
 
-        // Obtener solicitud + documentos
-        $solicitud = Solicitud::where('beneficiario_id', $clave->beneficiario_id)->first();
-        $documentos = $solicitud?->documentos()->get() ?? [];
-        $apoyo = $solicitud?->apoyo;
+        // Obtener solicitud directamente por folio (más confiable)
+        $solicitud = Solicitud::where('folio', $folio)->first();
+        
+        if (!$solicitud) {
+            session()->forget(['caso_a_folio', 'caso_a_privada', 'caso_a_expira']);
+            return redirect()->route('caso-a.momento-tres-form')
+                ->with('error', 'Solicitud no encontrada');
+        }
+
+        // Obtener documentos + apoyo + hitos
+        $documentos = $solicitud->documentos()->get() ?? [];
+        $apoyo = $solicitud->apoyo;
         $hitos = $apoyo?->hitos()->orderBy('orden_hito')->get() ?? [];
+        
+        // Obtener beneficiario (puede ser NULL para beneficiarios no registrados)
+        $beneficiario = $solicitud->beneficiario;
+        if (!$beneficiario && $solicitud->fk_curp) {
+            // Beneficiario no registrado - mostrar datos básicos
+            $beneficiario = (object)[
+                'nombre' => 'Información',
+                'apellido_paterno' => 'Disponible',
+                'apellido_materno' => 'en Detalles',
+                'curp' => $solicitud->fk_curp,
+            ];
+        }
 
         return view('caso-a.resumen-privado', [
             'folio' => $folio,
-            'beneficiario' => $clave->beneficiario,
+            'beneficiario' => $beneficiario,
             'solicitud' => $solicitud,
             'documentos' => $documentos,
             'apoyo' => $apoyo,
@@ -758,6 +889,223 @@ class CasoAController extends Controller
         
         return redirect('/')
             ->with('success', 'Sesión cerrada correctamente. Gracias por usar INJUVE.');
+    }
+
+    /**
+     * API: Buscar datos del folio (para llenado dinámico en Momento 2)
+     * 
+     * GET /api/caso-a/folio/{folio}
+     * 
+     * Retorna:
+     * - Datos del beneficiario
+     * - Datos del apoyo
+     * - Documentos requeridos del apoyo
+     * 
+     * @param string $folio
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function obtenerDatosDelFolio($folio)
+    {
+        try {
+            // Buscar la clave (validar que el folio existe)
+            $clave = ClaveSegumientoPrivada::where('folio', $folio)->first();
+            
+            if (!$clave) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Folio no encontrado'
+                ], 404);
+            }
+
+            // Obtener solicitud por folio
+            $solicitud = Solicitud::where('folio', $folio)->first();
+            
+            if (!$solicitud) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Solicitud no encontrada'
+                ], 404);
+            }
+
+            // Obtener beneficiario con relación user (para el email)
+            $beneficiario = $solicitud->beneficiario ? $solicitud->beneficiario()->with('user')->first() : null;
+            
+            // Obtener email: del usuario si existe, sino del campo observaciones de la solicitud
+            $email = null;
+            if ($beneficiario && $beneficiario->user) {
+                $email = $beneficiario->user->email;
+            } else {
+                // Extraer email del campo observaciones_internas (formato: "... | Email: algo@ejemplo.com | Tel: ...")
+                if ($solicitud->observaciones_internas && preg_match('/\| Email:\s*([^\|]+)\s*\|/', $solicitud->observaciones_internas, $matches)) {
+                    $email = trim($matches[1]);
+                    if ($email === 'N/A' || $email === '') {
+                        $email = null;
+                    }
+                }
+            }
+            
+            if (!$beneficiario && $solicitud->fk_curp) {
+                // Crear objeto con datos básicos para no registrados
+                $beneficiario = (object)[
+                    'nombre' => 'Beneficiario',
+                    'curp' => $solicitud->fk_curp,
+                    'email' => $email,
+                    'telefono' => 'N/A',
+                    'user' => null
+                ];
+            }
+
+            // Obtener apoyo
+            $apoyo = $solicitud->apoyo;
+            if (!$apoyo) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Apoyo no encontrado'
+                ], 404);
+            }
+
+            // Obtener documentos requeridos del apoyo
+            $documentosRequeridos = \DB::table('Requisitos_Apoyo')
+                ->join('Cat_TiposDocumento', 'Requisitos_Apoyo.fk_id_tipo_doc', '=', 'Cat_TiposDocumento.id_tipo_doc')
+                ->where('Requisitos_Apoyo.fk_id_apoyo', $apoyo->id_apoyo)
+                ->select(
+                    'Cat_TiposDocumento.id_tipo_doc',
+                    'Cat_TiposDocumento.nombre_documento',
+                    'Cat_TiposDocumento.tipo_archivo_permitido',
+                    'Cat_TiposDocumento.validar_tipo_archivo',
+                    'Cat_TiposDocumento.peso_maximo_mb',
+                    'Requisitos_Apoyo.es_obligatorio'
+                )
+                ->get();
+
+            // Obtener documentos ya cargados
+            $documentosCargados = Documento::where('fk_folio', $folio)
+                ->where('origen_archivo', 'admin_escaneo_presencial')
+                ->pluck('fk_id_tipo_doc')
+                ->toArray();
+
+            return response()->json([
+                'success' => true,
+                'beneficiario' => [
+                    'nombre' => trim(($beneficiario->nombre ?? '') . ' ' . ($beneficiario->apellido_paterno ?? '') . ' ' . ($beneficiario->apellido_materno ?? '')),
+                    'curp' => $beneficiario->curp ?? 'N/A',
+                    'email' => ($email ?? 'No registrado'),
+                    'telefono' => $beneficiario->telefono ?? 'N/A'
+                ],
+                'apoyo' => [
+                    'id' => $apoyo->id_apoyo,
+                    'nombre' => $apoyo->nombre_apoyo ?? 'N/A',
+                    'descripcion' => $apoyo->descripcion ?? 'Sin descripción',
+                    'tipo' => $apoyo->tipo_apoyo ?? 'N/A',
+                    'monto_maximo' => $apoyo->monto_maximo ?? 0,
+                ],
+                'documentos_requeridos' => $documentosRequeridos->map(function($doc) use ($documentosCargados) {
+                    return [
+                        'id_tipo_doc' => $doc->id_tipo_doc,
+                        'nombre_documento' => $doc->nombre_documento,
+                        'es_obligatorio' => $doc->es_obligatorio,
+                        'ya_cargado' => in_array($doc->id_tipo_doc, $documentosCargados),
+                        'tipo_archivo_permitido' => $doc->tipo_archivo_permitido ?? 'pdf,jpg,jpeg,png',
+                        'validar_tipo_archivo' => (bool)$doc->validar_tipo_archivo,
+                        'peso_maximo_mb' => $doc->peso_maximo_mb ?? 5
+                    ];
+                })->values(),
+                'folio' => $folio
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error API Caso A obtenerDatosDelFolio: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al obtener datos del folio'
+            ], 500);
+        }
+    }
+
+    /**
+     * API: Obtener folios pendientes de escaneo
+     * 
+     * GET /api/caso-a/pendientes-escaneo
+     * 
+     * Retorna todos los folios que tienen documentos pendientes por cargar
+     * 
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function obtenerPendientesEscaneo()
+    {
+        try {
+            // Obtener todos los folios Caso A (tienen clave privada)
+            $claves = ClaveSegumientoPrivada::all();
+            
+            $pendientes = [];
+
+            foreach ($claves as $clave) {
+                // Obtener solicitud
+                $solicitud = Solicitud::where('folio', $clave->folio)->first();
+                
+                if (!$solicitud) {
+                    continue; // Skip si no tiene solicitud
+                }
+
+                // Obtener apoyo
+                $apoyo = $solicitud->apoyo;
+                if (!$apoyo) {
+                    continue;
+                }
+
+                // Obtener documentos requeridos
+                $documentosRequeridos = \DB::table('Requisitos_Apoyo')
+                    ->where('fk_id_apoyo', $apoyo->id_apoyo)
+                    ->where('es_obligatorio', true)
+                    ->count();
+
+                if ($documentosRequeridos === 0) {
+                    continue; // Sin requisitos
+                }
+
+                // Contar documentos cargados (solo los escaneados en Momento 2)
+                $documentosCargados = Documento::where('fk_folio', $clave->folio)
+                    ->where('origen_archivo', 'admin_escaneo_presencial')
+                    ->count();
+
+                // Si faltan documentos, es pendiente
+                if ($documentosCargados < $documentosRequeridos) {
+                    $beneficiario = $solicitud->beneficiario ? $solicitud->beneficiario()->with('user')->first() : null;
+                    if (!$beneficiario && $solicitud->fk_curp) {
+                        $beneficiario = (object)[
+                            'nombre' => 'No registrado',
+                        ];
+                    }
+
+                    $pendientes[] = [
+                        'folio' => $clave->folio,
+                        'beneficiario_nombre' => trim(($beneficiario->nombre ?? '') . ' ' . ($beneficiario->apellido_paterno ?? '') . ' ' . ($beneficiario->apellido_materno ?? '')),
+                        'apoyo_nombre' => $apoyo->nombre_apoyo ?? 'N/A',
+                        'documentos_requeridos' => $documentosRequeridos,
+                        'documentos_cargados' => $documentosCargados,
+                        'fecha_creacion' => $clave->fecha_creacion?->format('d/m/Y H:i') ?? 'N/A'
+                    ];
+                }
+            }
+
+            // Ordenar por fecha más antigua primero
+            usort($pendientes, function($a, $b) {
+                return strcmp($a['folio'], $b['folio']);
+            });
+
+            return response()->json([
+                'success' => true,
+                'total' => count($pendientes),
+                'pendientes' => $pendientes
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error API Caso A obtenerPendientesEscaneo: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al obtener pendientes'
+            ], 500);
+        }
     }
 
     /**

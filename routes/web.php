@@ -436,6 +436,11 @@ Route::middleware('auth')->prefix('api/notificaciones')->group(function () {
 Route::get('/consulta-privada', [\App\Http\Controllers\CasoAController::class, 'momentoTresForm'])
     ->name('caso-a.momento-tres-form');
 
+// Acceso directo vía QR (folio + clave como parámetros GET)
+// Usado por código QR en resumen para acceso directo sin formulario
+Route::get('/consulta-privada/acceso-qr', [\App\Http\Controllers\CasoAController::class, 'accesoDirectoQr'])
+    ->name('caso-a.acceso-qr');
+
 Route::post('/consulta-privada/validar', [\App\Http\Controllers\CasoAController::class, 'validarMomentoTres'])
     ->name('caso-a.validar-momento-tres');
 
@@ -474,45 +479,23 @@ Route::get('/api/beneficiarios/buscar', function (\Illuminate\Http\Request $requ
     if (strlen($query) < 2) {
         return response()->json([]);
     }
-    
-    $beneficiarios = \DB::table('Beneficiarios')
-        ->join('Usuarios', 'Beneficiarios.fk_id_usuario', '=', 'Usuarios.id_usuario')
-        ->where(function ($q) use ($query) {
-            $q->where('Beneficiarios.curp', 'LIKE', "%$query%")
-              ->orWhere('Beneficiarios.nombre', 'LIKE', "%$query%")
-              ->orWhere('Usuarios.email', 'LIKE', "%$query%");
-        })
-        ->select(
-            'Beneficiarios.curp',
-            'Beneficiarios.nombre',
-            'Beneficiarios.apellido_paterno',
-            'Beneficiarios.apellido_materno',
-            'Beneficiarios.telefono',
-            'Beneficiarios.fecha_nacimiento',
-            'Beneficiarios.genero',
-            'Usuarios.id_usuario as fk_id_usuario',
-            'Usuarios.email'
-        )
+
+    $beneficiarios = \App\Models\Beneficiario::where('nombre', 'LIKE', "%$query%")
+        ->orWhere('curp', 'LIKE', "%$query%")
         ->limit(10)
-        ->get();
-    
-    // Enriquecer con nombre completo
-    $beneficiarios = $beneficiarios->map(function ($b) {
-        return (object)[
-            'curp' => $b->curp,
-            'nombre_completo' => trim($b->nombre . ' ' . ($b->apellido_paterno ?? '') . ' ' . ($b->apellido_materno ?? '')),
-            'nombre' => $b->nombre,
-            'apellido_paterno' => $b->apellido_paterno,
-            'apellido_materno' => $b->apellido_materno,
-            'email' => $b->email,
-            'telefono' => $b->telefono,
-            'fecha_nacimiento' => $b->fecha_nacimiento,
-            'genero' => $b->genero,
-            'fk_id_usuario' => $b->fk_id_usuario,
-        ];
-    });
-    
+        ->get(['id_beneficiario', 'nombre', 'curp', 'email']);
+
     return response()->json($beneficiarios);
-})->name('api.beneficiarios.buscar');
+})->middleware('auth')->name('api.beneficiarios.buscar');
+
+// API: Datos del folio para Momento 2 (dinámico)
+Route::get('/api/caso-a/folio/{folio}', [\App\Http\Controllers\CasoAController::class, 'obtenerDatosDelFolio'])
+    ->middleware(['auth', 'role:1,2'])
+    ->name('api.caso-a.datos-folio');
+
+// API: Folios pendientes de escaneo
+Route::get('/api/caso-a/pendientes-escaneo', [\App\Http\Controllers\CasoAController::class, 'obtenerPendientesEscaneo'])
+    ->middleware(['auth', 'role:1,2'])
+    ->name('api.caso-a.pendientes-escaneo');
 
 require __DIR__.'/auth.php';
