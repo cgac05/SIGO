@@ -25,9 +25,6 @@ class NotificacionRechazoService
             // Construir asunto
             $asunto = "Solicitud {$folio} - Rechazada";
 
-            // Construir cuerpo del correo
-            $cuerpoCorreo = $this->construirCuerpoRechazo($folio, $beneficiario, $apoyo, $motivoDirectivo);
-
             // Enviar correo
             Mail::send('emails.rechazo-solicitud', [
                 'folio' => $folio,
