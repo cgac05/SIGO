@@ -22,16 +22,33 @@ class ProfileUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
+        $user = $this->user();
+        $isGoogleLinked = filled($user?->google_id);
+
+        $emailRules = [
+            'required',
+            'string',
+            'lowercase',
+            'email',
+            'max:255',
+        ];
+
+        if ($isGoogleLinked) {
+            $emailRules[] = Rule::in([mb_strtolower((string) ($user?->email ?? ''))]);
+        } else {
+            $emailRules[] = Rule::unique('Usuarios', 'email')->ignore($user?->id_usuario, 'id_usuario');
+        }
+
         return [
             'display_name' => ['required', 'string', 'max:255'],
-            'email' => [
-                'required',
-                'string',
-                'lowercase',
-                'email',
-                'max:255',
-                Rule::unique('Usuarios', 'email')->ignore($this->user()->id_usuario, 'id_usuario'),
-            ],
+            'email' => $emailRules,
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'email.in' => 'El correo no puede modificarse porque la cuenta está vinculada con Google.',
         ];
     }
 }

@@ -33,7 +33,7 @@ class AuthenticatedSessionController extends Controller
             ->where('email', $request->string('email'))
             ->first();
 
-        if (! $user || ! $user->activo || empty($user->password_hash) || ! Hash::check($request->string('password'), $user->password_hash)) {
+        if (! $user || ! $user->activo || ! Hash::check($request->string('password'), $user->password_hash)) {
             RateLimiter::hit($request->throttleKey());
 
             return back()->withInput($request->only('email', 'remember'))

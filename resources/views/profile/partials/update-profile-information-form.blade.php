@@ -1,5 +1,7 @@
 <!-- Información Personal Mejorada -->
 <section id="rectification-form">
+    @php($isGoogleLinked = filled($user->google_id))
+
     <header>
         <h2 class="text-lg font-medium text-gray-900">
             👤 Información Personal
@@ -61,36 +63,52 @@
                     id="email" 
                     name="email"
                     type="email" 
-                    class="block w-full pr-12 bg-gray-50 cursor-default" 
+                    class="block w-full pr-12 bg-gray-50 {{ $isGoogleLinked ? 'cursor-not-allowed border-blue-200 bg-blue-50 text-gray-600' : 'cursor-default' }}" 
                     :value="old('email', $user->email)" 
                     readonly
                     required
                     autocomplete="email"
                 />
-                <button
-                    type="button"
-                    data-edit-trigger="email"
-                    class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 transition hover:text-gray-700"
-                    aria-label="Editar correo electrónico"
-                    title="Editar correo electrónico"
-                >
-                    <img src="{{ asset('images/lapiz.png') }}" alt="" class="h-5 w-5">
-                </button>
-            </div>
-            <p class="text-xs text-gray-500 mt-1">Pulsa el lápiz para habilitar la edición del correo.</p>
-            <x-input-error class="mt-2" :messages="$errors->get('email')" />
-            <div id="email-save-wrap" class="hidden pt-2">
-                <div class="flex items-center gap-2">
-                    <x-primary-button type="submit">Guardar correo</x-primary-button>
+                @if ($isGoogleLinked)
+                    <span
+                        class="absolute inset-y-0 right-0 flex items-center pr-3 text-blue-600"
+                        aria-hidden="true"
+                        title="Correo administrado por Google"
+                    >
+                        🔒
+                    </span>
+                @else
                     <button
                         type="button"
-                        data-cancel-edit="email"
-                        class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700 shadow-sm transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        data-edit-trigger="email"
+                        class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 transition hover:text-gray-700"
+                        aria-label="Editar correo electrónico"
+                        title="Editar correo electrónico"
                     >
-                        Cancelar
+                        <img src="{{ asset('images/lapiz.png') }}" alt="" class="h-5 w-5">
                     </button>
-                </div>
+                @endif
             </div>
+            @if ($isGoogleLinked)
+                <p class="text-xs text-blue-700 mt-1">La cuenta está vinculada con Google, por eso el correo queda bloqueado.</p>
+            @else
+                <p class="text-xs text-gray-500 mt-1">Pulsa el lápiz para habilitar la edición del correo.</p>
+            @endif
+            <x-input-error class="mt-2" :messages="$errors->get('email')" />
+            @unless ($isGoogleLinked)
+                <div id="email-save-wrap" class="hidden pt-2">
+                    <div class="flex items-center gap-2">
+                        <x-primary-button type="submit">Guardar correo</x-primary-button>
+                        <button
+                            type="button"
+                            data-cancel-edit="email"
+                            class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700 shadow-sm transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        >
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            @endunless
         </div>
 
         <!-- Tipo de Usuario -->
