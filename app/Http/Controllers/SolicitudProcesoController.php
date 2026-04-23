@@ -81,9 +81,13 @@ class SolicitudProcesoController extends Controller
         if ($tab === 'firmadas') {
             // Solo mostrar solicitudes con CUV (firmadas)
             $solicitudesQuery->whereNotNull('Solicitudes.cuv');
+        } elseif ($tab === 'rechazadas') {
+            // Solo mostrar solicitudes rechazadas (estado 5)
+            $solicitudesQuery->where('Solicitudes.fk_id_estado', 5); // Estado 5 = RECHAZADA
         } else {
-            // Mostrar pendientes (sin CUV)
-            $solicitudesQuery->whereNull('Solicitudes.cuv');
+            // Mostrar pendientes (sin CUV y NO rechazadas)
+            $solicitudesQuery->whereNull('Solicitudes.cuv')
+                            ->where('Solicitudes.fk_id_estado', '!=', 5); // Excluir rechazadas
         }
 
         // ✅ FILTRO CRÍTICO: Solo mostrar solicitudes si TODOS sus documentos están aprobados por admin
@@ -110,9 +114,10 @@ class SolicitudProcesoController extends Controller
         // Estadísticas
         $hoy = now()->startOfDay();
         
-        // Contar solo solicitudes pendientes que tienen TODOS documentos aprobados
+        // Contar solo solicitudes pendientes que tienen TODOS documentos aprobados (excluir rechazadas)
         $pendientesQuery = DB::table('Solicitudes')
             ->whereNull('Solicitudes.cuv')
+            ->where('Solicitudes.fk_id_estado', '!=', 5) // Excluir rechazadas
             ->whereExists(function ($query) {
                 $query->select(DB::raw(1))
                     ->from('Documentos_Expediente')
@@ -135,8 +140,8 @@ class SolicitudProcesoController extends Controller
                 ->whereDate('Solicitudes.fecha_creacion', $hoy)
                 ->count(),
             'rechazadas_hoy' => DB::table('Solicitudes')
-                ->where('Solicitudes.fk_id_estado', DB::raw("(SELECT id_estado FROM Cat_EstadosSolicitud WHERE nombre_estado = 'RECHAZADA')"))
-                ->whereDate('Solicitudes.fecha_creacion', $hoy)
+                ->where('Solicitudes.fk_id_estado', 5) // Estado 5 = RECHAZADA
+                ->whereDate('Solicitudes.fecha_actualizacion', $hoy) // Usar fecha_actualizacion (cuando se rechazó)
                 ->count(),
         ];
 
@@ -717,9 +722,18 @@ class SolicitudProcesoController extends Controller
             abort(404, 'Beneficiario no encontrado');
         }
 
-        // Información del apoyo
+        // Información del apoyo (con categoría)
         $apoyo = DB::table('Apoyos')
-            ->where('id_apoyo', $solicitud->fk_id_apoyo)
+            ->leftJoin('presupuesto_categorias', 'Apoyos.id_categoria', '=', 'presupuesto_categorias.id_categoria')
+            ->select(
+                'Apoyos.id_apoyo',
+                'Apoyos.nombre_apoyo',
+                'Apoyos.monto_maximo',
+                'Apoyos.cupo_limite',
+                'Apoyos.id_categoria',
+                'presupuesto_categorias.nombre as categoria_nombre'
+            )
+            ->where('Apoyos.id_apoyo', $solicitud->fk_id_apoyo)
             ->first();
 
         // Documentos asociados
@@ -731,8 +745,29 @@ class SolicitudProcesoController extends Controller
         $presupuestoDisponible = $this->obtenerPresupuestoDisponibleSolicitud($solicitud->folio);
         $presupuestoCategoriaDisponible = $this->obtenerPresupuestoCategoriaDisponible($apoyo->id_categoria ?? 0);
 
+        // Calcular total necesario (monto por beneficiario × cantidad máx beneficiarios)
+        $totalNecesario = ($apoyo->monto_maximo ?? 0) * ($apoyo->cupo_limite ?? 0);
+
+        // ========== CALCULAR DISPONIBLE EN APOYO (DINÁMICO) ==========
+        // Obtener suma de montos ya aprobados y FIRMADOS para este apoyo
+        // Solo contar solicitudes que tengan CUV (es decir, que fueron realmente firmadas)
+        $montosAprobados = DB::table('presupuesto_apoyos')
+            ->join('Solicitudes', 'presupuesto_apoyos.folio', '=', 'Solicitudes.folio')
+            ->where('Solicitudes.fk_id_apoyo', $solicitud->fk_id_apoyo)
+            ->where('Solicitudes.fk_id_estado', 4) // Estado 4 = APROBADA
+            ->whereNotNull('Solicitudes.cuv') // Solo contar si tiene CUV (fue firmada)
+            ->sum('presupuesto_apoyos.monto_solicitado') ?? 0;
+
+        // Disponible en apoyo = Total necesario - Montos ya aprobados y firmados
+        $disponibleEnApoyo = max(0, $totalNecesario - $montosAprobados);
+
         $puedeAprobarse = ($presupuestoDisponible >= ($apoyo->monto_maximo ?? 0)) 
                          && ($presupuestoCategoriaDisponible >= ($apoyo->monto_maximo ?? 0));
+
+        // Verificar si la solicitud ya fue procesada (firmada o rechazada)
+        $yaFirmada = !empty($solicitud->cuv); // CUV no NULL = ya firmada
+        $yaRechazada = $solicitud->fk_id_estado == 5; // Estado 5 = RECHAZADA
+        $procesada = $yaFirmada || $yaRechazada;
 
         // ========== HISTORIAL DE APOYOS PREVIOS ==========
         $historialApoyos = DB::table('Solicitudes')
@@ -770,10 +805,15 @@ class SolicitudProcesoController extends Controller
             'presupuestoDisponible' => $presupuestoDisponible,
             'presupuestoCategoriaDisponible' => $presupuestoCategoriaDisponible,
             'puedeAprobarse' => $puedeAprobarse,
+            'totalNecesario' => $totalNecesario,
+            'disponibleEnApoyo' => $disponibleEnApoyo,
             'historialApoyos' => $historialApoyos,
             'totalApoyosPrevios' => $totalApoyosPrevios,
             'estadoActual' => $estadoActual,
             'userRole' => $user->personal->fk_rol ?? null,
+            'yaFirmada' => $yaFirmada,
+            'yaRechazada' => $yaRechazada,
+            'procesada' => $procesada,
         ]);
     }
 
@@ -826,9 +866,9 @@ class SolicitudProcesoController extends Controller
 
         try {
             // Generar CUV único y legible
-            // Formato: FOLIO-YYYYMMDD-HASH8 (ej: 1008-20260413-a1b2c3d4)
+            // Formato: FOLIO-YYYYMMDD-HASH6 (ej: 1008-20260413-a1b2c3) - máximo 20 caracteres
             $fecha = now()->format('Ymd');
-            $hashCorto = substr(hash('sha256', $folio . now()->timestamp . $user->id_usuario), 0, 8);
+            $hashCorto = substr(hash('sha256', $folio . now()->timestamp . $user->id_usuario), 0, 6);
             $cuv = "{$folio}-{$fecha}-{$hashCorto}";
 
             // Actualizar solicitud con los datos críticos
@@ -897,11 +937,8 @@ class SolicitudProcesoController extends Controller
             return 0;
         }
 
-        // Calcular disponible: solicitado - aprobado
-        $disponible = ($presupuesto->monto_solicitado ?? 0) 
-                    - ($presupuesto->monto_aprobado ?? 0);
-
-        return max(0, $disponible);
+        // Retornar monto_solicitado como el disponible guardado en el apoyo
+        return ($presupuesto->monto_solicitado ?? 0);
     }
 
     /**
@@ -929,9 +966,16 @@ class SolicitudProcesoController extends Controller
             return back()->withErrors(['error' => 'Solicitud no encontrada']);
         }
 
-        // Validar estado
-        if (!in_array($solicitud->fk_id_estado, [4, 10])) {
-            return back()->withErrors(['error' => 'La solicitud no puede ser rechazada en este estado']);
+        // Validar estado - Se puede rechazar en múltiples estados
+        // Estados permitidos: 1 (Pendiente), 2 (Validado), 3 (Subsanación), 4 (Aprobado), 9 (Docs Verificados)
+        $estadosPermitidos = [1, 2, 3, 4, 9];
+        
+        if (!in_array($solicitud->fk_id_estado, $estadosPermitidos)) {
+            $estadoNombre = DB::table('Cat_EstadosSolicitud')
+                ->where('id_estado', $solicitud->fk_id_estado)
+                ->value('nombre_estado') ?? 'desconocido';
+            
+            return back()->withErrors(['error' => "La solicitud no puede ser rechazada en estado: {$estadoNombre}"]);
         }
 
         // Obtener datos del beneficiario y apoyo (con email desde tabla Usuarios)

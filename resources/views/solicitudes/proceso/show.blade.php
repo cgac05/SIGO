@@ -64,6 +64,12 @@
                             <p class="text-lg font-bold text-slate-900 mt-2">{{ $apoyo->nombre_apoyo }}</p>
                         </div>
 
+                        <!-- Categoría del Apoyo (Nuevo) -->
+                        <div>
+                            <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Categoría del Apoyo</p>
+                            <p class="text-lg font-bold text-slate-900 mt-2">{{ $apoyo->categoria_nombre ?? 'Sin Categoría' }}</p>
+                        </div>
+
                         <!-- Monto por Beneficiario -->
                         <div>
                             <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Monto por Beneficiario</p>
@@ -192,11 +198,12 @@
                         <!-- Disponible en Apoyo -->
                         <div class="bg-slate-50 border border-slate-300 rounded-lg p-4">
                             <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Disponible en Apoyo</p>
-                            <p class="text-2xl font-bold text-slate-900 mt-1">${{ number_format($presupuestoDisponible, 0) }}</p>
-                            @if($presupuestoDisponible >= ($apoyo->monto_maximo ?? 0))
-                                <span class="inline-block mt-2 text-xs font-semibold text-green-600">✓ Suficiente</span>
+                            <p class="text-2xl font-bold text-slate-900 mt-1">${{ number_format($disponibleEnApoyo, 2) }}</p>
+                            <p class="text-xs text-slate-600 mt-1">De {{ number_format($totalNecesario, 2) }} total ({{ $apoyo->cupo_limite ?? 0 }} beneficiarios)</p>
+                            @if($disponibleEnApoyo > 0)
+                                <span class="inline-block mt-2 text-xs font-semibold text-green-600">✓ Disponible</span>
                             @else
-                                <span class="inline-block mt-2 text-xs font-semibold text-red-600">✗ INSUFICIENTE</span>
+                                <span class="inline-block mt-2 text-xs font-semibold text-red-600">✗ SIN DISPONIBILIDAD</span>
                             @endif
                         </div>
 
@@ -233,44 +240,71 @@
                     <div class="bg-white rounded-lg shadow p-6">
                         <h3 class="text-lg font-bold text-slate-900 mb-4">🔐 Fase 2: Firma</h3>
                         
-                        @if($puedeAprobarse)
-                            <form action="{{ route('solicitudes.proceso.firmar', $solicitud->folio) }}" method="POST" class="space-y-4" id="formFirma">
-                                @csrf
-                                
-                                <!-- Botón Ver Resumen -->
-                                <button type="button" 
-                                        class="w-full rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-900 py-3 font-semibold transition border border-slate-300"
-                                        onclick="document.getElementById('modalResumen').classList.remove('hidden')">
-                                    👁️ Ver Resumen
-                                </button>
-
-                                <!-- Campo Contraseña -->
-                                <div>
-                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Contraseña</label>
-                                    <input type="password" 
-                                           name="password" 
-                                           required
-                                           class="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                           placeholder="Confirma tu contraseña">
-                                    <p class="text-xs text-slate-500 mt-1">Tu contraseña es requerida para la firma</p>
-                                </div>
-
-                                <!-- Botón Firmar -->
-                                <button type="submit" 
-                                        class="w-full rounded-lg bg-green-700 text-white px-6 py-3 font-bold hover:bg-green-800 transition text-lg">
-                                    ✓ Firmar y Generar CUV
-                                </button>
-                            </form>
-
-                            <!-- SEPARADOR -->
-                            <div class="relative my-6">
-                                <div class="absolute inset-0 flex items-center">
-                                    <div class="w-full border-t border-slate-300"></div>
-                                </div>
-                                <div class="relative flex justify-center text-sm">
-                                    <span class="px-3 bg-white text-slate-600 font-medium">O</span>
-                                </div>
+                        @if($procesada)
+                            <!-- SOLICITUD YA PROCESADA -->
+                            <div class="space-y-4">
+                                @if($yaFirmada)
+                                    <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg">
+                                        <p class="text-green-900 font-bold">✓ Solicitud Firmada</p>
+                                        <p class="text-sm text-green-800 mt-2">Esta solicitud ya fue firmada y tiene CUV generado. No se puede volver a firmar.</p>
+                                        <div class="mt-3 p-3 bg-white border border-green-300 rounded">
+                                            <p class="text-xs text-slate-600 font-semibold">CUV (Comprobante Único de Verificación)</p>
+                                            <p class="text-lg font-bold text-green-700 mt-1">{{ $solicitud->cuv }}</p>
+                                        </div>
+                                    </div>
+                                @elseif($yaRechazada)
+                                    <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+                                        <p class="text-red-900 font-bold">✗ Solicitud Rechazada</p>
+                                        <p class="text-sm text-red-800 mt-2">Esta solicitud fue rechazada. No se puede volver a procesar.</p>
+                                    </div>
+                                @endif
                             </div>
+                        @elseif($puedeAprobarse)
+                            @if($disponibleEnApoyo > 0)
+                                <form action="{{ route('solicitudes.proceso.firmar', $solicitud->folio) }}" method="POST" class="space-y-4" id="formFirma">
+                                    @csrf
+                                    
+                                    <!-- Botón Ver Resumen -->
+                                    <button type="button" 
+                                            class="w-full rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-900 py-3 font-semibold transition border border-slate-300"
+                                            onclick="document.getElementById('modalResumen').classList.remove('hidden')">
+                                        👁️ Ver Resumen
+                                    </button>
+
+                                    <!-- Campo Contraseña -->
+                                    <div>
+                                        <label class="block text-sm font-semibold text-slate-700 mb-2">Contraseña</label>
+                                        <input type="password" 
+                                               name="password" 
+                                               required
+                                               class="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                               placeholder="Confirma tu contraseña">
+                                        <p class="text-xs text-slate-500 mt-1">Tu contraseña es requerida para la firma</p>
+                                    </div>
+
+                                    <!-- Botón Firmar -->
+                                    <button type="submit" 
+                                            class="w-full rounded-lg bg-green-700 text-white px-6 py-3 font-bold hover:bg-green-800 transition text-lg">
+                                        ✓ Firmar y Generar CUV
+                                    </button>
+                                </form>
+
+                                <!-- SEPARADOR -->
+                                <div class="relative my-6">
+                                    <div class="absolute inset-0 flex items-center">
+                                        <div class="w-full border-t border-slate-300"></div>
+                                    </div>
+                                    <div class="relative flex justify-center text-sm">
+                                        <span class="px-3 bg-white text-slate-600 font-medium">O</span>
+                                    </div>
+                                </div>
+                            @else
+                                <!-- PRESUPUESTO AGOTADO: SOLO RECHAZAR -->
+                                <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-lg mb-6">
+                                    <p class="text-amber-900 font-bold">⚠️ Presupuesto Agotado</p>
+                                    <p class="text-sm text-amber-800 mt-2">Se han aceptado todas las solicitudes permitidas para este apoyo. Ya no se pueden autorizar más beneficiarios. Solo es posible rechazar solicitudes.</p>
+                                </div>
+                            @endif
 
                             <!-- BOTÓN RECHAZAR (abre modal) -->
                             <button type="button" 

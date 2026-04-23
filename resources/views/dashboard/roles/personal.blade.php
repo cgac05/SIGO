@@ -2,7 +2,7 @@
 <div class="space-y-6">
     <!-- Welcome Banner -->
     <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow p-8 text-white">
-        <h2 class="text-2xl font-bold">Panel de Administración</h2>
+        <h2 class="text-2xl font-bold">Panel Directivo</h2>
         <p class="text-indigo-100 mt-2">Gestiona solicitudes, verifica documentos y administra el sistema</p>
     </div>
 

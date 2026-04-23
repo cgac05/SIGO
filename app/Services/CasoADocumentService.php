@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use App\Models\Solicitud;
 use App\Models\Apoyo;
-use App\Models\DocumentoExpediente;
+use App\Models\Documento;
 use App\Models\ClaveSegumientoPrivada;
 use App\Models\CadenaDigitalDocumento;
 use App\Models\AuditoriaCargaMaterial;
@@ -203,7 +203,7 @@ class CasoADocumentService
      * @param int $admin_id
      * @param \Illuminate\Http\UploadedFile $archivo
      * @param string $tipo_documento (CEDULA, COMPROBANTE_DOMICILIO, etc.)
-     * @return DocumentoExpediente
+     * @return Documento
      * @throws \Exception
      */
     public function escanearDocumentoPresencial($solicitud_id, $admin_id, $archivo, $tipo_documento)
@@ -223,11 +223,11 @@ class CasoADocumentService
             $hash_documento = hash('sha256', $contenidoArchivo);
             
             // 4. Obtener hash anterior (si existe documento previo)
-            $documentoAnterior = DocumentoExpediente::where('fk_id_solicitud', $solicitud_id)
-                ->where('tipo_documento', $tipo_documento)
-                ->orderByDesc('id_documento')
+            $documentoAnterior = Documento::where('fk_folio', $folio)
+                ->where('fk_id_tipo_doc', $tipo_documento)
+                ->orderByDesc('id_doc')
                 ->first();
-            $hash_anterior = $documentoAnterior?->hash_documento;
+            $hash_anterior = $documentoAnterior?->hash_documento ?? null;
             
             // 5. Almacenar archivo
             $rutaAlmacenamiento = $this->almacenarArchivo($archivo, $solicitud_id, $folio);
@@ -236,24 +236,20 @@ class CasoADocumentService
             $qr_data = $this->generarQRSeguimiento($folio, $hash_documento, $tipo_documento);
             $firma_admin = hash_hmac('sha256', $hash_documento . $folio, config('app.key'));
             
-            // 7. Crear registro DocumentoExpediente
-            $documento = DocumentoExpediente::create([
-                'fk_id_solicitud' => $solicitud_id,
-                'tipo_documento' => $tipo_documento,
+            // 7. Crear registro Documento
+            $documento = Documento::create([
+                'fk_folio' => $folio,
+                'fk_id_tipo_doc' => $tipo_documento,
                 'ruta_archivo' => $rutaAlmacenamiento,
-                'origen_carga' => 'admin_escaneo_presencial',
-                'cargado_por' => $admin_id,
-                'hash_documento' => $hash_documento,
-                'hash_anterior' => $hash_anterior,
-                'firma_admin' => $firma_admin,
-                'qr_seguimiento' => $qr_data,
-                'marca_agua_aplicada' => false, // TODO: PDF watermarking
+                'origen_archivo' => 'admin_escaneo_presencial',
+                'id_admin' => $admin_id,
+                'estado_validacion' => 'PENDIENTE',
                 'fecha_carga' => now(),
             ]);
             
             // 8. Crear entrada en cadena digital
             CadenaDigitalDocumento::create([
-                'fk_id_documento' => $documento->id_documento,
+                'fk_id_documento' => $documento->id_doc,
                 'folio' => $folio,
                 'hash_actual' => $hash_documento,
                 'hash_anterior' => $hash_anterior,
@@ -281,7 +277,7 @@ class CasoADocumentService
             
             // 10. Crear política de retención
             PoliticaRetencionDocumento::create([
-                'fk_id_documento' => $documento->id_documento,
+                'fk_id_documento' => $documento->id_doc,
                 'folio' => $folio,
                 'retencion_cumplida' => false,
             ]);

@@ -154,13 +154,28 @@
                         {{ $stats['firmadas'] }}
                     </span>
                 </a>
+
+                <!-- Tab: Rechazadas Hoy -->
+                <a href="{{ route('solicitudes.proceso.index', array_merge(request()->query(), ['tab' => 'rechazadas'])) }}" 
+                   class="flex-1 px-6 py-4 font-semibold text-center {{ $tabActual === 'rechazadas' ? 'text-red-600 border-b-2 border-red-600 bg-red-50' : 'text-slate-600 hover:text-slate-900' }} transition-colors">
+                    ✗ Rechazadas Hoy
+                    <span class="ml-2 inline-block px-2 py-1 rounded-full bg-red-100 text-red-800 text-xs font-bold">
+                        {{ $stats['rechazadas_hoy'] }}
+                    </span>
+                </a>
             </div>
         </div>
 
         <!-- ========== MENÚ DE SOLICITUDES (CARDS) ========== -->
         <div>
             <h2 class="text-lg font-semibold text-gray-900 mb-4">
-                {{ $tabActual === 'pendientes' ? '⏳ Pendientes de Firma' : '✓ Solicitudes Firmadas' }} 
+                @if($tabActual === 'pendientes')
+                    ⏳ Pendientes de Firma
+                @elseif($tabActual === 'firmadas')
+                    ✓ Solicitudes Firmadas
+                @else
+                    ✗ Solicitudes Rechazadas
+                @endif
                 <span class="text-sm font-normal text-gray-600">({{ $solicitudes->total() }} total)</span>
             </h2>
 
@@ -181,10 +196,10 @@
                                         </span>
                                         
                                         <!-- Estado Badge -->
-                                        @if($sol->nombre_estado === 'APROBADA')
-                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 ml-auto">✓ Aprobada</span>
-                                        @elseif($sol->nombre_estado === 'RECHAZADA')
+                                        @if($tabActual === 'rechazadas' || $sol->fk_id_estado === 5)
                                             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 ml-auto">✗ Rechazada</span>
+                                        @elseif($tabActual === 'firmadas' && $sol->cuv)
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 ml-auto">✓ Firmada</span>
                                         @else
                                             <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 ml-auto">⏳ Pendiente</span>
                                         @endif

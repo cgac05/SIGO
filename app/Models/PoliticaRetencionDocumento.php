@@ -30,6 +30,6 @@ class PoliticaRetencionDocumento extends Model
     // Relationships
     public function documento(): BelongsTo
     {
-        return $this->belongsTo(DocumentoExpediente::class, 'fk_id_documento', 'id_documento');
+        return $this->belongsTo(Documento::class, 'fk_id_documento', 'id_doc');
     }
 }

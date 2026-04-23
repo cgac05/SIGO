@@ -75,27 +75,35 @@
                 </p>
             </div>
 
-            <!-- QR de Folio -->
+            <!-- QR de Acceso Directo -->
             <div class="mb-6 text-center p-4 bg-gray-50 rounded border border-gray-300">
-                <p class="text-xs font-semibold text-gray-700 mb-2">QR de Seguimiento</p>
-                <img src="data:image/svg+xml,{{ urlencode($qrData) }}" alt="QR" class="h-32 mx-auto" style="image-rendering: pixelated;">
+                <p class="text-xs font-semibold text-gray-700 mb-2">🔗 QR de Seguimiento</p>
+                <p class="text-xs text-gray-600 mb-4">Escanea para consultar directamente (sin pasos adicionales)</p>
+                <img src="{{ $qrImageUrl }}" alt="QR Code" class="h-64 mx-auto border-2 border-gray-300 rounded p-2 bg-white" title="QR: {{ $urlAccesoQr }}">
+                <p class="text-xs text-gray-500 mt-3 break-all font-mono">{{ $urlAccesoQr }}</p>
             </div>
 
             <!-- Documentos Entregados -->
             <div class="mb-6 p-4 bg-purple-50 rounded border border-purple-200">
-                <h3 class="text-sm font-semibold text-gray-700 uppercase mb-3">Documentos Entregados Hoy</h3>
-                <ul class="text-sm space-y-1">
-                    @if(session('documentos_listados'))
-                        @foreach(session('documentos_listados') as $doc)
-                            <li class="flex items-center">
-                                <span class="w-2 h-2 bg-purple-600 rounded-full mr-2"></span>
-                                {{ ucfirst(str_replace('_', ' ', $doc)) }}
-                            </li>
+                <h3 class="text-sm font-semibold text-gray-700 uppercase mb-3">📄 Documentos Entregados</h3>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    @if($solicitud->documentos && $solicitud->documentos->count() > 0)
+                        @foreach($solicitud->documentos as $doc)
+                            <div class="flex items-start p-2 bg-white rounded border-l-4 border-purple-600">
+                                <span class="text-lg mr-2">✓</span>
+                                <div>
+                                    <p class="font-semibold text-gray-900">{{ $doc->tipo_documento ?? 'Documento' }}</p>
+                                    <p class="text-xs text-gray-600">{{ optional($doc->fecha_carga)->format('d/m/Y H:i') ?? '' }}</p>
+                                </div>
+                            </div>
                         @endforeach
                     @else
-                        <li class="text-gray-600">Documentos registrados en el sistema</li>
+                        <div class="col-span-2 p-3 bg-white rounded border border-dashed border-purple-300 text-center">
+                            <p class="text-gray-600 text-sm">Sin documentos entregados en Momento 1</p>
+                            <p class="text-xs text-gray-500 mt-1">Completar en Momento 2 (Escaneo)</p>
+                        </div>
                     @endif
-                </ul>
+                </div>
             </div>
 
             <!-- Instrucciones -->
