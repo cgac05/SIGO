@@ -499,23 +499,6 @@ class ApoyoController extends Controller
             ->orderBy('nombre_documento')
             ->get();
 
-        $misSolicitudes = collect();
-        if ($isBeneficiario && $user->beneficiario?->curp) {
-            $misSolicitudes = DB::table('Solicitudes')
-                ->leftJoin('Apoyos', 'Solicitudes.fk_id_apoyo', '=', 'Apoyos.id_apoyo')
-                ->leftJoin('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
-                ->where('Solicitudes.fk_curp', $user->beneficiario->curp)
-                ->orderByDesc('Solicitudes.folio')
-                ->select([
-                    'Solicitudes.folio',
-                    'Cat_EstadosSolicitud.nombre_estado as estado',
-                    'Solicitudes.fecha_creacion',
-                    'Apoyos.nombre_apoyo',
-                ])
-                ->limit(10)
-                ->get();
-        }
-
         $solicitudesRecientes = collect();
         if ($user->personal && in_array((int) $user->personal->fk_rol, [1, 2], true)) {
             $solicitudesRecientes = DB::table('Solicitudes')
@@ -537,11 +520,10 @@ class ApoyoController extends Controller
         \Log::info('ApoyoController@index - Before view render', [
             'apoyos_array' => $apoyos->toArray(),
             'tipos_count' => $tiposDocumentos->count(),
-            'mis_solicitudes_count' => $misSolicitudes->count(),
             'solicitudes_recientes_count' => $solicitudesRecientes->count(),
         ]);
 
-        return view('apoyos.index', compact('apoyos', 'tiposDocumentos', 'user', 'misSolicitudes', 'solicitudesRecientes'));
+        return view('apoyos.index', compact('apoyos', 'tiposDocumentos', 'user', 'solicitudesRecientes'));
     }
 
     /**

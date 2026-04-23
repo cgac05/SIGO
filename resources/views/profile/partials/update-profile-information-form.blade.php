@@ -1,6 +1,8 @@
 <!-- Información Personal Mejorada -->
 <section id="rectification-form">
     @php($isGoogleLinked = filled($user->google_id))
+    @php($personalCargo = $user->personal?->role?->nombre_rol ?? '—')
+    @php($personalPuesto = $user->personal?->puesto ?? '—')
 
     <header>
         <h2 class="text-lg font-medium text-gray-900">
@@ -160,20 +162,16 @@
                 <h4 class="font-medium text-green-900">👔 Información del Personal</h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <p class="text-xs text-green-600">RFC</p>
-                        <p class="font-mono text-sm">{{ $user->personal->rfc ?? '—' }}</p>
-                    </div>
-                    <div>
                         <p class="text-xs text-green-600">Número de Empleado</p>
                         <p class="text-sm">{{ $user->personal->numero_empleado ?? '—' }}</p>
                     </div>
                     <div>
                         <p class="text-xs text-green-600">Cargo</p>
-                        <p class="text-sm">{{ $user->personal->cargo ?? '—' }}</p>
+                        <p class="text-sm">{{ $personalCargo }}</p>
                     </div>
                     <div>
-                        <p class="text-xs text-green-600">Departamento</p>
-                        <p class="text-sm">{{ $user->personal->departamento ?? '—' }}</p>
+                        <p class="text-xs text-green-600">Puesto</p>
+                        <p class="text-sm">{{ $personalPuesto }}</p>
                     </div>
                 </div>
             </div>

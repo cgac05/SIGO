@@ -3,6 +3,18 @@
     $isAdmin = $user && $user->personal && (int) $user->personal->fk_rol === 1;
     $isDirector = $user && $user->personal && (int) $user->personal->fk_rol === 2;
     $canEdit = $isAdmin || $isDirector;
+    $apoyosCount = count($apoyos);
+    $solicitudesRelacionadasCount = $isBeneficiario
+        ? $apoyos->whereNotNull('solicitud_activa')->count()
+        : $solicitudesRecientes->count();
+    $panelLabel = $isBeneficiario
+        ? 'Panel del beneficiario'
+        : ($isAdmin
+            ? 'Panel administrativo'
+            : ($isDirector ? 'Panel directivo' : 'Vista general'));
+    $panelSubtitle = $isBeneficiario
+        ? 'Explora los apoyos disponibles y revisa el seguimiento de tus solicitudes desde una sola pantalla.'
+        : 'Administra convocatorias y revisa solicitudes recientes desde una vista unificada.';
 @endphp
 
 <!DOCTYPE html>
@@ -18,15 +30,52 @@
     <div class="min-h-screen bg-gray-100">
         @include('layouts.navigation')
 
-        <header class="bg-white shadow">
-            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">Apoyos</h2>
-            </div>
-        </header>
-
         <main>
-            <div class="min-h-screen bg-slate-50">
+            <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-50">
                 <div class="mx-auto max-w-[1500px] px-4 py-6 md:px-6">
+                    <section class="relative overflow-hidden rounded-3xl border border-slate-200 bg-slate-900 px-6 py-7 text-white shadow-2xl md:px-8">
+                        <div class="pointer-events-none absolute inset-0">
+                            <div class="absolute -top-20 right-[-5rem] h-64 w-64 rounded-full bg-sky-400/20 blur-3xl"></div>
+                            <div class="absolute bottom-[-5rem] left-[-4rem] h-72 w-72 rounded-full bg-emerald-400/20 blur-3xl"></div>
+                        </div>
+
+                        <div class="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                            <div class="max-w-3xl">
+                                <p class="text-xs font-bold uppercase tracking-[0.35em] text-sky-200">{{ $panelLabel }}</p>
+                                <h1 class="mt-2 text-3xl font-black tracking-tight sm:text-4xl">📚 Apoyos</h1>
+                                <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+                                    {{ $panelSubtitle }}
+                                </p>
+                                <div class="mt-5 flex flex-wrap gap-2 text-xs font-semibold">
+                                    <span class="rounded-full bg-white/10 px-3 py-1 text-white ring-1 ring-white/20">{{ $apoyosCount }} apoyos visibles</span>
+                                    <span class="rounded-full bg-white/10 px-3 py-1 text-white ring-1 ring-white/20">{{ $solicitudesRelacionadasCount }} solicitudes relacionadas</span>
+                                    <span class="rounded-full bg-white/10 px-3 py-1 text-white ring-1 ring-white/20">
+                                        {{ $isBeneficiario ? 'Acceso beneficiario' : ($canEdit ? 'Gestión interna' : 'Acceso general') }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap gap-3">
+                                @if($isBeneficiario)
+                                    <a href="{{ route('solicitudes.historial') }}" class="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-lg transition hover:bg-slate-100">
+                                        📑 Mis Solicitudes
+                                    </a>
+                                @endif
+
+                                @if($canEdit)
+                                    <a href="{{ route('apoyos.create') }}" class="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-lg transition hover:bg-slate-100">
+                                        ➕ Nuevo apoyo
+                                    </a>
+                                @endif
+
+                                <a href="{{ route('dashboard') }}" class="inline-flex items-center justify-center rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10">
+                                    Volver al dashboard
+                                </a>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div class="mt-8">
                     <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 md:p-6">
                         <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-5">
                             <div>
@@ -43,66 +92,6 @@
                                 </a>
                             @endif
                         </div>
-
-                        @if($isBeneficiario)
-                            <div class="mb-5 bg-slate-100 rounded-xl border border-slate-200 p-4">
-                                <h4 class="text-sm font-bold text-slate-700 mb-2">Mis solicitudes recientes</h4>
-                                @if($misSolicitudes->count() > 0)
-                                    <div class="overflow-x-auto">
-                                        <table class="min-w-full text-sm">
-                                            <thead>
-                                                <tr class="border-b border-slate-200 text-slate-500 text-left">
-                                                    <th class="py-2 pr-4">Folio</th>
-                                                    <th class="py-2 pr-4">Apoyo</th>
-                                                    <th class="py-2 pr-4">Estado</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach($misSolicitudes as $solicitud)
-                                                    <tr class="border-b border-slate-100 text-slate-700">
-                                                        <td class="py-2 pr-4 font-semibold">{{ $solicitud->folio }}</td>
-                                                        <td class="py-2 pr-4">{{ $solicitud->nombre_apoyo ?? 'Sin nombre' }}</td>
-                                                        <td class="py-2 pr-4">{{ $solicitud->estado ?? 'Pendiente' }}</td>
-                                                    </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                @else
-                                    <p class="text-sm text-slate-500">Aun no registras solicitudes.</p>
-                                @endif
-                            </div>
-                        @elseif($canEdit)
-                            <div class="mb-5 bg-slate-100 rounded-xl border border-slate-200 p-4">
-                                <h4 class="text-sm font-bold text-slate-700 mb-2">Solicitudes recibidas (ultimas 12)</h4>
-                                @if($solicitudesRecientes->count() > 0)
-                                    <div class="overflow-x-auto">
-                                        <table class="min-w-full text-sm">
-                                            <thead>
-                                                <tr class="border-b border-slate-200 text-slate-500 text-left">
-                                                    <th class="py-2 pr-4">Folio</th>
-                                                    <th class="py-2 pr-4">CURP</th>
-                                                    <th class="py-2 pr-4">Apoyo</th>
-                                                    <th class="py-2 pr-4">Estado</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach($solicitudesRecientes as $solicitud)
-                                                    <tr class="border-b border-slate-100 text-slate-700">
-                                                        <td class="py-2 pr-4 font-semibold">{{ $solicitud->folio }}</td>
-                                                        <td class="py-2 pr-4">{{ $solicitud->fk_curp }}</td>
-                                                        <td class="py-2 pr-4">{{ $solicitud->nombre_apoyo ?? 'Sin nombre' }}</td>
-                                                        <td class="py-2 pr-4">{{ $solicitud->estado ?? 'Pendiente' }}</td>
-                                                    </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                @else
-                                    <p class="text-sm text-slate-500">No hay solicitudes registradas todavia.</p>
-                                @endif
-                            </div>
-                        @endif
 
                         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
                             @forelse($apoyos as $apoyo)
@@ -133,6 +122,7 @@
                             @endforelse
                         </div>
                     </section>
+                    </div>
                 </div>
             </div>
         </main>

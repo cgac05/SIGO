@@ -54,9 +54,9 @@
             <!-- Ver Mis Solicitudes -->
             <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg shadow p-6 border border-blue-200 hover:shadow-lg transition">
                 <h4 class="text-lg font-bold text-blue-900">📑 Mis Solicitudes</h4>
-                <p class="text-sm text-blue-700 mt-2">Revisa el estado de tus solicitudes</p>
-                <a href="{{ route('apoyos.index') }}" class="mt-4 block w-full px-4 py-2 text-center bg-blue-600 text-white rounded hover:bg-blue-700 transition font-medium">
-                    Ver Solicitudes
+                <p class="text-sm text-blue-700 mt-2">Consulta el estado y detalle completo de cada una</p>
+                <a href="{{ route('solicitudes.historial') }}" class="mt-4 block w-full px-4 py-2 text-center bg-blue-600 text-white rounded hover:bg-blue-700 transition font-medium">
+                    Ver historial
                 </a>
             </div>
         </div>

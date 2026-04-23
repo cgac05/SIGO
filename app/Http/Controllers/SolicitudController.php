@@ -8,6 +8,7 @@ use App\Services\FolioService;
 use App\Models\Documento;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -72,6 +73,134 @@ class SolicitudController extends Controller
             ->first();
 
         return view('solicitudes.create', compact('apoyo', 'requisitos', 'solicitudActiva', 'estadoPresupuesto'));
+    }
+
+    public function historial(Request $request)
+    {
+        $user = $request->user()->loadMissing('beneficiario');
+        $curpBeneficiario = $user->beneficiario?->curp;
+
+        $estadoFiltro = strtolower(trim((string) $request->query('estado', 'total')));
+        if (! in_array($estadoFiltro, ['total', 'aprobada', 'proceso', 'rechazada'], true)) {
+            $estadoFiltro = 'total';
+        }
+
+        if (! $user->isBeneficiario() || ! $curpBeneficiario) {
+            abort(403, 'Debes iniciar sesion como beneficiario para ver tus solicitudes.');
+        }
+
+        $solicitudes = DB::table('Solicitudes')
+            ->leftJoin('Apoyos', 'Solicitudes.fk_id_apoyo', '=', 'Apoyos.id_apoyo')
+            ->leftJoin('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
+            ->where('Solicitudes.fk_curp', $curpBeneficiario)
+            ->orderByDesc('Solicitudes.fecha_creacion')
+            ->select([
+                'Solicitudes.folio',
+                'Solicitudes.fk_curp',
+                'Solicitudes.fk_id_apoyo',
+                'Solicitudes.fk_id_estado',
+                'Solicitudes.fecha_creacion',
+                'Solicitudes.fecha_actualizacion',
+                'Solicitudes.presupuesto_confirmado',
+                'Solicitudes.fecha_confirmacion_presupuesto',
+                'Solicitudes.cuv',
+                'Solicitudes.folio_institucional',
+                'Solicitudes.monto_entregado',
+                'Solicitudes.fecha_entrega_recurso',
+                'Solicitudes.fecha_cierre_financiero',
+                'Apoyos.nombre_apoyo',
+                'Apoyos.tipo_apoyo',
+                'Apoyos.descripcion as apoyo_descripcion',
+                'Apoyos.monto_maximo',
+                'Apoyos.fecha_inicio as apoyo_fecha_inicio',
+                'Apoyos.fecha_fin as apoyo_fecha_fin',
+                'Cat_EstadosSolicitud.nombre_estado as estado_nombre',
+            ])
+            ->get()
+            ->map(function ($solicitud) {
+                $solicitud->fecha_creacion = ! empty($solicitud->fecha_creacion) ? Carbon::parse($solicitud->fecha_creacion) : null;
+                $solicitud->fecha_actualizacion = ! empty($solicitud->fecha_actualizacion) ? Carbon::parse($solicitud->fecha_actualizacion) : null;
+                $solicitud->fecha_confirmacion_presupuesto = ! empty($solicitud->fecha_confirmacion_presupuesto) ? Carbon::parse($solicitud->fecha_confirmacion_presupuesto) : null;
+                $solicitud->fecha_entrega_recurso = ! empty($solicitud->fecha_entrega_recurso) ? Carbon::parse($solicitud->fecha_entrega_recurso) : null;
+                $solicitud->fecha_cierre_financiero = ! empty($solicitud->fecha_cierre_financiero) ? Carbon::parse($solicitud->fecha_cierre_financiero) : null;
+                $solicitud->apoyo_fecha_inicio = ! empty($solicitud->apoyo_fecha_inicio) ? Carbon::parse($solicitud->apoyo_fecha_inicio) : null;
+                $solicitud->apoyo_fecha_fin = ! empty($solicitud->apoyo_fecha_fin) ? Carbon::parse($solicitud->apoyo_fecha_fin) : null;
+
+                $estadoNombreNormalizado = mb_strtolower(trim((string) ($solicitud->estado_nombre ?? '')));
+                $esAprobada = str_contains($estadoNombreNormalizado, 'aprob')
+                    || str_contains($estadoNombreNormalizado, 'correct')
+                    || str_contains($estadoNombreNormalizado, 'firm')
+                    || str_contains($estadoNombreNormalizado, 'autoriz');
+                $esRechazada = str_contains($estadoNombreNormalizado, 'rechaz')
+                    || str_contains($estadoNombreNormalizado, 'incorrect')
+                    || str_contains($estadoNombreNormalizado, 'cancel')
+                    || str_contains($estadoNombreNormalizado, 'deneg');
+
+                $solicitud->estado_clave = $esAprobada ? 'aprobada' : ($esRechazada ? 'rechazada' : 'proceso');
+                $solicitud->estado_etiqueta = Str::headline($solicitud->estado_nombre ?? 'Pendiente');
+                $solicitud->ultima_actualizacion = $solicitud->fecha_actualizacion ?: $solicitud->fecha_creacion;
+                $solicitud->ultima_actualizacion_formatted = $solicitud->ultima_actualizacion?->format('d/m/Y H:i') ?? '—';
+                $solicitud->fecha_solicitud_formatted = $solicitud->fecha_creacion?->format('d/m/Y H:i') ?? '—';
+                $solicitud->fecha_confirmacion_formatted = $solicitud->fecha_confirmacion_presupuesto?->format('d/m/Y H:i') ?? 'Pendiente';
+                $solicitud->fecha_entrega_recurso_formatted = $solicitud->fecha_entrega_recurso?->format('d/m/Y H:i') ?? 'Pendiente';
+                $solicitud->fecha_cierre_financiero_formatted = $solicitud->fecha_cierre_financiero?->format('d/m/Y H:i') ?? 'Pendiente';
+                $solicitud->apoyo_vigencia_formatted = sprintf(
+                    '%s al %s',
+                    $solicitud->apoyo_fecha_inicio?->format('d/m/Y') ?? '—',
+                    $solicitud->apoyo_fecha_fin?->format('d/m/Y') ?? '—',
+                );
+                $solicitud->monto_maximo_formatted = isset($solicitud->monto_maximo) && $solicitud->monto_maximo !== null
+                    ? '$' . number_format((float) $solicitud->monto_maximo, 2, '.', ',') . ' MXN'
+                    : '—';
+                $solicitud->monto_entregado_formatted = isset($solicitud->monto_entregado) && $solicitud->monto_entregado !== null
+                    ? '$' . number_format((float) $solicitud->monto_entregado, 2, '.', ',') . ' MXN'
+                    : '—';
+                $solicitud->descripcion_resumida = trim(strip_tags((string) ($solicitud->apoyo_descripcion ?? '')));
+                $solicitud->descripcion_resumida = $solicitud->descripcion_resumida !== ''
+                    ? Str::limit($solicitud->descripcion_resumida, 220)
+                    : '';
+
+                $solicitud->card_classes = $esAprobada
+                    ? 'border-emerald-200 bg-emerald-50/80 ring-1 ring-emerald-200/60'
+                    : ($esRechazada
+                        ? 'border-rose-200 bg-rose-50/80 ring-1 ring-rose-200/60'
+                        : 'border-amber-200 bg-amber-50/80 ring-1 ring-amber-200/60');
+                $solicitud->accent_classes = $esAprobada
+                    ? 'bg-emerald-500'
+                    : ($esRechazada ? 'bg-rose-500' : 'bg-amber-500');
+                $solicitud->badge_classes = $esAprobada
+                    ? 'bg-emerald-100 text-emerald-800 ring-emerald-200'
+                    : ($esRechazada ? 'bg-rose-100 text-rose-800 ring-rose-200' : 'bg-amber-100 text-amber-800 ring-amber-200');
+                $solicitud->badge_icon = $esAprobada ? '✓' : ($esRechazada ? '✗' : '⏳');
+
+                return $solicitud;
+            });
+
+        $solicitudesVisibles = $estadoFiltro === 'total'
+            ? $solicitudes
+            : $solicitudes->where('estado_clave', $estadoFiltro)->values();
+
+        $resumen = [
+            'total' => $solicitudes->count(),
+            'aprobadas' => $solicitudes->where('estado_clave', 'aprobada')->count(),
+            'proceso' => $solicitudes->where('estado_clave', 'proceso')->count(),
+            'rechazadas' => $solicitudes->where('estado_clave', 'rechazada')->count(),
+        ];
+
+        $estadoFiltroEtiqueta = match ($estadoFiltro) {
+            'aprobada' => 'Aprobadas',
+            'proceso' => 'En proceso',
+            'rechazada' => 'Rechazadas',
+            default => 'Todas las solicitudes',
+        };
+
+        return view('solicitudes.historial', [
+            'user' => $user,
+            'solicitudes' => $solicitudesVisibles,
+            'resumen' => $resumen,
+            'estadoFiltro' => $estadoFiltro,
+            'estadoFiltroEtiqueta' => $estadoFiltroEtiqueta,
+        ]);
     }
 
     public function guardar(Request $request)

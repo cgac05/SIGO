@@ -69,6 +69,10 @@ Route::get('/apoyos/{id}/solicitud', [SolicitudController::class, 'create'])
     ->middleware(['auth', 'beneficiario.profile'])
     ->name('solicitud.create');
 
+Route::get('/mis-solicitudes', [SolicitudController::class, 'historial'])
+    ->middleware(['auth', 'beneficiario.profile'])
+    ->name('solicitudes.historial');
+
 Route::middleware('auth')->group(function () {
 
     // Rutas de debug/test (existentes)
