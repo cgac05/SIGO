@@ -27,8 +27,13 @@ class SolicitudController extends Controller
     {
         $user = $request->user()->loadMissing('beneficiario');
         $curpBeneficiario = $user->beneficiario?->curp;
+        $esPersonal = $user->personal && in_array((int) $user->personal->fk_rol, [1, 2], true);
+        $soloRechazados = $request->boolean('solo_rechazados');
+        $folioRechazado = (int) $request->query('folio', 0);
+        $solicitudReenvio = null;
+        $documentosRechazados = collect();
 
-        if (! $user->isBeneficiario() || ! $curpBeneficiario) {
+        if ((! $user->isBeneficiario() || ! $curpBeneficiario) && ! ($soloRechazados && $esPersonal)) {
             return redirect()->route('apoyos.index')->with('error', 'Debes iniciar sesión como beneficiario para registrar una solicitud.');
         }
 
@@ -59,6 +64,53 @@ class SolicitudController extends Controller
             ->orderBy('Cat_TiposDocumento.nombre_documento')
             ->get();
 
+        if ($soloRechazados && $folioRechazado > 0) {
+            $solicitudReenvioQuery = DB::table('Solicitudes')
+                ->join('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
+                ->where('Solicitudes.folio', $folioRechazado)
+                ->where('Solicitudes.fk_id_apoyo', $id)
+                ->select([
+                    'Solicitudes.folio',
+                    'Cat_EstadosSolicitud.nombre_estado as estado',
+                    'Solicitudes.fecha_creacion',
+                ]);
+
+            if ($curpBeneficiario) {
+                $solicitudReenvioQuery->where('Solicitudes.fk_curp', $curpBeneficiario);
+            }
+
+            $solicitudReenvio = $solicitudReenvioQuery->first();
+
+            if ($solicitudReenvio) {
+                $documentosRechazados = DB::table('Documentos_Expediente')
+                    ->join('Cat_TiposDocumento', 'Documentos_Expediente.fk_id_tipo_doc', '=', 'Cat_TiposDocumento.id_tipo_doc')
+                    ->where('Documentos_Expediente.fk_folio', $folioRechazado)
+                    ->where(function ($query) {
+                        $query->where('Documentos_Expediente.admin_status', 'rechazado')
+                            ->orWhere('Documentos_Expediente.estado_validacion', 'RECHAZADO')
+                            ->orWhere('Documentos_Expediente.estado_validacion', 'Incorrecto');
+                    })
+                    ->select([
+                        'Documentos_Expediente.fk_id_tipo_doc',
+                        'Cat_TiposDocumento.nombre_documento',
+                        'Cat_TiposDocumento.tipo_archivo_permitido',
+                    ])
+                    ->orderBy('Cat_TiposDocumento.nombre_documento')
+                    ->get();
+
+                $tiposRechazados = $documentosRechazados->pluck('fk_id_tipo_doc')->map(fn ($tipoId) => (int) $tipoId)->all();
+                if (! empty($tiposRechazados)) {
+                    $requisitos = $requisitos->whereIn('fk_id_tipo_doc', $tiposRechazados)->values();
+                } else {
+                    $soloRechazados = false;
+                    $folioRechazado = 0;
+                }
+            } else {
+                $soloRechazados = false;
+                $folioRechazado = 0;
+            }
+        }
+
         $solicitudActiva = DB::table('Solicitudes')
             ->join('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
             ->where('Solicitudes.fk_curp', $curpBeneficiario)
@@ -72,7 +124,7 @@ class SolicitudController extends Controller
             ])
             ->first();
 
-        return view('solicitudes.create', compact('apoyo', 'requisitos', 'solicitudActiva', 'estadoPresupuesto'));
+        return view('solicitudes.create', compact('apoyo', 'requisitos', 'solicitudActiva', 'estadoPresupuesto', 'soloRechazados', 'folioRechazado', 'solicitudReenvio', 'documentosRechazados'));
     }
 
     public function historial(Request $request)
@@ -207,9 +259,12 @@ class SolicitudController extends Controller
     {
         $user = $request->user()->loadMissing('beneficiario');
         $curpBeneficiario = $user->beneficiario?->curp;
+        $esPersonal = $user->personal && in_array((int) $user->personal->fk_rol, [1, 2], true);
         $captchaRules = app()->environment('testing') ? ['nullable'] : ['required', new Recaptcha];
+        $soloRechazados = $request->boolean('solo_rechazados');
+        $folioRechazado = (int) $request->input('folio_rechazado', 0);
 
-        if (! $user->isBeneficiario() || ! $curpBeneficiario) {
+        if ((! $user->isBeneficiario() || ! $curpBeneficiario) && ! ($soloRechazados && $esPersonal)) {
             return redirect()->back()->with('error', 'Debes iniciar sesion como beneficiario para registrar una solicitud.');
         }
 
@@ -224,6 +279,156 @@ class SolicitudController extends Controller
         $apoyo = DB::table('Apoyos')->where('id_apoyo', $request->apoyo)->first();
         if (! $apoyo || (int) ($apoyo->activo ?? 0) !== 1) {
             return redirect()->back()->with('error', 'El apoyo seleccionado no se encuentra disponible.');
+        }
+
+        if ($soloRechazados) {
+            if ($folioRechazado <= 0) {
+                return redirect()->back()->with('error', 'No se pudo identificar la solicitud para volver a cargar documentos rechazados.');
+            }
+
+            $solicitudReenvioQuery = DB::table('Solicitudes')
+                ->where('folio', $folioRechazado)
+                ->where('fk_id_apoyo', $request->apoyo);
+
+            if ($curpBeneficiario) {
+                $solicitudReenvioQuery->where('fk_curp', $curpBeneficiario);
+            }
+
+            $solicitudReenvio = $solicitudReenvioQuery->first();
+
+            if (! $solicitudReenvio) {
+                return redirect()->back()->with('error', 'No se encontró la solicitud indicada para reenvío de documentos.');
+            }
+
+            $requisitos = DB::table('Requisitos_Apoyo')
+                ->join('Cat_TiposDocumento', 'Requisitos_Apoyo.fk_id_tipo_doc', '=', 'Cat_TiposDocumento.id_tipo_doc')
+                ->where('Requisitos_Apoyo.fk_id_apoyo', $request->apoyo)
+                ->select([
+                    'Requisitos_Apoyo.fk_id_tipo_doc',
+                    'Requisitos_Apoyo.es_obligatorio',
+                    'Cat_TiposDocumento.nombre_documento',
+                    'Cat_TiposDocumento.tipo_archivo_permitido',
+                    'Cat_TiposDocumento.validar_tipo_archivo',
+                ])
+                ->get();
+
+            $tiposRechazados = DB::table('Documentos_Expediente')
+                ->where('fk_folio', $folioRechazado)
+                ->where(function ($query) {
+                    $query->where('admin_status', 'rechazado')
+                        ->orWhere('estado_validacion', 'RECHAZADO')
+                        ->orWhere('estado_validacion', 'Incorrecto');
+                })
+                ->pluck('fk_id_tipo_doc')
+                ->map(fn ($tipoId) => (int) $tipoId)
+                ->all();
+
+            if (empty($tiposRechazados)) {
+                return redirect()->back()->with('error', 'No hay documentos rechazados para volver a cargar.');
+            }
+
+            $requisitos = $requisitos->whereIn('fk_id_tipo_doc', $tiposRechazados)->values();
+
+            DB::beginTransaction();
+
+            try {
+                foreach ($requisitos as $req) {
+                    $nombreInput = 'documento_' . $req->fk_id_tipo_doc;
+                    $gdriveIdInput = 'gdrive_' . $req->fk_id_tipo_doc . '_id';
+                    $gdriveNameInput = 'gdrive_' . $req->fk_id_tipo_doc . '_name';
+
+                    $archivo = $request->file($nombreInput);
+                    $gdriveFileId = $request->input($gdriveIdInput);
+                    $gdriveFileName = $request->input($gdriveNameInput);
+
+                    $tieneArchivoLocal = ! ! $archivo;
+                    $tieneGdrive = ! ! $gdriveFileId;
+
+                    if (! $tieneArchivoLocal && ! $tieneGdrive) {
+                        throw new \RuntimeException('Falta volver a cargar el documento rechazado: ' . $req->nombre_documento . '.');
+                    }
+
+                    if ($tieneArchivoLocal) {
+                        $debeValidarTipo = ! isset($req->validar_tipo_archivo) || (bool) $req->validar_tipo_archivo;
+                        if ($debeValidarTipo) {
+                            $tipo = $req->tipo_archivo_permitido ?? 'pdf';
+                            $mimes = match ($tipo) {
+                                'image' => 'jpg,jpeg,png,webp',
+                                'word' => 'doc,docx',
+                                'excel' => 'xls,xlsx,csv',
+                                'zip' => 'zip,rar,7z',
+                                'any' => null,
+                                default => 'pdf',
+                            };
+
+                            if ($mimes) {
+                                validator([
+                                    $nombreInput => $archivo,
+                                ], [
+                                    $nombreInput => 'file|mimes:' . $mimes . '|max:10240',
+                                ], [
+                                    $nombreInput . '.mimes' => 'El archivo para "' . $req->nombre_documento . '" no coincide con el tipo permitido (' . strtoupper($tipo) . ').',
+                                    $nombreInput . '.max' => 'El archivo para "' . $req->nombre_documento . '" excede el tamaño máximo permitido (10 MB).',
+                                ])->validate();
+                            }
+                        }
+
+                        $rutaDocumento = $archivo->store('solicitudes', 'public');
+                        $origenDocumento = 'local';
+                        $googleFileId = null;
+                        $googleFileName = null;
+                    } else {
+                        $rutaDocumento = "google_drive/{$gdriveFileId}";
+                        $origenDocumento = 'google_drive';
+                        $googleFileId = $gdriveFileId;
+                        $googleFileName = $gdriveFileName;
+                    }
+
+                    $documentoExistente = Documento::query()
+                        ->where('fk_folio', $folioRechazado)
+                        ->where('fk_id_tipo_doc', $req->fk_id_tipo_doc)
+                        ->where(function ($query) {
+                            $query->where('admin_status', 'rechazado')
+                                ->orWhere('estado_validacion', 'RECHAZADO')
+                                ->orWhere('estado_validacion', 'Incorrecto');
+                        })
+                        ->orderByDesc('id_doc')
+                        ->first();
+
+                    $payloadDocumento = [
+                        'fk_folio' => $folioRechazado,
+                        'fk_id_tipo_doc' => $req->fk_id_tipo_doc,
+                        'ruta_archivo' => $rutaDocumento,
+                        'origen_archivo' => $origenDocumento,
+                        'google_file_id' => $googleFileId,
+                        'google_file_name' => $googleFileName,
+                        'estado_validacion' => 'Pendiente',
+                        'admin_status' => 'pendiente',
+                        'admin_observations' => null,
+                        'verification_token' => null,
+                        'id_admin' => null,
+                        'fecha_verificacion' => null,
+                        'version' => $documentoExistente ? ((int) ($documentoExistente->version ?? 1) + 1) : 1,
+                        'fecha_carga' => now(),
+                    ];
+
+                    if ($documentoExistente) {
+                        DB::table('Documentos_Expediente')
+                            ->where('id_doc', $documentoExistente->id_doc)
+                            ->update($payloadDocumento);
+                    } else {
+                        Documento::create($payloadDocumento);
+                    }
+                }
+
+                DB::commit();
+
+                return redirect()->back()->with('exito', true);
+            } catch (\Exception $e) {
+                DB::rollBack();
+
+                return redirect()->back()->with('error', 'Error al guardar: ' . $e->getMessage());
+            }
         }
 
         // NUEVO: Validar que hay presupuesto disponible en la categoría

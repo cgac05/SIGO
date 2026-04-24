@@ -9,6 +9,7 @@ use App\Models\Solicitud;
 use App\Services\GestionInventarioService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -1350,12 +1351,97 @@ $categoriasPresupuesto = PresupuestoCategoria::select('id_categoria', 'nombre', 
         }
     }
 
-    public function comments($id)
+    public function comments(Request $request, $id)
     {
         $user = Auth::user()->loadMissing(['personal', 'beneficiario']);
         $apoyo = Apoyo::findOrFail($id);
         $apoyo->foto_url = $this->resolveApoyoImageUrl($apoyo->foto_ruta);
         $apoyo->descripcion_html = $this->sanitizeDescriptionHtml($apoyo->descripcion ?? '');
+
+        $origenVista = strtolower(trim((string) $request->query('origen', 'apoyo')));
+        $folioSolicitud = (int) $request->query('folio', 0);
+        $modoSolicitud = $origenVista === 'solicitud' && $folioSolicitud > 0;
+        $solicitudDetalle = null;
+
+        if ($modoSolicitud && $user->beneficiario?->curp) {
+            $solicitudDetalle = DB::table('Solicitudes')
+                ->leftJoin('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
+                ->leftJoin('Apoyos', 'Solicitudes.fk_id_apoyo', '=', 'Apoyos.id_apoyo')
+                ->where('Solicitudes.folio', $folioSolicitud)
+                ->where('Solicitudes.fk_curp', $user->beneficiario->curp)
+                ->where('Solicitudes.fk_id_apoyo', $apoyo->id_apoyo)
+                ->select([
+                    'Solicitudes.folio',
+                    'Solicitudes.fk_curp',
+                    'Solicitudes.fk_id_apoyo',
+                    'Solicitudes.fk_id_estado',
+                    'Solicitudes.fecha_creacion',
+                    'Solicitudes.fecha_actualizacion',
+                    'Solicitudes.presupuesto_confirmado',
+                    'Solicitudes.fecha_confirmacion_presupuesto',
+                    'Solicitudes.cuv',
+                    'Solicitudes.folio_institucional',
+                    'Solicitudes.monto_entregado',
+                    'Solicitudes.fecha_entrega_recurso',
+                    'Solicitudes.fecha_cierre_financiero',
+                    'Cat_EstadosSolicitud.nombre_estado as estado_nombre',
+                    'Apoyos.nombre_apoyo',
+                    'Apoyos.tipo_apoyo',
+                    'Apoyos.descripcion as apoyo_descripcion',
+                    'Apoyos.monto_maximo',
+                    'Apoyos.fecha_inicio as apoyo_fecha_inicio',
+                    'Apoyos.fecha_fin as apoyo_fecha_fin',
+                ])
+                ->first();
+
+            if ($solicitudDetalle) {
+                $solicitudDetalle->fecha_creacion = ! empty($solicitudDetalle->fecha_creacion) ? Carbon::parse($solicitudDetalle->fecha_creacion) : null;
+                $solicitudDetalle->fecha_actualizacion = ! empty($solicitudDetalle->fecha_actualizacion) ? Carbon::parse($solicitudDetalle->fecha_actualizacion) : null;
+                $solicitudDetalle->fecha_confirmacion_presupuesto = ! empty($solicitudDetalle->fecha_confirmacion_presupuesto) ? Carbon::parse($solicitudDetalle->fecha_confirmacion_presupuesto) : null;
+                $solicitudDetalle->fecha_entrega_recurso = ! empty($solicitudDetalle->fecha_entrega_recurso) ? Carbon::parse($solicitudDetalle->fecha_entrega_recurso) : null;
+                $solicitudDetalle->fecha_cierre_financiero = ! empty($solicitudDetalle->fecha_cierre_financiero) ? Carbon::parse($solicitudDetalle->fecha_cierre_financiero) : null;
+                $solicitudDetalle->apoyo_fecha_inicio = ! empty($solicitudDetalle->apoyo_fecha_inicio) ? Carbon::parse($solicitudDetalle->apoyo_fecha_inicio) : null;
+                $solicitudDetalle->apoyo_fecha_fin = ! empty($solicitudDetalle->apoyo_fecha_fin) ? Carbon::parse($solicitudDetalle->apoyo_fecha_fin) : null;
+
+                $estadoNombreNormalizado = mb_strtolower(trim((string) ($solicitudDetalle->estado_nombre ?? '')));
+                $esAprobada = str_contains($estadoNombreNormalizado, 'aprob')
+                    || str_contains($estadoNombreNormalizado, 'correct')
+                    || str_contains($estadoNombreNormalizado, 'firm')
+                    || str_contains($estadoNombreNormalizado, 'autoriz');
+                $esRechazada = str_contains($estadoNombreNormalizado, 'rechaz')
+                    || str_contains($estadoNombreNormalizado, 'incorrect')
+                    || str_contains($estadoNombreNormalizado, 'cancel')
+                    || str_contains($estadoNombreNormalizado, 'deneg');
+
+                $solicitudDetalle->estado_clave = $esAprobada ? 'aprobada' : ($esRechazada ? 'rechazada' : 'proceso');
+                $solicitudDetalle->estado_etiqueta = Str::headline($solicitudDetalle->estado_nombre ?? 'Pendiente');
+                $solicitudDetalle->fecha_solicitud_formatted = $solicitudDetalle->fecha_creacion?->format('d/m/Y H:i') ?? '—';
+                $solicitudDetalle->fecha_actualizacion_formatted = $solicitudDetalle->fecha_actualizacion?->format('d/m/Y H:i') ?? '—';
+                $solicitudDetalle->fecha_confirmacion_formatted = $solicitudDetalle->fecha_confirmacion_presupuesto?->format('d/m/Y H:i') ?? 'Pendiente';
+                $solicitudDetalle->fecha_entrega_recurso_formatted = $solicitudDetalle->fecha_entrega_recurso?->format('d/m/Y H:i') ?? 'Pendiente';
+                $solicitudDetalle->fecha_cierre_financiero_formatted = $solicitudDetalle->fecha_cierre_financiero?->format('d/m/Y H:i') ?? 'Pendiente';
+                $solicitudDetalle->apoyo_vigencia_formatted = sprintf(
+                    '%s al %s',
+                    $solicitudDetalle->apoyo_fecha_inicio?->format('d/m/Y') ?? '—',
+                    $solicitudDetalle->apoyo_fecha_fin?->format('d/m/Y') ?? '—',
+                );
+                $solicitudDetalle->monto_entregado_formatted = isset($solicitudDetalle->monto_entregado) && $solicitudDetalle->monto_entregado !== null
+                    ? '$' . number_format((float) $solicitudDetalle->monto_entregado, 2, '.', ',') . ' MXN'
+                    : 'Pendiente';
+                $solicitudDetalle->monto_maximo_formatted = isset($solicitudDetalle->monto_maximo) && $solicitudDetalle->monto_maximo !== null
+                    ? '$' . number_format((float) $solicitudDetalle->monto_maximo, 2, '.', ',') . ' MXN'
+                    : '—';
+                $solicitudDetalle->presupuesto_confirmado_formatted = ! empty($solicitudDetalle->presupuesto_confirmado) ? 'Confirmado' : 'Pendiente';
+                $solicitudDetalle->presupuesto_confirmado_classes = ! empty($solicitudDetalle->presupuesto_confirmado)
+                    ? 'bg-emerald-100 text-emerald-800 ring-emerald-200'
+                    : 'bg-amber-100 text-amber-800 ring-amber-200';
+                $solicitudDetalle->estado_badge_classes = $esAprobada
+                    ? 'bg-emerald-100 text-emerald-800 ring-emerald-200'
+                    : ($esRechazada ? 'bg-rose-100 text-rose-800 ring-rose-200' : 'bg-amber-100 text-amber-800 ring-amber-200');
+            } else {
+                $modoSolicitud = false;
+            }
+        }
 
         $requisitos = DB::table('Requisitos_Apoyo')
             ->join('Cat_TiposDocumento', 'Requisitos_Apoyo.fk_id_tipo_doc', '=', 'Cat_TiposDocumento.id_tipo_doc')
@@ -1402,6 +1488,21 @@ $categoriasPresupuesto = PresupuestoCategoria::select('id_categoria', 'nombre', 
                 ->first();
         }
 
+            $documentosRechazadosCount = null;
+            if ($solicitudDetalle) {
+                $documentosRechazadosCount = DB::table('Documentos_Expediente')
+                ->where('fk_folio', $solicitudDetalle->folio)
+                ->where('admin_status', 'rechazado')
+                ->count();
+            }
+
+        $solicitudesAprobadasCount = (int) Solicitud::where('fk_id_apoyo', $apoyo->id_apoyo)
+            ->where('fk_id_estado', 4)
+            ->count();
+
+        $cupoLimiteApoyo = (int) ($apoyo->cupo_limite ?? 0);
+        $cupoMaximoAlcanzado = $cupoLimiteApoyo > 0 && $solicitudesAprobadasCount >= $cupoLimiteApoyo;
+
         $comments = $this->getApoyoCommentsTree((int) $apoyo->id_apoyo, $user);
 
         if (request()->expectsJson() || request()->ajax() || request()->boolean('json')) {
@@ -1411,10 +1512,17 @@ $categoriasPresupuesto = PresupuestoCategoria::select('id_categoria', 'nombre', 
                 'comments' => $comments,
                 'hitos' => $hitos,
                 'requisitos' => $requisitos,
+                'modoSolicitud' => $modoSolicitud,
+                'origenVista' => $origenVista,
+                'solicitudDetalle' => $solicitudDetalle,
+                'solicitudesAprobadasCount' => $solicitudesAprobadasCount,
+                'cupoLimiteApoyo' => $cupoLimiteApoyo,
+                'cupoMaximoAlcanzado' => $cupoMaximoAlcanzado,
+                'documentosRechazadosCount' => $documentosRechazadosCount,
             ]);
         }
 
-        return view('apoyos.comments', compact('apoyo', 'user', 'comments', 'requisitos', 'hitos', 'solicitudActiva'));
+        return view('apoyos.comments', compact('apoyo', 'user', 'comments', 'requisitos', 'hitos', 'solicitudActiva', 'solicitudDetalle', 'modoSolicitud', 'origenVista', 'solicitudesAprobadasCount', 'cupoLimiteApoyo', 'cupoMaximoAlcanzado', 'documentosRechazadosCount'));
     }
 
     public function storeComment(Request $request, $id)

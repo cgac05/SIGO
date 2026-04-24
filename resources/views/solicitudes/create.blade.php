@@ -11,6 +11,14 @@
     <div class="min-h-screen bg-gray-100">
         @include('layouts.navigation')
 
+        @php
+            $modoReenvio = !empty($soloRechazados) && !empty($solicitudReenvio);
+            $tituloFormulario = $modoReenvio ? 'Reenvío de documentos rechazados' : 'Carga formal de documentos';
+            $textoFormulario = $modoReenvio
+                ? 'Solo se muestran los documentos que fueron rechazados y deben volver a cargarse.'
+                : 'Adjunta los archivos solicitados para completar tu trámite.';
+        @endphp
+
         <header class="bg-white shadow">
             <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <div class="flex items-center justify-between gap-3">
@@ -21,7 +29,7 @@
                             </svg>
                         </a>
                         <div>
-                            <h2 class="text-xl font-extrabold text-slate-900">Carga formal de documentos</h2>
+                            <h2 class="text-xl font-extrabold text-slate-900">{{ $tituloFormulario }}</h2>
                             <p class="text-xs text-slate-500">{{ $apoyo->nombre_apoyo }}</p>
                         </div>
                     </div>
@@ -38,7 +46,12 @@
             <div class="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm px-4 py-3">Solicitud registrada correctamente.</div>
         @endif
 
-        @if($solicitudActiva)
+        @if($modoReenvio)
+            <div class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+                <p class="text-sm font-bold text-amber-800">Reenvío de documentos rechazados</p>
+                <p class="text-xs text-amber-700 mt-1">Folio: {{ $solicitudReenvio->folio }} · Solo se mostrarán los documentos rechazados.</p>
+            </div>
+        @elseif($solicitudActiva)
             <div class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
                 <p class="text-sm font-bold text-amber-800">Ya tienes una solicitud en proceso</p>
                 <p class="text-xs text-amber-700 mt-1">Folio: {{ $solicitudActiva->folio }} · Estado: {{ $solicitudActiva->estado }}</p>
@@ -46,12 +59,14 @@
         @endif
 
         <div class="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
-            <h3 class="text-base font-extrabold text-slate-800 mb-1">Documentos requeridos</h3>
-            <p class="text-xs text-slate-500 mb-4">Adjunta los archivos solicitados para completar tu trámite.</p>
+            <h3 class="text-base font-extrabold text-slate-800 mb-1">{{ $modoReenvio ? 'Documentos rechazados' : 'Documentos requeridos' }}</h3>
+            <p class="text-xs text-slate-500 mb-4">{{ $textoFormulario }}</p>
 
             <form id="formSolicitudFormal" action="{{ route('solicitud.guardar') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
                 @csrf
                 <input type="hidden" name="apoyo" value="{{ $apoyo->id_apoyo }}">
+                <input type="hidden" name="solo_rechazados" value="{{ $modoReenvio ? 1 : 0 }}">
+                <input type="hidden" name="folio_rechazado" value="{{ $modoReenvio ? $solicitudReenvio->folio : '' }}">
                 <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response-solicitud-formal">
 
                 @if($requisitos->count())
@@ -92,7 +107,7 @@
                                             <p class="text-sm font-semibold text-slate-700">Haz clic o arrastra para cargar</p>
                                             <p class="text-xs text-slate-500 mt-1">Máximo 10 MB</p>
                                         </div>
-                                        <input type="file" id="file-{{ $req->fk_id_tipo_doc }}" name="documento_{{ $req->fk_id_tipo_doc }}" class="hidden" data-doc-type="{{ $req->fk_id_tipo_doc }}" data-required="{{ (int) $req->es_obligatorio }}" onchange="updateFileDisplay(this)">
+                                        <input type="file" id="file-{{ $req->fk_id_tipo_doc }}" name="documento_{{ $req->fk_id_tipo_doc }}" class="hidden" data-doc-type="{{ $req->fk_id_tipo_doc }}" data-required="{{ $modoReenvio ? 1 : (int) $req->es_obligatorio }}" @if($modoReenvio || (int) $req->es_obligatorio === 1) required @endif onchange="updateFileDisplay(this)">
                                         <p class="text-xs text-slate-600 mt-2 file-name-{{ $req->fk_id_tipo_doc }}"></p>
                                     </div>
 
@@ -120,8 +135,8 @@
                     <p class="text-sm text-slate-500">Este apoyo no tiene documentos obligatorios configurados.</p>
                 @endif
 
-                <button type="submit" class="w-full rounded-lg bg-blue-700 text-white py-3 font-bold text-base hover:bg-blue-600 disabled:opacity-50 transition shadow-md" @if($solicitudActiva) disabled @endif>
-                    {{ $solicitudActiva ? 'Solicitud en proceso' : 'Enviar solicitud formal' }}
+                <button type="submit" class="w-full rounded-lg bg-blue-700 text-white py-3 font-bold text-base hover:bg-blue-600 disabled:opacity-50 transition shadow-md" @if($solicitudActiva && ! $modoReenvio) disabled @endif>
+                    {{ $modoReenvio ? 'Reenviar documentos rechazados' : ($solicitudActiva ? 'Solicitud en proceso' : 'Enviar solicitud formal') }}
                 </button>
             </form>
         </div>

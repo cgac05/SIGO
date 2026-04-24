@@ -1,6 +1,19 @@
 ﻿@php
     $isBeneficiario = $user && $user->isBeneficiario();
     $canEditApoyo = $user && $user->personal && in_array((int) $user->personal->fk_rol, [1, 2], true);
+    $modoSolicitud = !empty($modoSolicitud) && !empty($solicitudDetalle);
+    $solicitudesAprobadasCount = (int) ($solicitudesAprobadasCount ?? 0);
+    $cupoLimiteApoyo = (int) ($cupoLimiteApoyo ?? ($apoyo->cupo_limite ?? 0));
+    $cupoMaximoAlcanzado = ! $modoSolicitud && $cupoLimiteApoyo > 0 && $solicitudesAprobadasCount >= $cupoLimiteApoyo;
+    $bloqueoCargaFormal = ! $modoSolicitud && ($cupoMaximoAlcanzado || ! empty($solicitudActiva));
+    $textoBloqueoCargaFormal = $cupoMaximoAlcanzado
+        ? 'Cupo máximo alcanzado para este apoyo.'
+        : (! empty($solicitudActiva) ? 'Ya tienes una solicitud en proceso.' : '');
+    $pageTitle = $modoSolicitud ? 'Detalle de la solicitud' : 'Detalle del apoyo';
+    $pageSubtitle = $modoSolicitud
+        ? 'Vista informativa y seguimiento de tu solicitud'
+        : 'Vista informativa y comentarios publicos';
+    $backUrl = $modoSolicitud ? route('solicitudes.historial') : route('apoyos.index');
 @endphp
 
 <!DOCTYPE html>
@@ -9,7 +22,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Detalle del apoyo - {{ config('app.name', 'SIGO') }}</title>
+    <title>{{ $pageTitle }} - {{ config('app.name', 'SIGO') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="font-sans antialiased">
@@ -20,17 +33,17 @@
             <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex items-center gap-3">
-                        <a href="{{ route('apoyos.index') }}" class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition">
+                        <a href="{{ $backUrl }}" class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
                             </svg>
                         </a>
                         <div>
-                            <h2 class="text-xl font-extrabold text-slate-900">Detalle del apoyo</h2>
-                            <p class="text-xs text-slate-500">Vista informativa y comentarios publicos</p>
+                            <h2 class="text-xl font-extrabold text-slate-900">{{ $pageTitle }}</h2>
+                            <p class="text-xs text-slate-500">{{ $pageSubtitle }}</p>
                         </div>
                     </div>
-                    @if($canEditApoyo)
+                    @if($canEditApoyo && ! $modoSolicitud)
                         <a href="{{ route('apoyos.edit', $apoyo->id_apoyo) }}" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition">Editar apoyo</a>
                     @endif
                 </div>
@@ -61,12 +74,17 @@
                 @endif
 
                 <div class="p-6 md:p-8">
-                    <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Convocatoria</p>
-                    <h3 class="mt-2 w-full text-3xl md:text-4xl font-extrabold text-slate-900 leading-tight">{{ $apoyo->nombre_apoyo }}</h3>
+                    <p class="text-xs font-bold uppercase tracking-wider text-slate-500">{{ $modoSolicitud ? 'Solicitud' : 'Convocatoria' }}</p>
+                    <h3 class="mt-2 w-full text-3xl md:text-4xl font-extrabold text-slate-900 leading-tight">
+                        {{ $modoSolicitud ? ('Solicitud #' . $solicitudDetalle->folio) : $apoyo->nombre_apoyo }}
+                    </h3>
 
                     <div class="mt-4 flex flex-wrap items-center gap-2">
                         <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold {{ $apoyo->tipo_apoyo === 'Económico' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800' }}">{{ $apoyo->tipo_apoyo }}</span>
-                        @if($isBeneficiario && !empty($solicitudActiva))
+                        @if($modoSolicitud)
+                            <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">Folio {{ $solicitudDetalle->folio }}</span>
+                            <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ring-1 {{ $solicitudDetalle->estado_badge_classes ?? 'bg-amber-100 text-amber-800 ring-amber-200' }}">{{ $solicitudDetalle->estado_etiqueta ?? 'Pendiente' }}</span>
+                        @elseif($isBeneficiario && !empty($solicitudActiva))
                             <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">Tu solicitud: {{ $solicitudActiva->estado }}</span>
                         @endif
                     </div>
@@ -77,17 +95,51 @@
 
                             @if($isBeneficiario)
                                 <div class="mt-5">
-                                    @if(!empty($solicitudActiva))
-                                        <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 mb-3">
-                                            <p class="text-sm font-bold text-blue-800">Ya tienes una solicitud en proceso</p>
-                                            <p class="text-xs text-blue-700 mt-1">Folio: {{ $solicitudActiva->folio }} · Estado: {{ $solicitudActiva->estado }}</p>
+                                    @if($modoSolicitud)
+                                        <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                                            <p class="text-sm font-bold text-amber-800">Solicitud consultada desde tu historial</p>
+                                            <p class="text-xs text-amber-700 mt-1">Folio: {{ $solicitudDetalle->folio }} · Estado: {{ $solicitudDetalle->estado_etiqueta ?? 'Pendiente' }}</p>
                                         </div>
-                                    @endif
+                                        @if(($documentosRechazadosCount ?? 0) > 0)
+                                            <a href="{{ route('solicitud.create', ['id' => $apoyo->id_apoyo, 'folio' => $solicitudDetalle->folio, 'solo_rechazados' => 1]) }}"
+                                               class="mt-3 inline-flex items-center justify-center rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-500 transition">
+                                                Re-cargar documentos rechazados
+                                            </a>
+                                        @endif
+                                        <a href="{{ route('solicitudes.historial') }}"
+                                           class="mt-3 inline-flex items-center justify-center rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-700 transition">
+                                            Volver a mis solicitudes
+                                        </a>
+                                    @else
+                                        @if(!empty($solicitudActiva))
+                                            <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 mb-3">
+                                                <p class="text-sm font-bold text-blue-800">Ya tienes una solicitud en proceso</p>
+                                                <p class="text-xs text-blue-700 mt-1">Folio: {{ $solicitudActiva->folio }} · Estado: {{ $solicitudActiva->estado }}</p>
+                                            </div>
+                                        @endif
 
-                                    <a href="{{ route('solicitud.create', $apoyo->id_apoyo) }}"
-                                       class="inline-flex items-center justify-center rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-600 transition {{ !empty($solicitudActiva) ? 'opacity-50 pointer-events-none' : '' }}">
-                                        Ir a carga formal de documentacion
-                                    </a>
+                                        @if($cupoMaximoAlcanzado)
+                                            <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 mb-3">
+                                                <p class="text-sm font-bold text-rose-800">Cupo máximo alcanzado</p>
+                                                <p class="text-xs text-rose-700 mt-1">
+                                                    {{ $solicitudesAprobadasCount }} de {{ $cupoLimiteApoyo }} solicitudes aprobadas.
+                                                </p>
+                                            </div>
+                                        @endif
+
+                                        @if($bloqueoCargaFormal)
+                                            <span class="inline-flex items-center justify-center rounded-lg bg-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-600 opacity-80 cursor-not-allowed"
+                                                  title="{{ $textoBloqueoCargaFormal }}"
+                                                  aria-disabled="true">
+                                                Ir a carga formal de documentacion
+                                            </span>
+                                        @else
+                                            <a href="{{ route('solicitud.create', $apoyo->id_apoyo) }}"
+                                               class="inline-flex items-center justify-center rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-600 transition">
+                                                Ir a carga formal de documentacion
+                                            </a>
+                                        @endif
+                                    @endif
                                 </div>
                             @endif
                         </div>
@@ -173,23 +225,66 @@
             </section>
 
             <section class="rounded-2xl border border-slate-200 bg-white shadow-sm p-5">
-                <h3 class="text-lg font-extrabold text-slate-800">Documentos necesarios</h3>
-                <p class="text-xs text-slate-500 mt-1">Estos documentos te serán solicitados en la ventana de carga formal.</p>
+                @if($modoSolicitud && !empty($solicitudDetalle))
+                    <h3 class="text-lg font-extrabold text-slate-800">Datos completos de la solicitud</h3>
+                    <p class="text-xs text-slate-500 mt-1">Resumen administrativo y financiero de la solicitud consultada.</p>
 
-                @if(isset($requisitos) && $requisitos->count())
-                    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        @foreach($requisitos as $req)
-                            <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                                <p class="text-sm font-semibold text-slate-800">{{ $req->nombre_documento }}</p>
-                                <div class="mt-2 flex items-center justify-between">
-                                    <span class="text-[11px] text-slate-500">Tipo permitido</span>
-                                    <span class="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700 uppercase">{{ $req->tipo_archivo_permitido ?? 'any' }}</span>
-                                </div>
-                            </div>
-                        @endforeach
+                    <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                            <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Folio</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">#{{ $solicitudDetalle->folio }}</p>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                            <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Estado actual</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">{{ $solicitudDetalle->estado_etiqueta ?? 'Pendiente' }}</p>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                            <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Fecha de solicitud</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">{{ $solicitudDetalle->fecha_solicitud_formatted ?? '—' }}</p>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                            <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Última actualización</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">{{ $solicitudDetalle->fecha_actualizacion_formatted ?? '—' }}</p>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                            <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Presupuesto confirmado</p>
+                            <p class="mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ring-1 {{ $solicitudDetalle->presupuesto_confirmado_classes ?? 'bg-amber-100 text-amber-800 ring-amber-200' }}">{{ $solicitudDetalle->presupuesto_confirmado_formatted ?? 'Pendiente' }}</p>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                            <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">CUV</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">{{ $solicitudDetalle->cuv ?? 'Pendiente' }}</p>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                            <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Monto entregado</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">{{ $solicitudDetalle->monto_entregado_formatted ?? 'Pendiente' }}</p>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 sm:col-span-2 lg:col-span-3">
+                            <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Apoyo asociado</p>
+                            <p class="mt-1 text-sm font-semibold text-slate-900">{{ $solicitudDetalle->nombre_apoyo ?? $apoyo->nombre_apoyo }}</p>
+                            <p class="mt-1 text-xs text-slate-500">
+                                {{ $solicitudDetalle->tipo_apoyo ?? $apoyo->tipo_apoyo }} · Vigencia {{ $solicitudDetalle->apoyo_vigencia_formatted ?? ($hitos->count() ? 'ver hitos del apoyo' : '—') }}
+                            </p>
+                        </div>
                     </div>
                 @else
-                    <p class="mt-3 text-sm text-slate-500">No hay documentos obligatorios para este apoyo.</p>
+                    <h3 class="text-lg font-extrabold text-slate-800">Documentos necesarios</h3>
+                    <p class="text-xs text-slate-500 mt-1">Estos documentos te serán solicitados en la ventana de carga formal.</p>
+
+                    @if(isset($requisitos) && $requisitos->count())
+                        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            @foreach($requisitos as $req)
+                                <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                                    <p class="text-sm font-semibold text-slate-800">{{ $req->nombre_documento }}</p>
+                                    <div class="mt-2 flex items-center justify-between">
+                                        <span class="text-[11px] text-slate-500">Tipo permitido</span>
+                                        <span class="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700 uppercase">{{ $req->tipo_archivo_permitido ?? 'any' }}</span>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="mt-3 text-sm text-slate-500">No hay documentos obligatorios para este apoyo.</p>
+                    @endif
                 @endif
             </section>
 

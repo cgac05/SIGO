@@ -66,6 +66,13 @@
                             <span class="font-bold text-red-600">{{ $rechazados }}</span>
                         </div>
                     </div>
+
+                    @if($rechazados > 0)
+                        <a href="{{ route('solicitud.create', ['id' => $solicitud->apoyo->id_apoyo, 'folio' => $solicitud->folio, 'solo_rechazados' => 1]) }}"
+                           class="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-500 transition">
+                            Re-cargar documentos rechazados
+                        </a>
+                    @endif
                 </div>
             </div>
 
