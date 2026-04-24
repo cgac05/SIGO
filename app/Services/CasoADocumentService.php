@@ -236,36 +236,40 @@ class CasoADocumentService
             $qr_data = $this->generarQRSeguimiento($folio, $hash_documento, $tipo_documento);
             $firma_admin = hash_hmac('sha256', $hash_documento . $folio, config('app.key'));
             
-            // 7. Crear registro Documento
-            $documento = Documento::create([
+            // 7. Crear registro Documento usando DB::table para evitar conflictos con casts
+            // Esto evita que Eloquent intente procesar DB::raw('GETDATE()') como datetime
+            $doc_id = DB::table('Documentos_Expediente')->insertGetId([
                 'fk_folio' => $folio,
                 'fk_id_tipo_doc' => $tipo_documento,
                 'ruta_archivo' => $rutaAlmacenamiento,
-                'origen_archivo' => 'admin_escaneo_presencial',
+                'origen_archivo' => 'admin_caso_a',
                 'id_admin' => $admin_id,
                 'estado_validacion' => 'PENDIENTE',
-                'fecha_carga' => now(),
+                'fecha_carga' => DB::raw('GETDATE()'),
             ]);
             
-            // 8. Crear entrada en cadena digital
-            CadenaDigitalDocumento::create([
+            // Recuperar el documento creado
+            $documento = Documento::find($doc_id);
+            
+            // 8. Crear entrada en cadena digital usando DB::table
+            DB::table('cadena_digital_documentos')->insert([
                 'fk_id_documento' => $documento->id_doc,
                 'folio' => $folio,
                 'hash_actual' => $hash_documento,
                 'hash_anterior' => $hash_anterior,
                 'admin_creador' => $admin_id,
-                'timestamp_creacion' => now(),
+                'timestamp_creacion' => DB::raw('GETDATE()'),
                 'firma_hmac' => $firma_admin,
                 'razon_cambio' => 'Nuevo documento escaneado en Momento 2',
             ]);
             
-            // 9. Registrar auditoría
-            AuditoriaCargaMaterial::create([
+            // 9. Registrar auditoría usando DB::table
+            DB::table('auditorias_carga_material')->insert([
                 'folio' => $folio,
                 'evento' => 'documento_escaneado',
                 'admin_id' => $admin_id,
                 'cantidad_docs' => 1,
-                'fecha_evento' => now(),
+                'fecha_evento' => DB::raw('GETDATE()'),
                 'ip_admin' => request()->ip(),
                 'navegador_agente' => request()->header('User-Agent'),
                 'detalles_evento' => json_encode([
@@ -275,12 +279,14 @@ class CasoADocumentService
                 ]),
             ]);
             
-            // 10. Crear política de retención
-            PoliticaRetencionDocumento::create([
-                'fk_id_documento' => $documento->id_doc,
-                'folio' => $folio,
-                'retencion_cumplida' => false,
-            ]);
+            // 10. Crear política de retención usando DB::table
+            // NOTA: Tabla politicas_retencion_documentos será creada en futuro
+            // Por ahora esta inserción está comentada
+            // DB::table('politicas_retencion_documentos')->insert([
+            //     'fk_id_documento' => $documento->id_doc,
+            //     'folio' => $folio,
+            //     'retencion_cumplida' => 0,
+            // ]);
             
             DB::commit();
             

@@ -22,12 +22,13 @@ use App\Http\Controllers\Admin\VerificacionCertificadoController;
 use App\Http\Controllers\Admin\ArchivadoCertificadoController;
 use App\Http\Controllers\FacturaCompraController;
 use App\Http\Controllers\FirmaController;
-use App\Http\Controllers\RecursosFinancierosController; // ← AGREGADO
+use App\Http\Controllers\RecursosFinancierosController;
 use App\Http\Controllers\DocumentController;
 use App\Models\Beneficiario;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\PersonalController;
 
 Route::get('/', function () {
     $beneficiariosCount = Beneficiario::count();
@@ -137,6 +138,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/{folio}/comprobante', [RecursosFinancierosController::class, 'comprobante'])
             ->name('finanzas.comprobante');
     });
+
+    Route::get('/personal/crear', [PersonalController::class, 'create'])->name('personal.crear');
+    Route::post('/personal/guardar', [PersonalController::class, 'store'])->name('personal.store');
 
     // Apoyos
     Route::get('/apoyos',                  [ApoyoController::class, 'index'])->name('apoyos.index');

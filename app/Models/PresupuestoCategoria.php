@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class PresupuestoCategoria extends Model
 {
@@ -95,7 +96,10 @@ class PresupuestoCategoria extends Model
      */
     public function decrementarDisponible($monto): bool
     {
-        return $this->decrement('disponible', $monto);
+        // Use DB-side timestamp to avoid SQL Server locale/date parsing issues.
+        return (bool) $this->newQuery()
+            ->where($this->getKeyName(), $this->getKey())
+            ->decrement('disponible', $monto, ['updated_at' => DB::raw('CURRENT_TIMESTAMP')]);
     }
 
     /**
@@ -103,7 +107,10 @@ class PresupuestoCategoria extends Model
      */
     public function incrementarDisponible($monto): bool
     {
-        return $this->increment('disponible', $monto);
+        // Use DB-side timestamp to avoid SQL Server locale/date parsing issues.
+        return (bool) $this->newQuery()
+            ->where($this->getKeyName(), $this->getKey())
+            ->increment('disponible', $monto, ['updated_at' => DB::raw('CURRENT_TIMESTAMP')]);
     }
 
     public function getBadgeColor(): string

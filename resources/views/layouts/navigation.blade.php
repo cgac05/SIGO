@@ -3,41 +3,40 @@
     @php($profilePhotoUrl = $currentUser?->avatar_url)
     @php($profilePhotoFallbackUrl = $currentUser?->avatar_placeholder_url)
     @php($showBeneficiaryProfileSections = $currentUser?->isBeneficiario())
-    <!-- Primary Navigation Menu -->
+    
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
             <div class="flex">
-                <!-- Logo -->
                 <div class="shrink-0 flex items-center">
                     <a href="{{ route('dashboard') }}">
                         <x-application-logo class="block h-9 w-auto fill-current text-gray-800" />
                     </a>
                 </div>
 
-                <!-- Navigation Links -->
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                        {{ __('Dashboard') }}
-                    </x-nav-link>
-                    @if($currentUser?->isBeneficiario() && $currentUser?->hasCompleteBeneficiarioProfile())
-                        <x-nav-link :href="route('apoyos.index')" :active="request()->routeIs('apoyos.*')">
-                             {{ __('Apoyos') }}
-                        </x-nav-link>
-                    @endif
-                    @if($currentUser?->isPersonal())
-                        <x-nav-link :href="route('solicitudes.proceso.index')" :active="request()->routeIs('solicitudes.proceso.*')">
-                            {{ __('Proceso de Cierre') }}
-                        </x-nav-link>
-                    @endif
-                    @if($currentUser?->isPersonal() && (int) optional($currentUser->personal)->fk_rol === 3)
-                        <x-nav-link :href="route('finanzas.panel')" :active="request()->routeIs('finanzas.*')">
-                            {{ __('Recursos Financieros') }}
-                        </x-nav-link>
-                    @endif
-                </div>
+    {{-- Dashboard: Ocultar si es Financiero (Rol 3) --}}
+    @if((int) optional($currentUser->personal)->fk_rol !== 3)
+        <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+            {{ __('Dashboard') }}
+        </x-nav-link>
+    @endif
+
+    {{-- Proceso de Cierre: Solo para Personal que NO sea Financiero --}}
+    @if($currentUser?->isPersonal() && (int) optional($currentUser->personal)->fk_rol !== 3)
+        <x-nav-link :href="route('solicitudes.proceso.index')" :active="request()->routeIs('solicitudes.proceso.*')">
+            {{ __('Proceso de Cierre') }}
+        </x-nav-link>
+    @endif
+
+    {{-- Recursos Financieros: Solo para Valeria (Rol 3) --}}
+    @if($currentUser?->isPersonal() && (int) optional($currentUser->personal)->fk_rol === 3)
+        <x-nav-link :href="route('finanzas.panel')" :active="request()->routeIs('finanzas.*')">
+            {{ __('Recursos Financieros') }}
+        </x-nav-link>
+    @endif
+</div>
             </div>
 
-            <!-- Settings Dropdown -->
             <div class="hidden sm:flex sm:items-center sm:ms-6 gap-3">
                 @if($currentUser)
                     <div
@@ -137,44 +136,28 @@
 
                         <div class="border-t border-gray-100 py-2">
                             <p class="px-4 pb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">Secciones del perfil</p>
-
-                            <a href="{{ route('profile.edit') }}#info" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">
-                                Información
-                            </a>
-                            <a href="{{ route('profile.edit') }}#photo" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">
-                                Foto
-                            </a>
-                            <a href="{{ route('profile.edit') }}#google" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">
-                                Google
-                            </a>
-                            <a href="{{ route('profile.edit') }}#security" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">
-                                Seguridad
-                            </a>
+                            <a href="{{ route('profile.edit') }}#info" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">Información</a>
+                            <a href="{{ route('profile.edit') }}#photo" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">Foto</a>
+                            <a href="{{ route('profile.edit') }}#google" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">Google</a>
+                            <a href="{{ route('profile.edit') }}#security" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">Seguridad</a>
                             @if($showBeneficiaryProfileSections)
-                                <a href="{{ route('profile.edit') }}#arco" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">
-                                    Derechos ARCO
-                                </a>
+                                <a href="{{ route('profile.edit') }}#arco" class="block w-full px-4 py-2 ps-8 pe-4 text-sm leading-5 text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out">Derechos ARCO</a>
                             @endif
                         </div>
 
                         <div class="border-t border-gray-100">
-                            <!-- Authentication -->
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
-
                                 <x-dropdown-link :href="route('logout')"
-                                        onclick="event.preventDefault();
-                                                    this.closest('form').submit();">
+                                        onclick="event.preventDefault(); this.closest('form').submit();">
                                     {{ __('Log Out') }}
                                 </x-dropdown-link>
                             </form>
                         </div>
                     </x-slot>
                 </x-dropdown>
-
             </div>
 
-            <!-- Hamburger -->
             <div class="-me-2 flex items-center sm:hidden">
                 <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out">
                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
@@ -186,20 +169,36 @@
         </div>
     </div>
 
-    <!-- Responsive Navigation Menu -->
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
-            <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                {{ __('Dashboard') }}
-            </x-responsive-nav-link>
+            {{-- Ocultar Dashboard para Rol 3 --}}
+            @if((int) $currentUser?->tipo_usuario !== 3)
+                <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+                    {{ __('Dashboard') }}
+                </x-responsive-nav-link>
+            @endif
+
             @if($currentUser?->isBeneficiario() && $currentUser?->hasCompleteBeneficiarioProfile())
                 <x-responsive-nav-link :href="route('apoyos.index')" :active="request()->routeIs('apoyos.*')">
                     {{ __('Apoyos') }}
                 </x-responsive-nav-link>
             @endif
+
+            {{-- Ocultar Proceso de Cierre para Rol 3 --}}
+            @if($currentUser?->isPersonal() && (int) $currentUser?->tipo_usuario !== 3)
+                <x-responsive-nav-link :href="route('solicitudes.proceso.index')" :active="request()->routeIs('solicitudes.proceso.*')">
+                    {{ __('Proceso de Cierre') }}
+                </x-responsive-nav-link>
+            @endif
+
+            {{-- Mostrar Recursos Financieros para Rol 3 --}}
+            @if((int) $currentUser?->tipo_usuario === 3)
+                <x-responsive-nav-link :href="route('finanzas.panel')" :active="request()->routeIs('finanzas.*')">
+                    {{ __('Recursos Financieros') }}
+                </x-responsive-nav-link>
+            @endif
         </div>
 
-        <!-- Responsive Settings Options -->
         <div class="pt-4 pb-1 border-t border-gray-200">
             <div class="px-4">
                 <div class="font-medium text-base text-gray-800">{{ $currentUser?->display_name }}</div>
@@ -207,29 +206,14 @@
             </div>
 
             <div class="mt-3 space-y-1">
-                @if($currentUser?->isBeneficiario() && $currentUser?->hasCompleteBeneficiarioProfile())
-                    <x-responsive-nav-link :href="url('/Registrar-Solicitud')" :active="request()->is('Registrar-Solicitud')">
-                        {{ __('Registrar Solicitud') }}
-                    </x-responsive-nav-link>
-                @endif
-
-                @if($currentUser?->isPersonal())
-                    <x-responsive-nav-link :href="route('solicitudes.proceso.index')" :active="request()->routeIs('solicitudes.proceso.*')">
-                        {{ __('Proceso de Cierre') }}
-                    </x-responsive-nav-link>
-                @endif
-
                 <x-responsive-nav-link :href="route('profile.edit')">
                     {{ __('Profile') }}
                 </x-responsive-nav-link>
 
-                <!-- Authentication -->
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-
                     <x-responsive-nav-link :href="route('logout')"
-                            onclick="event.preventDefault();
-                                        this.closest('form').submit();">
+                            onclick="event.preventDefault(); this.closest('form').submit();">
                         {{ __('Log Out') }}
                     </x-responsive-nav-link>
                 </form>
@@ -244,62 +228,29 @@
                 open: false,
                 unreadCount: 0,
                 items: [],
-                pollerId: null,
-                channel: null,
-
                 init() {
                     this.fetchItems();
-                    this.pollerId = setInterval(() => this.fetchCount(), 15000);
-                    this.setupRealtime();
+                    setInterval(() => this.fetchCount(), 15000);
                 },
-
-                setupRealtime() {
-                    if (!this.userId || !window.Echo) {
-                        return;
-                    }
-
-                    this.channel = window.Echo.private('sigo.notificaciones.' + this.userId)
-                        .listen('.notificacion.generada', () => {
-                            this.fetchItems();
-                        });
-                },
-
                 async fetchItems() {
                     try {
                         const { data } = await window.axios.get('{{ route('api.notificaciones.index') }}');
                         this.items = data.data || [];
                         this.unreadCount = Number(data.unread_count || 0);
-                    } catch (_) {
-                        // noop
-                    }
+                    } catch (_) {}
                 },
-
                 async fetchCount() {
                     try {
                         const { data } = await window.axios.get('{{ route('api.notificaciones.noLeidas') }}');
                         this.unreadCount = Number(data.count || 0);
-                    } catch (_) {
-                        // noop
-                    }
+                    } catch (_) {}
                 },
-
                 async markRead(id) {
                     try {
                         await window.axios.post('{{ route('api.notificaciones.marcarLeida', 'ID') }}'.replace('ID', id));
                         await this.fetchItems();
-                    } catch (_) {
-                        // noop
-                    }
-                },
-
-                async markAllRead() {
-                    try {
-                        await window.axios.post('{{ route('api.notificaciones.marcarTodasLeidas') }}');
-                        await this.fetchItems();
-                    } catch (_) {
-                        // noop
-                    }
-                },
+                    } catch (_) {}
+                }
             };
         }
     </script>

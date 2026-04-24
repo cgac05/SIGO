@@ -603,16 +603,41 @@ class CasoAController extends Controller
                 ], 404);
             }
 
+            \Log::info('DEBUG: Clave encontrada', [
+                'clave_folio_raw' => $clave->folio,
+                'clave_folio_type' => gettype($clave->folio),
+                'clave_folio_int' => (int)$clave->folio
+            ]);
+
             // Obtener solicitud usando el folio (que es la primary key)
-            $solicitud = Solicitud::find($clave->folio);
+            $folioInt = (int)$clave->folio;
+            
+            // Primero verificar si existe alguna solicitud con este folio
+            $solicitudTest = \DB::table('Solicitudes')->where('folio', $folioInt)->first();
+            \Log::info('DEBUG: Query directo a Solicitudes', [
+                'folio_buscado' => $folioInt,
+                'resultado' => $solicitudTest ? 'ENCONTRADO' : 'NO ENCONTRADO'
+            ]);
+            
+            // Listar todos los folios Caso A disponibles
+            $foliosCasoA = \DB::table('Solicitudes')
+                ->where('origen_solicitud', 'admin_caso_a')
+                ->select('folio')
+                ->pluck('folio')
+                ->toArray();
+            \Log::info('DEBUG: Folios Caso A en BD', ['folios' => $foliosCasoA]);
+            
+            $solicitud = Solicitud::where('folio', $folioInt)->first();
 
             if (!$solicitud) {
                 \Log::error('Solicitud no encontrada para folio', [
-                    'folio' => $clave->folio
+                    'folio' => $folioInt,
+                    'folio_type' => gettype($folioInt),
+                    'solicitudes_caso_a' => $foliosCasoA
                 ]);
                 return response()->json([
                     'success' => false,
-                    'error' => 'Solicitud no encontrada para el folio'
+                    'error' => "Solicitud no encontrada para el folio {$folioInt}. Folios disponibles: " . implode(',', $foliosCasoA)
                 ], 404);
             }
 
@@ -630,7 +655,7 @@ class CasoAController extends Controller
 
             // Procesar documento con el servicio (watermark, hash, firma, etc.)
             $documento = $this->casoAService->escanearDocumentoPresencial(
-                $solicitud->id_solicitud,
+                $solicitud->folio,  // El folio es la primary key de Solicitud
                 $adminId,
                 $archivo,
                 $validated['tipo_documento']
@@ -705,7 +730,7 @@ class CasoAController extends Controller
             }
 
             // Obtener solicitud usando el folio (que es la primary key)
-            $solicitud = Solicitud::find($clave->folio);
+            $solicitud = Solicitud::where('folio', (int)$clave->folio)->first();
 
             if (!$solicitud) {
                 return response()->json([
@@ -742,7 +767,6 @@ class CasoAController extends Controller
                 'ip_admin' => $request->ip(),
                 'navegador_agente' => $request->header('User-Agent'),
                 'detalles_evento' => json_encode([
-                    'solicitud_id' => $solicitud->id_solicitud,
                     'folio' => $validated['folio'],
                     'documentos_confirmados' => $cantidadDocs,
                     'estado_actual' => 'DOCUMENTOS_PENDIENTE_VERIFICACIÓN',
@@ -761,7 +785,6 @@ class CasoAController extends Controller
                 'success' => true,
                 'resumen' => [
                     'folio' => $validated['folio'],
-                    'solicitud_id' => $solicitud->id_solicitud,
                     'documentos_cargados' => $cantidadDocs,
                     'estado_actual' => 'DOCUMENTOS_PENDIENTE_VERIFICACIÓN',
                     'siguiente_paso' => 'Ir a panel de verificación ordinario',
@@ -972,6 +995,9 @@ class CasoAController extends Controller
     public function obtenerDatosDelFolio($folio)
     {
         try {
+            // Convertir folio a int (viene como string de la URL)
+            $folio = (int)$folio;
+            
             // Buscar la clave (validar que el folio existe)
             $clave = ClaveSegumientoPrivada::where('folio', $folio)->first();
             
