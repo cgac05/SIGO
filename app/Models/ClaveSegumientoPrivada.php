@@ -33,4 +33,9 @@ class ClaveSegumientoPrivada extends Model
     {
         return $this->belongsTo(User::class, 'beneficiario_id', 'id_usuario');
     }
+
+    public function solicitud(): BelongsTo
+    {
+        return $this->belongsTo(Solicitud::class, 'folio', 'folio');
+    }
 }

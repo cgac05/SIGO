@@ -109,7 +109,7 @@ class CasoADocumentService
                 );
             } else {
                 // Si es beneficiario registrado, verificar que tenga CURP
-                $ben = \App\Models\Beneficiario::find($beneficiario_id);
+                $ben = \App\Models\Beneficiario::where('fk_id_usuario', $beneficiario_id)->first();
                 if (!$ben || !$ben->curp) {
                     throw new \Exception('El beneficiario registrado no tiene CURP asignado.');
                 }

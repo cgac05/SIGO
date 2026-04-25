@@ -408,8 +408,8 @@
                                 @forelse($expedientesHoy as $exp)
                                     <tr class="border-b hover:bg-blue-50 transition">
                                         <td class="px-4 py-3 font-mono text-blue-600 font-bold">{{ $exp->folio }}</td>
-                                        <td class="px-4 py-3 text-gray-900">{{ $exp->beneficiario?->nombre_completo ?? 'N/A' }}</td>
-                                        <td class="px-4 py-3 text-gray-700">{{ $exp->apoyo?->nombre_apoyo ?? 'N/A' }}</td>
+                                        <td class="px-4 py-3 text-gray-900">{{ $exp->solicitud?->beneficiario?->nombre_completo ?? 'N/A' }}</td>
+                                        <td class="px-4 py-3 text-gray-700">{{ $exp->solicitud?->apoyo?->nombre_apoyo ?? 'N/A' }}</td>
                                         <td class="px-4 py-3 text-gray-600 text-sm">{{ $exp->fecha_creacion?->format('H:i') }}</td>
                                         <td class="px-4 py-3"><span class="bg-yellow-100 text-yellow-800 text-xs font-bold px-3 py-1 rounded-full">Pendiente Momento 2</span></td>
                                         <td class="px-4 py-3 text-center">

@@ -87,13 +87,13 @@
             <div class="mb-6 p-4 bg-purple-50 rounded border border-purple-200">
                 <h3 class="text-sm font-semibold text-gray-700 uppercase mb-3">📄 Documentos Entregados</h3>
                 <div class="grid grid-cols-2 gap-2 text-sm">
-                    @if($solicitud->documentos && $solicitud->documentos->count() > 0)
-                        @foreach($solicitud->documentos as $doc)
+                    @if(isset($nombresDocumentos) && count($nombresDocumentos) > 0)
+                        @foreach($nombresDocumentos as $nombreDoc)
                             <div class="flex items-start p-2 bg-white rounded border-l-4 border-purple-600">
                                 <span class="text-lg mr-2">✓</span>
                                 <div>
-                                    <p class="font-semibold text-gray-900">{{ $doc->tipo_documento ?? 'Documento' }}</p>
-                                    <p class="text-xs text-gray-600">{{ optional($doc->fecha_carga)->format('d/m/Y H:i') ?? '' }}</p>
+                                    <p class="font-semibold text-gray-900">{{ $nombreDoc }}</p>
+                                    <p class="text-xs text-gray-600">Recepción Física</p>
                                 </div>
                             </div>
                         @endforeach

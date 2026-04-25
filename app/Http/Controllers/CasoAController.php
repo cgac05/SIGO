@@ -80,8 +80,9 @@ class CasoAController extends Controller
                 
                 $apoyo->documentos_requeridos = $documentosRequeridos;
                 
-                // Verificar si está en período de RECEPCION
-                $hitoRecepcion = $apoyo->hitos->firstWhere('clave_hito', 'RECEPCION');
+                $hitoRecepcion = $apoyo->hitos->first(function ($hito) {
+                    return str_contains(strtoupper((string) $hito->clave_hito), 'RECEPCION');
+                });
                 $ahora = now();
                 
                 if ($hitoRecepcion && $hitoRecepcion->activo) {
@@ -100,7 +101,9 @@ class CasoAController extends Controller
         $apoyosFiltrados = $apoyos->filter(fn($a) => $a->en_periodo_recepcion);
 
         // Historial de expedientes creados hoy (por este admin)
-        $expedientesHoy = \App\Models\ClaveSegumientoPrivada::whereDate('fecha_creacion', today())->get();
+        $expedientesHoy = \App\Models\ClaveSegumientoPrivada::with(['solicitud.apoyo', 'solicitud.beneficiario'])
+            ->whereDate('fecha_creacion', today())
+            ->get();
 
         return view('admin.caso-a.momento-uno', [
             'apoyos' => $apoyosFiltrados->values(),
@@ -337,6 +340,27 @@ class CasoAController extends Controller
         // URL codificada para pasar al servicio
         $qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' . urlencode($urlAccesoQr);
 
+        // Obtener documentos entregados en momento 1 desde la auditoría
+        $auditoria = \DB::table('auditorias_carga_material')
+            ->where('folio', $folio)
+            ->where('evento', 'caso_a_momento_1_presencial')
+            ->first();
+            
+        $documentosEntregadosIds = [];
+        if ($auditoria && $auditoria->detalles_evento) {
+            $detalles = json_decode($auditoria->detalles_evento, true);
+            $documentosEntregadosIds = $detalles['documentos_listados'] ?? [];
+        }
+
+        // Obtener nombres de los documentos entregados
+        $nombresDocumentos = [];
+        if (!empty($documentosEntregadosIds)) {
+            $nombresDocumentos = \DB::table('Cat_TiposDocumento')
+                ->whereIn('id_tipo_doc', $documentosEntregadosIds)
+                ->pluck('nombre_documento')
+                ->toArray();
+        }
+
         return view('admin.caso-a.resumen-momento-uno', [
             'folio' => $folio,
             'clave' => $clave->clave_alfanumerica,
@@ -346,6 +370,7 @@ class CasoAController extends Controller
             'fechaCreacion' => $clave->fecha_creacion->format('d/m/Y H:i:s'),
             'qrImageUrl' => $qrImageUrl,  // URL directo a imagen QR
             'urlAccesoQr' => $urlAccesoQr,  // URL para tooltip
+            'nombresDocumentos' => $nombresDocumentos,
         ]);
     }
 

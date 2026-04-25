@@ -13,14 +13,7 @@
             </h1>
             <p class="text-gray-600 mt-2">Admin: Cargar documentos físicos escaneados después</p>
         </div>
-        <!-- Info Alert -->
-        <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-600 rounded-lg">
-            <p class="text-green-800 font-semibold">✨ Arquitectura Fusionada: </p>
-            <p class="text-green-700 text-sm mt-1">
-                Después de escanear aquí, la solicitud entra al <strong>verificador ordinario</strong> (no hay interfaz separada).
-                El admin verifica documentos usando la misma interfaz que para beneficiarios normales.
-            </p>
-        </div>
+
         <!-- Estadísticas -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -441,7 +434,7 @@
 
         // Llenar datos del apoyo
         document.getElementById('apoyoNombre').textContent = datos.apoyo.nombre || '--';
-        document.getElementById('apoyoDescripcion').textContent = datos.apoyo.descripcion || '--';
+        document.getElementById('apoyoDescripcion').innerHTML = datos.apoyo.descripcion || '--';
         document.getElementById('apoyoTipo').textContent = datos.apoyo.tipo || '--';
         document.getElementById('apoyoMonto').textContent = '$ ' + (datos.apoyo.monto_maximo ? datos.apoyo.monto_maximo.toLocaleString('es-MX') : '0');
 

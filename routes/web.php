@@ -488,10 +488,20 @@ Route::get('/api/beneficiarios/buscar', function (\Illuminate\Http\Request $requ
         return response()->json([]);
     }
 
-    $beneficiarios = \App\Models\Beneficiario::where('nombre', 'LIKE', "%$query%")
+    $beneficiarios = \App\Models\Beneficiario::with('user')
+        ->where('nombre', 'LIKE', "%$query%")
         ->orWhere('curp', 'LIKE', "%$query%")
         ->limit(10)
-        ->get(['id_beneficiario', 'nombre', 'curp', 'email']);
+        ->get(['fk_id_usuario', 'nombre', 'apellido_paterno', 'apellido_materno', 'curp', 'telefono'])
+        ->map(function ($b) {
+            return [
+                'fk_id_usuario' => $b->fk_id_usuario,
+                'nombre_completo' => $b->nombre_completo,
+                'curp' => $b->curp,
+                'telefono' => $b->telefono,
+                'email' => $b->user ? $b->user->email : null,
+            ];
+        });
 
     return response()->json($beneficiarios);
 })->middleware('auth')->name('api.beneficiarios.buscar');
