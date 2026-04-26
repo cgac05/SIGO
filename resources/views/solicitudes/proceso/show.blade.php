@@ -85,12 +85,12 @@
                         <!-- Estado Actual -->
                         <div>
                             <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Estado</p>
-                            @if($estadoActual->nombre_estado === 'APROBADA')
+                            @if($yaFirmada)
                                 <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800 mt-2">✓ Aprobada</span>
-                            @elseif($estadoActual->nombre_estado === 'RECHAZADA')
+                            @elseif($yaRechazada)
                                 <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800 mt-2">✗ Rechazada</span>
                             @else
-                                <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800 mt-2">⏳ Pendiente</span>
+                                <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800 mt-2">⏳ En proceso</span>
                             @endif
                         </div>
 
@@ -236,7 +236,7 @@
                 </div>
 
                 <!-- ACCIONES (FASE 2: FIRMA) -->
-                @if($estadoActual->nombre_estado === 'DOCUMENTOS_VERIFICADOS' || $estadoActual->nombre_estado === 'Aprobado')
+                @if(in_array($estadoActual->nombre_estado, ['DOCS_VERIFICADOS', 'DOCUMENTOS_VERIFICADOS', 'Aprobado', 'APROBADA']))
                     <div class="bg-white rounded-lg shadow p-6">
                         <h3 class="text-lg font-bold text-slate-900 mb-4">🔐 Fase 2: Firma</h3>
                         

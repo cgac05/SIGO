@@ -843,8 +843,8 @@ class SolicitudProcesoController extends Controller
             return back()->withErrors(['error' => 'Solicitud no encontrada']);
         }
 
-        // Validar estado (debe ser 10 = DOCUMENTOS_VERIFICADOS O 4 = Aprobado)
-        if (!in_array($solicitud->fk_id_estado, [4, 10])) {
+        // Validar estado (debe ser 9 = DOCS_VERIFICADOS o 4 = Aprobado heredado)
+        if (!in_array($solicitud->fk_id_estado, [4, 9])) {
             $estado = DB::table('Cat_EstadosSolicitud')
                 ->where('id_estado', $solicitud->fk_id_estado)
                 ->first(['nombre_estado']);
@@ -967,7 +967,7 @@ class SolicitudProcesoController extends Controller
         }
 
         // Validar estado - Se puede rechazar en múltiples estados
-        // Estados permitidos: 1 (Pendiente), 2 (Validado), 3 (Subsanación), 4 (Aprobado), 9 (Docs Verificados)
+        // Estados permitidos: 1 (Pendiente), 2 (Validado), 3 (Subsanación), 4 (Aprobado), 9 (DOCS_VERIFICADOS)
         $estadosPermitidos = [1, 2, 3, 4, 9];
         
         if (!in_array($solicitud->fk_id_estado, $estadosPermitidos)) {

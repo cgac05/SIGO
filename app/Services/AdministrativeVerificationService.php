@@ -130,9 +130,9 @@ class AdministrativeVerificationService
         $solicitud = $documento->solicitud;
         if ($solicitud) {
             if ($status === 'rechazado') {
-                // Rechazar TODA la solicitud (id=4)
+                // Rechazar TODA la solicitud (id=5)
                 $solicitud->update([
-                    'fk_id_estado' => 4, // Rechazada
+                    'fk_id_estado' => 5, // Rechazada
                     'observaciones_internas' => $observations
                 ]);
 
@@ -146,9 +146,9 @@ class AdministrativeVerificationService
                     ->count();
 
                 if ($documentsCount > 0 && $documentsCount === $acceptedCount) {
-                    // Todos aprobados → cambiar a "Aprobada" (id=4) para el directivo
-                    // ID 4 = "Aprobado" en Cat_EstadosSolicitud
-                    $solicitud->update(['fk_id_estado' => 4]);
+                    // Todos aprobados → pasar a estado de documentos verificados para que decida el directivo
+                    // ID 9 = DOCS_VERIFICADOS en Cat_EstadosSolicitud
+                    $solicitud->update(['fk_id_estado' => 9]);
                 }
             }
         }

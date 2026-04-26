@@ -133,6 +133,10 @@
                                             <span>{{ $solicitud->badge_icon }}</span>
                                             <span>{{ $solicitud->estado_etiqueta ?? 'Pendiente' }}</span>
                                         </span>
+                                        <span class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold ring-1 {{ $solicitud->fase_documental_classes ?? 'bg-slate-100 text-slate-700 ring-slate-200' }}">
+                                            <span>{{ $solicitud->fase_documental_icon ?? '○' }}</span>
+                                            <span>Fase: {{ $solicitud->fase_documental_etiqueta ?? 'En revisión documental' }}</span>
+                                        </span>
                                     </div>
 
                                     <h2 class="mt-3 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
