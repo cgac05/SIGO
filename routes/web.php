@@ -524,4 +524,9 @@ Route::get('/debug-db', function() {
     ];
 });
 
+// Ruta de diagnóstico SQL Server (sin autenticación para troubleshooting)
+Route::get('/diagnostico-sqlserver', function() {
+    include storage_path('diagnostico.php');
+});
+
 require __DIR__.'/auth.php';
