@@ -516,4 +516,12 @@ Route::middleware(['auth', 'role:1,2'])->group(function () {
         ->name('api.caso-a.pendientes-escaneo');
 });
 
+Route::get('/debug-db', function() {
+    return [
+        'sqlsrv_extension' => extension_loaded('sqlsrv'),
+        'pdo_sqlsrv_extension' => extension_loaded('pdo_sqlsrv'),
+        'loaded_extensions' => get_loaded_extensions(),
+    ];
+});
+
 require __DIR__.'/auth.php';
