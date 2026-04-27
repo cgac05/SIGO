@@ -517,11 +517,70 @@ Route::middleware(['auth', 'role:1,2'])->group(function () {
 });
 
 Route::get('/debug-db', function() {
-    return [
-        'sqlsrv_extension' => extension_loaded('sqlsrv'),
-        'pdo_sqlsrv_extension' => extension_loaded('pdo_sqlsrv'),
-        'loaded_extensions' => get_loaded_extensions(),
+    // Información completa de drivers y diagnóstico
+    $response = [
+        'timestamp' => now()->toIso8601String(),
+        'hostname' => gethostname(),
+        'php_version' => PHP_VERSION,
+        'server_api' => php_sapi_name(),
+        
+        // Extensiones
+        'extensions' => [
+            'sqlsrv' => extension_loaded('sqlsrv'),
+            'pdo_sqlsrv' => extension_loaded('pdo_sqlsrv'),
+            'pdo' => extension_loaded('pdo'),
+            'odbc' => extension_loaded('odbc'),
+        ],
+        
+        // PDO Drivers
+        'pdo_drivers' => PDO::getAvailableDrivers(),
+        'sqlsrv_available' => in_array('sqlsrv', PDO::getAvailableDrivers()),
+        
+        // Configuración
+        'extension_dir' => ini_get('extension_dir'),
+        'php_ini' => php_ini_loaded_file(),
+        
+        // Información de la BD
+        'database' => [
+            'driver' => config('database.default'),
+            'host' => config('database.connections.sqlsrv.host'),
+            'database' => config('database.connections.sqlsrv.database'),
+            'port' => config('database.connections.sqlsrv.port'),
+        ],
+        
+        // Session
+        'session_driver' => config('session.driver'),
+        'session_connection' => config('session.connection'),
+        
+        // Intentar conexión
+        'connection_test' => null,
+        'error' => null,
     ];
+    
+    // Intentar conexión a la base de datos
+    if (extension_loaded('pdo_sqlsrv')) {
+        try {
+            $connection = DB::connection('sqlsrv');
+            $connection->getPdo()->exec('SELECT 1');
+            $response['connection_test'] = true;
+        } catch (\Exception $e) {
+            $response['connection_test'] = false;
+            $response['error'] = $e->getMessage();
+        }
+    } else {
+        $response['error'] = 'pdo_sqlsrv extension not loaded';
+    }
+    
+    // Información sobre los logs de instalación
+    $log_dir = storage_path('logs/eb_install');
+    if (is_dir($log_dir)) {
+        $logs = scandir($log_dir);
+        $logs = array_filter($logs, fn($f) => $f !== '.' && $f !== '..');
+        rsort($logs);
+        $response['installation_logs'] = array_slice($logs, 0, 5);
+    }
+    
+    return response()->json($response, 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 });
 
 // Ruta de diagnóstico SQL Server (sin autenticación para troubleshooting)
