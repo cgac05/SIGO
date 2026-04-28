@@ -111,7 +111,7 @@ return [
             'prefix_indexes' => true,
             'encrypt' => env('DB_ENCRYPT', 'yes'),
             // IMPORTANTE: Convertir a booleano real para el driver SQL Server
-            'trust_server_certificate' => (bool) filter_var(env('DB_TRUST_SERVER_CERTIFICATE', 'true'), FILTER_VALIDATE_BOOLEAN),
+            'trust_server_certificate' => true,
             'login_timeout' => env('DB_LOGIN_TIMEOUT', 30),
         ],
 
