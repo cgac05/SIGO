@@ -110,13 +110,9 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
 
-            /* | Configuración crítica para AWS RDS & ODBC Driver 18
-            | 'encrypt' debe ser true para conexiones seguras.
-            | 'trust_server_certificate' debe ser true para ignorar la validación 
-            | de la CA local en certificados auto-firmados de RDS.
-            */
-            'encrypt' => env('DB_ENCRYPT', true),
-            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', true),
+            // Configuración para ignorar el error de certificado local
+            'encrypt' => env('DB_ENCRYPT', 'yes'),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'true'),
 
             'login_timeout' => env('DB_LOGIN_TIMEOUT', 30),
         ],
