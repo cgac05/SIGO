@@ -7,11 +7,18 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         <!-- ========== HEADER ========== -->
-        <div class="mb-8">
-            <h1 class="text-4xl font-bold text-gray-900">📋 Bandeja de Solicitudes</h1>
-            <p class="text-gray-600 mt-2">
-                Gestiona y autoriza solicitudes de beneficiarios
-            </p>
+        <div class="bg-gradient-to-r from-red-600 to-red-700 rounded-2xl p-8 text-white shadow-lg mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold">Bandeja de Solicitudes</h1>
+                    <p class="text-red-100 italic mt-2">Gestiona y autoriza solicitudes de beneficiarios</p>
+                </div>
+                <div class="hidden lg:block">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
         </div>
 
         <!-- ========== ALERTAS ========== -->
@@ -33,44 +40,21 @@
 
         <!-- ========== ESTADÍSTICAS RÁPIDAS ========== -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-600 text-sm font-semibold">Pendientes de Firma</p>
-                        <p class="text-4xl font-bold text-yellow-600 mt-2">{{ $stats['pendientes'] }}</p>
-                    </div>
-                    <div class="text-5xl">⏳</div>
-                </div>
+            <div class="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+                <p class="text-sm text-slate-600">Pendientes de Firma</p>
+                <p class="text-2xl font-bold text-slate-900 mt-1">{{ $stats['pendientes'] }}</p>
             </div>
-
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-600 text-sm font-semibold">Firmadas</p>
-                        <p class="text-4xl font-bold text-green-600 mt-2">{{ $stats['firmadas'] }}</p>
-                    </div>
-                    <div class="text-5xl">✓</div>
-                </div>
+            <div class="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+                <p class="text-sm text-slate-600">Firmadas</p>
+                <p class="text-2xl font-bold text-slate-900 mt-1">{{ $stats['firmadas'] }}</p>
             </div>
-
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-600 text-sm font-semibold">Aprobadas Hoy</p>
-                        <p class="text-4xl font-bold text-blue-600 mt-2">{{ $stats['aprobadas_hoy'] }}</p>
-                    </div>
-                    <div class="text-5xl">📊</div>
-                </div>
+            <div class="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+                <p class="text-sm text-slate-600">Aprobadas</p>
+                <p class="text-2xl font-bold text-slate-900 mt-1">{{ $stats['aprobadas_hoy'] }}</p>
             </div>
-
-            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-600 text-sm font-semibold">Rechazadas Hoy</p>
-                        <p class="text-4xl font-bold text-red-600 mt-2">{{ $stats['rechazadas_hoy'] }}</p>
-                    </div>
-                    <div class="text-5xl">✗</div>
-                </div>
+            <div class="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+                <p class="text-sm text-slate-600">Rechazadas</p>
+                <p class="text-2xl font-bold text-slate-900 mt-1">{{ $stats['rechazadas_hoy'] }}</p>
             </div>
         </div>
 
@@ -124,7 +108,7 @@
 
                 <!-- Botones -->
                 <div class="flex gap-2">
-                    <button type="submit" class="rounded-lg bg-blue-700 text-white px-4 py-2 font-semibold hover:bg-blue-800 transition whitespace-nowrap">
+                    <button type="submit" class="rounded-lg bg-red-600 text-white px-4 py-2 font-semibold hover:bg-red-700 transition whitespace-nowrap">
                         🔎 Buscar
                     </button>
                     <a href="{{ route('solicitudes.proceso.index') }}" class="rounded-lg bg-gray-300 text-gray-900 px-4 py-2 font-semibold hover:bg-gray-400 transition whitespace-nowrap">
@@ -139,8 +123,8 @@
             <div class="flex">
                 <!-- Tab: Pendientes -->
                 <a href="{{ route('solicitudes.proceso.index', array_merge(request()->query(), ['tab' => 'pendientes'])) }}" 
-                   class="flex-1 px-6 py-4 font-semibold text-center {{ $tabActual === 'pendientes' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50' : 'text-slate-600 hover:text-slate-900' }} transition-colors">
-                    ⏳ Pendientes de Firma
+                   class="flex-1 px-6 py-4 font-semibold text-center {{ $tabActual === 'pendientes' ? 'text-red-600 border-b-2 border-red-600 bg-red-50' : 'text-slate-600 hover:text-slate-900' }} transition-colors">
+                    Pendientes de Firma
                     <span class="ml-2 inline-block px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-bold">
                         {{ $stats['pendientes'] }}
                     </span>
@@ -148,17 +132,17 @@
 
                 <!-- Tab: Firmadas -->
                 <a href="{{ route('solicitudes.proceso.index', array_merge(request()->query(), ['tab' => 'firmadas'])) }}" 
-                   class="flex-1 px-6 py-4 font-semibold text-center {{ $tabActual === 'firmadas' ? 'text-green-600 border-b-2 border-green-600 bg-green-50' : 'text-slate-600 hover:text-slate-900' }} transition-colors">
-                    ✓ Firmadas
+                   class="flex-1 px-6 py-4 font-semibold text-center {{ $tabActual === 'firmadas' ? 'text-red-600 border-b-2 border-red-600 bg-red-50' : 'text-slate-600 hover:text-slate-900' }} transition-colors">
+                    Firmadas
                     <span class="ml-2 inline-block px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-bold">
                         {{ $stats['firmadas'] }}
                     </span>
                 </a>
 
-                <!-- Tab: Rechazadas Hoy -->
+                <!-- Tab: Rechazadas -->
                 <a href="{{ route('solicitudes.proceso.index', array_merge(request()->query(), ['tab' => 'rechazadas'])) }}" 
                    class="flex-1 px-6 py-4 font-semibold text-center {{ $tabActual === 'rechazadas' ? 'text-red-600 border-b-2 border-red-600 bg-red-50' : 'text-slate-600 hover:text-slate-900' }} transition-colors">
-                    ✗ Rechazadas Hoy
+                    Rechazadas
                     <span class="ml-2 inline-block px-2 py-1 rounded-full bg-red-100 text-red-800 text-xs font-bold">
                         {{ $stats['rechazadas_hoy'] }}
                     </span>
@@ -169,12 +153,23 @@
         <!-- ========== MENÚ DE SOLICITUDES (CARDS) ========== -->
         <div>
             <h2 class="text-lg font-semibold text-gray-900 mb-4">
-                @if($tabActual === 'pendientes')
-                    ⏳ Pendientes de Firma
+                @if($estadoFiltrado)
+                    {{-- Mostrar según estado filtrado --}}
+                    @if($estadoFiltrado === 'APROBADA')
+                        Solicitudes Aprobadas
+                    @elseif($estadoFiltrado === 'RECHAZADA')
+                        Solicitudes Rechazadas
+                    @elseif($estadoFiltrado === 'DOCUMENTOS_VERIFICADOS')
+                        Solicitudes Pendiente de Firma
+                    @elseif($estadoFiltrado === 'ANALISIS_ADMIN')
+                        Solicitudes en Análisis
+                    @endif
+                @elseif($tabActual === 'pendientes')
+                    Pendientes de Firma
                 @elseif($tabActual === 'firmadas')
-                    ✓ Solicitudes Firmadas
+                    Solicitudes Firmadas
                 @else
-                    ✗ Solicitudes Rechazadas
+                    Solicitudes Rechazadas
                 @endif
                 <span class="text-sm font-normal text-gray-600">({{ $solicitudes->total() }} total)</span>
             </h2>
@@ -196,12 +191,12 @@
                                         </span>
                                         
                                         <!-- Estado Badge -->
-                                        @if($tabActual === 'rechazadas' || $sol->fk_id_estado === 5)
-                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 ml-auto">✗ Rechazada</span>
-                                        @elseif($tabActual === 'firmadas' && $sol->cuv)
-                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 ml-auto">✓ Firmada</span>
+                                        @if($estadoFiltrado === 'RECHAZADA' || $sol->fk_id_estado === 5)
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 ml-auto">Rechazada</span>
+                                        @elseif($estadoFiltrado === 'APROBADA' || ($tabActual === 'firmadas' && $sol->cuv))
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 ml-auto">Aprobada</span>
                                         @else
-                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 ml-auto">⏳ Pendiente</span>
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 ml-auto">Pendiente</span>
                                         @endif
                                     </div>
 
@@ -221,7 +216,7 @@
 
                                         <!-- Monto o CUV -->
                                         <div>
-                                            @if($tabActual === 'firmadas' && $sol->cuv)
+                                            @if(($estadoFiltrado === 'APROBADA' || $tabActual === 'firmadas') && $sol->cuv)
                                                 <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold">CUV</p>
                                                 <p class="text-sm font-mono font-bold text-green-600 mt-1">{{ $sol->cuv }}</p>
                                             @else

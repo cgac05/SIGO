@@ -27,7 +27,7 @@
         <!-- ========== ALERTAS ========== -->
         @if ($errors->any())
             <div class="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
-                <p class="text-red-900 font-bold">❌ Error</p>
+                <p class="text-red-900 font-bold">Error</p>
                 @foreach ($errors->all() as $error)
                     <p class="text-red-700 text-sm mt-1">{{ $error }}</p>
                 @endforeach
@@ -36,7 +36,7 @@
 
         @if (session('success'))
             <div class="mb-6 bg-green-50 border-l-4 border-green-500 p-4 rounded-lg alert-success">
-                <p class="text-green-900 font-bold">✓ {{ session('success') }}</p>
+                <p class="text-green-900 font-bold">{{ session('success') }}</p>
             </div>
         @endif
 
@@ -48,7 +48,7 @@
 
                 <!-- 1. INFORMACIÓN GENERAL -->
                 <div class="bg-white rounded-lg shadow p-6">
-                    <h2 class="text-2xl font-bold text-slate-900 mb-6">📋 Información General</h2>
+                    <h2 class="text-2xl font-bold text-slate-900 mb-6">Información General</h2>
                     
                     <div class="grid grid-cols-2 gap-6">
                         <!-- Beneficiario -->
@@ -86,11 +86,11 @@
                         <div>
                             <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Estado</p>
                             @if($yaFirmada)
-                                <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800 mt-2">✓ Aprobada</span>
+                                <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800 mt-2">Aprobada</span>
                             @elseif($yaRechazada)
-                                <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800 mt-2">✗ Rechazada</span>
+                                <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800 mt-2">Rechazada</span>
                             @else
-                                <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800 mt-2">⏳ En proceso</span>
+                                <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800 mt-2">En proceso</span>
                             @endif
                         </div>
 
@@ -174,7 +174,7 @@
                         </div>
                     @else
                         <div class="text-center py-8 bg-slate-50 rounded">
-                            <p class="text-slate-600">✓ Primer apoyo para este beneficiario</p>
+                            <p class="text-slate-600">Primer apoyo para este beneficiario</p>
                         </div>
                     @endif
                 </div>
@@ -186,7 +186,7 @@
 
                 <!-- VALIDACIÓN PRESUPUESTARIA -->
                 <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-bold text-slate-900 mb-4">💰 Presupuesto</h3>
+                    <h3 class="text-lg font-bold text-slate-900 mb-4">Presupuesto</h3>
                     
                     <div class="space-y-4">
                         <!-- Monto a Autorizar -->
@@ -201,9 +201,9 @@
                             <p class="text-2xl font-bold text-slate-900 mt-1">${{ number_format($disponibleEnApoyo, 2) }}</p>
                             <p class="text-xs text-slate-600 mt-1">De {{ number_format($totalNecesario, 2) }} total ({{ $apoyo->cupo_limite ?? 0 }} beneficiarios)</p>
                             @if($disponibleEnApoyo > 0)
-                                <span class="inline-block mt-2 text-xs font-semibold text-green-600">✓ Disponible</span>
+                                <span class="inline-block mt-2 text-xs font-semibold text-green-600">Disponible</span>
                             @else
-                                <span class="inline-block mt-2 text-xs font-semibold text-red-600">✗ SIN DISPONIBILIDAD</span>
+                                <span class="inline-block mt-2 text-xs font-semibold text-red-600">SIN DISPONIBILIDAD</span>
                             @endif
                         </div>
 
@@ -212,9 +212,9 @@
                             <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Disponible en Categoría</p>
                             <p class="text-2xl font-bold text-slate-900 mt-1">${{ number_format($presupuestoCategoriaDisponible, 0) }}</p>
                             @if($presupuestoCategoriaDisponible >= ($apoyo->monto_maximo ?? 0))
-                                <span class="inline-block mt-2 text-xs font-semibold text-green-600">✓ Suficiente</span>
+                                <span class="inline-block mt-2 text-xs font-semibold text-green-600">Suficiente</span>
                             @else
-                                <span class="inline-block mt-2 text-xs font-semibold text-red-600">✗ INSUFICIENTE</span>
+                                <span class="inline-block mt-2 text-xs font-semibold text-red-600">INSUFICIENTE</span>
                             @endif
                         </div>
 
@@ -222,12 +222,12 @@
                         <div class="mt-6 pt-4 border-t border-slate-200">
                             @if($puedeAprobarse)
                                 <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
-                                    <p class="text-green-900 font-bold">✓ OK PRESUPUESTO</p>
+                                    <p class="text-green-900 font-bold">OK PRESUPUESTO</p>
                                     <p class="text-xs text-green-700 mt-1">Disponible para aprobar</p>
                                 </div>
                             @else
                                 <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-                                    <p class="text-red-900 font-bold">✗ INSUFICIENTE</p>
+                                    <p class="text-red-900 font-bold">INSUFICIENTE</p>
                                     <p class="text-xs text-red-700 mt-1">No se puede autorizar</p>
                                 </div>
                             @endif
@@ -238,14 +238,14 @@
                 <!-- ACCIONES (FASE 2: FIRMA) -->
                 @if(in_array($estadoActual->nombre_estado, ['DOCS_VERIFICADOS', 'DOCUMENTOS_VERIFICADOS', 'Aprobado', 'APROBADA']))
                     <div class="bg-white rounded-lg shadow p-6">
-                        <h3 class="text-lg font-bold text-slate-900 mb-4">🔐 Fase 2: Firma</h3>
+                        <h3 class="text-lg font-bold text-slate-900 mb-4">Fase 2: Firma</h3>
                         
                         @if($procesada)
                             <!-- SOLICITUD YA PROCESADA -->
                             <div class="space-y-4">
                                 @if($yaFirmada)
                                     <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg">
-                                        <p class="text-green-900 font-bold">✓ Solicitud Firmada</p>
+                                        <p class="text-green-900 font-bold">Solicitud Firmada</p>
                                         <p class="text-sm text-green-800 mt-2">Esta solicitud ya fue firmada y tiene CUV generado. No se puede volver a firmar.</p>
                                         <div class="mt-3 p-3 bg-white border border-green-300 rounded">
                                             <p class="text-xs text-slate-600 font-semibold">CUV (Comprobante Único de Verificación)</p>
@@ -254,7 +254,7 @@
                                     </div>
                                 @elseif($yaRechazada)
                                     <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
-                                        <p class="text-red-900 font-bold">✗ Solicitud Rechazada</p>
+                                        <p class="text-red-900 font-bold">Solicitud Rechazada</p>
                                         <p class="text-sm text-red-800 mt-2">Esta solicitud fue rechazada. No se puede volver a procesar.</p>
                                     </div>
                                 @endif
@@ -285,7 +285,7 @@
                                     <!-- Botón Firmar -->
                                     <button type="submit" 
                                             class="w-full rounded-lg bg-green-700 text-white px-6 py-3 font-bold hover:bg-green-800 transition text-lg">
-                                        ✓ Firmar y Generar CUV
+                                        Firmar y Generar CUV
                                     </button>
                                 </form>
 
@@ -301,7 +301,7 @@
                             @else
                                 <!-- PRESUPUESTO AGOTADO: SOLO RECHAZAR -->
                                 <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-lg mb-6">
-                                    <p class="text-amber-900 font-bold">⚠️ Presupuesto Agotado</p>
+                                    <p class="text-amber-900 font-bold">Presupuesto Agotado</p>
                                     <p class="text-sm text-amber-800 mt-2">Se han aceptado todas las solicitudes permitidas para este apoyo. Ya no se pueden autorizar más beneficiarios. Solo es posible rechazar solicitudes.</p>
                                 </div>
                             @endif
@@ -310,13 +310,13 @@
                             <button type="button" 
                                     class="w-full rounded-lg bg-red-700 text-white px-6 py-3 font-bold hover:bg-red-800 transition text-lg"
                                     onclick="document.getElementById('modalRechazo').classList.remove('hidden')">
-                                ✗ Rechazar Solicitud
+                                Rechazar Solicitud
                             </button>
 
                             <!-- MODAL RECHAZO -->
                             <div id="modalRechazo" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                                 <div class="bg-white rounded-lg max-w-2xl w-full p-8 max-h-96 overflow-y-auto">
-                                    <h3 class="text-2xl font-bold text-red-900 mb-2">⚠️ Rechazar Solicitud</h3>
+                                    <h3 class="text-2xl font-bold text-red-900 mb-2">Rechazar Solicitud</h3>
                                     <p class="text-sm text-slate-600 mb-6">Si considera que la solicitud no cumple con los requisitos, puede rechazarla. Se enviará una notificación al beneficiario inmediatamente.</p>
                                     
                                     <form action="{{ route('solicitudes.proceso.rechazar', $solicitud->folio) }}" method="POST" class="space-y-4">
@@ -363,7 +363,7 @@
 
                                         <!-- Advertencia -->
                                         <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-                                            <p class="text-sm text-red-900 font-bold">⚠️ Advertencia</p>
+                                            <p class="text-sm text-red-900 font-bold">Advertencia</p>
                                             <p class="text-xs text-red-700 mt-2">
                                                 El rechazo es <strong>PERMANENTE</strong> y <strong>NO SE PUEDE DESHACER</strong>. 
                                                 El beneficiario será notificado inmediatamente por correo. 
@@ -380,7 +380,7 @@
                                             </button>
                                             <button type="submit" 
                                                     class="flex-1 rounded-lg bg-red-700 text-white px-4 py-3 font-bold hover:bg-red-800 transition">
-                                                ✓ Confirmar Rechazo
+                                                Confirmar Rechazo
                                             </button>
                                         </div>
                                     </form>
@@ -399,7 +399,7 @@
                             <!-- MODAL RESUMEN -->
                             <div id="modalResumen" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                                 <div class="bg-white rounded-lg max-w-2xl w-full p-8 max-h-96 overflow-y-auto">
-                                    <h3 class="text-2xl font-bold text-slate-900 mb-6">📋 Resumen de Autorización</h3>
+                                    <h3 class="text-2xl font-bold text-slate-900 mb-6">Resumen de Autorización</h3>
                                     
                                     <div class="space-y-4">
                                         <div class="grid grid-cols-2 gap-4">
@@ -432,7 +432,7 @@
                                         </div>
 
                                         <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
-                                            <p class="text-sm text-yellow-900 font-bold">⚠️ ADVERTENCIA</p>
+                                            <p class="text-sm text-yellow-900 font-bold">ADVERTENCIA</p>
                                             <p class="text-xs text-yellow-800 mt-2">
                                                 Al firmar, está autorizando IRREVOCABLEMENTE el desembolso de 
                                                 <strong>${{ number_format($apoyo->monto_maximo ?? 0, 2) }}</strong>. 
@@ -452,7 +452,7 @@
                             </div>
                         @else
                             <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-                                <p class="text-red-900 font-bold">✗ No Disponible</p>
+                                <p class="text-red-900 font-bold">No Disponible</p>
                                 <p class="text-xs text-red-700 mt-2">Presupuesto insuficiente para autorizar</p>
                             </div>
                         @endif
@@ -461,7 +461,7 @@
                     <!-- FIRMADO EXITOSAMENTE -->
                     <div class="bg-white rounded-lg shadow p-6">
                         <div class="bg-green-50 border-l-4 border-green-500 p-6 rounded-lg">
-                            <p class="text-green-900 font-bold text-lg">✓ Solicitud Firmada Exitosamente</p>
+                            <p class="text-green-900 font-bold text-lg">Solicitud Firmada Exitosamente</p>
                             <p class="text-sm text-green-700 mt-2">La solicitud ha sido aprobada y el CUV ha sido generado.</p>
                             
                             <div class="mt-6 pt-6 border-t border-green-300">
@@ -476,13 +476,13 @@
                     <!-- APROBADO - HABILITADO PARA FIRMA -->
                     <div class="bg-white rounded-lg shadow p-6">
                         <div class="bg-amber-50 border-l-4 border-amber-500 p-6 rounded-lg">
-                            <p class="text-amber-900 font-bold text-lg">✓ Solicitud Aprobada - Lista para Firma</p>
+                            <p class="text-amber-900 font-bold text-lg">Solicitud Aprobada - Lista para Firma</p>
                             <p class="text-sm text-amber-700 mt-2">La solicitud ha sido aprobada. Haga clic en "Firmar" para completar el proceso y generar el CUV.</p>
                         </div>
                     </div>
                 @else
                     <div class="bg-blue-50 border border-blue-300 rounded-lg p-6">
-                        <p class="text-blue-900 font-bold">📋 Estado Actual</p>
+                        <p class="text-blue-900 font-bold">Estado Actual</p>
                         <p class="text-sm text-blue-800 mt-2">
                             Esta solicitud está en estado <strong>{{ $estadoActual->nombre_estado }}</strong>.
                             La fase de firma se habilitará cuando se completen las verificaciones.

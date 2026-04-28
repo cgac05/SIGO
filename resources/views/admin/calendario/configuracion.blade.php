@@ -248,21 +248,21 @@
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-xs text-gray-600 mb-1">Información que SÍ se comparte</p>
                         <ul class="text-sm text-gray-700 space-y-1">
-                            <li>✓ Nombre del apoyo</li>
-                            <li>✓ Tipo (Económico/Especie)</li>
-                            <li>✓ Fechas de hitos</li>
-                            <li>✓ Estado del proceso</li>
-                            <li>✓ Cantidad de solicitudes</li>
+                            <li>Nombre del apoyo</li>
+                            <li>Tipo (Económico/Especie)</li>
+                            <li>Fechas de hitos</li>
+                            <li>Estado del proceso</li>
+                            <li>Cantidad de solicitudes</li>
                         </ul>
                     </div>
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <p class="text-xs text-gray-600 mb-1">Información que NO se comparte</p>
                         <ul class="text-sm text-gray-700 space-y-1">
-                            <li>✗ Nombres de beneficiarios</li>
-                            <li>✗ Datos bancarios</li>
-                            <li>✗ Documentos personales</li>
-                            <li>✗ Información de contacto</li>
-                            <li>✗ Detalles de ingresos</li>
+                            <li>Nombres de beneficiarios</li>
+                            <li>Datos bancarios</li>
+                            <li>Documentos personales</li>
+                            <li>Información de contacto</li>
+                            <li>Detalles de ingresos</li>
                         </ul>
                     </div>
                 </div>

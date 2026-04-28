@@ -158,11 +158,11 @@
                             <td class="px-6 py-4">
                                 @if($log->sincronizado === 1)
                                     <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                                        ✓ Sincronizado
+                                        Sincronizado
                                     </span>
                                 @elseif($log->sincronizado === 0)
                                     <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
-                                        ⏳ Pendiente
+                                        Pendiente
                                     </span>
                                 @else
                                     <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">

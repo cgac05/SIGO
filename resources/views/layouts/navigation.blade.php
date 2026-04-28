@@ -14,17 +14,20 @@
                 </div>
 
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-    {{-- Dashboard: Ocultar si es Financiero (Rol 3) --}}
-    @if((int) optional($currentUser->personal)->fk_rol !== 3)
-        <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-            {{ __('Dashboard') }}
+    {{-- Solicitudes y Ciclos: SOLO para Directivo (Rol 2) --}}
+    @if($currentUser?->isPersonal() && (int) optional($currentUser->personal)->fk_rol === 2)
+        <x-nav-link :href="route('solicitudes.proceso.index')" :active="request()->routeIs('solicitudes.proceso.*')">
+            {{ __('Solicitudes') }}
+        </x-nav-link>
+        <x-nav-link href="/admin/ciclos/1" :active="request()->is('admin/ciclos/*')">
+            {{ __('Ciclos') }}
         </x-nav-link>
     @endif
 
-    {{-- Proceso de Cierre: Solo para Personal que NO sea Financiero --}}
-    @if($currentUser?->isPersonal() && (int) optional($currentUser->personal)->fk_rol !== 3)
-        <x-nav-link :href="route('solicitudes.proceso.index')" :active="request()->routeIs('solicitudes.proceso.*')">
-            {{ __('Proceso de Cierre') }}
+    {{-- Dashboard: SOLO para Administrativo (Rol 1) --}}
+    @if($currentUser?->isPersonal() && (int) optional($currentUser->personal)->fk_rol === 1)
+        <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+            {{ __('Dashboard') }}
         </x-nav-link>
     @endif
 
@@ -171,23 +174,23 @@
 
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
-            {{-- Ocultar Dashboard para Rol 3 --}}
-            @if((int) $currentUser?->tipo_usuario !== 3)
-                <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                    {{ __('Dashboard') }}
-                </x-responsive-nav-link>
-            @endif
-
             @if($currentUser?->isBeneficiario() && $currentUser?->hasCompleteBeneficiarioProfile())
                 <x-responsive-nav-link :href="route('apoyos.index')" :active="request()->routeIs('apoyos.*')">
                     {{ __('Apoyos') }}
                 </x-responsive-nav-link>
             @endif
 
-            {{-- Ocultar Proceso de Cierre para Rol 3 --}}
+            {{-- Solicitudes: Solo para Personal que NO sea Financiero --}}
             @if($currentUser?->isPersonal() && (int) $currentUser?->tipo_usuario !== 3)
                 <x-responsive-nav-link :href="route('solicitudes.proceso.index')" :active="request()->routeIs('solicitudes.proceso.*')">
-                    {{ __('Proceso de Cierre') }}
+                    {{ __('Solicitudes') }}
+                </x-responsive-nav-link>
+            @endif
+
+            {{-- Ciclos: Solo para Personal que NO sea Financiero --}}
+            @if($currentUser?->isPersonal() && (int) $currentUser?->tipo_usuario !== 3)
+                <x-responsive-nav-link href="/admin/ciclos/1" :active="request()->is('admin/ciclos/*')">
+                    {{ __('Ciclos') }}
                 </x-responsive-nav-link>
             @endif
 
