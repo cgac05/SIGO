@@ -5,6 +5,18 @@
  * URL: https://sigo-app-env.eba-pjwh8vad.us-east-1.elasticbeanstalk.com/healthcheck.php
  */
 
+// Limpieza de caché de emergencia (Bypass de enrutador Nginx)
+if (isset($_GET['clear_cache'])) {
+    require __DIR__.'/../vendor/autoload.php';
+    $app = require_once __DIR__.'/../bootstrap/app.php';
+    $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+    $kernel->call('cache:clear');
+    $kernel->call('config:clear');
+    $kernel->call('route:clear');
+    $kernel->call('view:clear');
+    die("<div style='background:#1e1e1e;color:#00ff00;padding:20px;font-family:monospace;'><h1>✅ Caché de Laravel limpiada exitosamente a través de healthcheck!</h1><p>Ya puedes acceder a /login normalmente.</p></div>");
+}
+
 header('Content-Type: text/html; charset=utf-8');
 ?>
 <!DOCTYPE html>
