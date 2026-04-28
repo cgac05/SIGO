@@ -3,14 +3,14 @@ import laravel from 'laravel-vite-plugin';
 
 export default defineConfig({
     server: {
-        host: 'localhost',
+        host: '0.0.0.0',
         port: 5173,
-        strictPort: true,
-        hmr: {
-            host: 'localhost',
+        strictPort: false,
+        hmr: process.env.VITE_HMR_HOST ? {
+            host: process.env.VITE_HMR_HOST,
             protocol: 'ws',
             port: 5173,
-        },
+        } : false,
     },
     plugins: [
         laravel({
@@ -22,4 +22,9 @@ export default defineConfig({
             refresh: true,
         }),
     ],
+    build: {
+        outDir: 'public/build',
+        manifest: true,
+        minify: 'terser',
+    },
 });

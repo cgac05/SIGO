@@ -1,0 +1,23 @@
+{
+  "resources/css/app.css": {
+    "file": "assets/app-QLk_8YiG.css",
+    "src": "resources/css/app.css",
+    "isEntry": true,
+    "name": "app",
+    "names": [
+      "app.css"
+    ]
+  },
+  "resources/js/apoyos-app.js": {
+    "file": "assets/apoyos-app-B6FIeYsd.js",
+    "name": "apoyos-app",
+    "src": "resources/js/apoyos-app.js",
+    "isEntry": true
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-BlN99u1k.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true
+  }
+}
