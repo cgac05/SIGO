@@ -109,9 +109,9 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'encrypt' => env('DB_ENCRYPT', 'yes'),
+            'encrypt' => 'no',
             // IMPORTANTE: Convertir a booleano real para el driver SQL Server
-            'trust_server_certificate' => true,
+            'trust_server_certificate' => 'yes',
             'login_timeout' => env('DB_LOGIN_TIMEOUT', 30),
         ],
 
