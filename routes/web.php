@@ -590,8 +590,8 @@ Route::get('/diagnostico-sqlserver', function () {
 });
 
 Route::get('/clear', function () {
-    Artisan::call('config:clear');
-    Artisan::call('cache:clear');
+    \Illuminate\Support\Facades\Artisan::call('config:clear');
+    \Illuminate\Support\Facades\Artisan::call('cache:clear');
     return "Caché de SIGO limpia";
 });
 
