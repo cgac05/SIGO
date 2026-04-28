@@ -10,11 +10,6 @@ use App\Models\Personal;
 
 class PersonalController extends Controller
 {
-    public function create()
-    {
-        $roles = DB::table('Cat_Roles')->select('id_rol', 'nombre_rol')->get();
-        return view('personal.crear', compact('roles'));
-    }
 
     public function store(Request $request)
     {
@@ -61,7 +56,7 @@ class PersonalController extends Controller
             ]);
 
             DB::commit();
-            return redirect()->route('personal.crear')
+            return redirect()->route('personal.create')
                 ->with('exito', '¡Personal registrado correctamente!');
 
         } catch (\Exception $e) {
@@ -71,4 +66,79 @@ class PersonalController extends Controller
                 ->with('error', 'Error al registrar: ' . $e->getMessage());
         }
     }
+
+    public function index() 
+    {
+        $empleados = \App\Models\Personal::all();
+        return view('personal.index', compact('empleados'));
+    }
+    
+    public function create()
+{
+    $roles = \App\Models\Role::all(); 
+    return view('personal.crear', compact('roles'));
 }
+    public function edit($id)
+    {
+        $personal = Personal::findOrFail($id);
+        $roles = \App\Models\Role::all(); 
+        return view('personal.editar', compact('personal', 'roles'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $personal = Personal::findOrFail($id);
+        $data = $request->validate([
+            'nombre'           => 'required|string|max:100',
+            'apellido_paterno' => 'required|string|max:100',
+            'apellido_materno' => 'nullable|string|max:100',
+            'email'            => 'required|email|max:100|unique:Usuarios,email,' . $personal->fk_id_usuario . ',id_usuario',
+            'password'         => 'nullable|string|min:8|confirmed',
+            'fk_rol'           => 'required|integer',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $personal->update([
+                'nombre'           => strtoupper($data['nombre']),
+                'apellido_paterno' => strtoupper($data['apellido_paterno']),
+                'apellido_materno' => strtoupper($data['apellido_materno'] ?? ''),
+                'fk_rol'           => $data['fk_rol'],
+            ]);
+
+            $userData = [
+                'email' => strtolower($data['email']),
+            ];
+            if (!empty($data['password'])) {
+                $userData['password_hash'] = Hash::make($data['password']);
+            }
+            if ($personal->user) {
+                $personal->user->update($userData);
+            }
+
+            DB::commit();
+            return redirect()->route('personal.index')->with('exito', '¡Personal actualizado correctamente!');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->withInput()->with('error', 'Error al actualizar: ' . $e->getMessage());
+        }
+    }
+
+    public function destroy($id)
+    {
+        $personal = Personal::findOrFail($id);
+        DB::beginTransaction();
+        try {
+            $user = $personal->user;
+            $personal->delete();
+            if ($user) {
+                $user->delete();
+            }
+            DB::commit();
+            return redirect()->route('personal.index')->with('exito', '¡Personal eliminado correctamente!');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Error al eliminar: ' . $e->getMessage());
+        }
+    }
+} 
