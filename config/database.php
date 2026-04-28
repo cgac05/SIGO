@@ -109,9 +109,15 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'encrypt' => 'no',
-            // IMPORTANTE: Convertir a booleano real para el driver SQL Server
-            'trust_server_certificate' => 'yes',
+
+            /* | Configuración crítica para AWS RDS & ODBC Driver 18
+            | 'encrypt' debe ser true para conexiones seguras.
+            | 'trust_server_certificate' debe ser true para ignorar la validación 
+            | de la CA local en certificados auto-firmados de RDS.
+            */
+            'encrypt' => env('DB_ENCRYPT', true),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', true),
+
             'login_timeout' => env('DB_LOGIN_TIMEOUT', 30),
         ],
 
@@ -150,7 +156,7 @@ return [
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')).'-database-'),
+            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')) . '-database-'),
             'persistent' => env('REDIS_PERSISTENT', false),
         ],
 
