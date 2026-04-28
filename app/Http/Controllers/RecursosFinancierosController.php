@@ -105,9 +105,22 @@ class RecursosFinancierosController extends Controller
                     'fecha_cierre_financiero'=> now(),
                     'folio_institucional'    => $data['folio_cheque'] ?? null,
                 ]);
+            // Enviar correo al beneficiario
+            $solicitudInfo = DB::table('Solicitudes')
+                ->join('Beneficiarios', 'Solicitudes.fk_curp', '=', 'Beneficiarios.curp')
+                ->join('Usuarios', 'Beneficiarios.fk_id_usuario', '=', 'Usuarios.id_usuario')
+                ->join('Apoyos', 'Solicitudes.fk_id_apoyo', '=', 'Apoyos.id_apoyo')
+                ->where('Solicitudes.folio', $data['folio'])
+                ->select('Usuarios.email', 'Beneficiarios.nombre', 'Apoyos.nombre_apoyo', 'Solicitudes.monto_entregado', 'Solicitudes.folio')
+                ->first();
 
-
-
+            if ($solicitudInfo && $solicitudInfo->email) {
+                try {
+                    \Illuminate\Support\Facades\Mail::to($solicitudInfo->email)->send(new \App\Mail\CierreFinancieroMail($solicitudInfo));
+                } catch (\Exception $mailException) {
+                    \Log::error('Error enviando correo de cierre financiero: ' . $mailException->getMessage());
+                }
+            }
             DB::commit();
             return redirect()->route('finanzas.panel')
                 ->with('exito', 'Cierre financiero registrado correctamente para el folio #' . $data['folio'])

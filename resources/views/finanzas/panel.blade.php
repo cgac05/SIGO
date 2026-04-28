@@ -339,6 +339,7 @@
                                     <label class="field-label">Monto entregado ($) <span>*</span></label>
                                     <input type="number" name="monto_entregado" step="0.01" min="0"
                                            :max="solActual && solActual.monto_maximo"
+                                           :value="solActual && solActual.monto_maximo"
                                            placeholder="0.00"
                                            class="field-input" :required="solActual && solActual.tipo_apoyo === 'Económico'"/>
                                 </div>
@@ -411,7 +412,8 @@
                 <h3 class="text-xl font-extrabold mb-2" style="color:#064e3b">¿Confirmar cierre financiero?</h3>
                 <p class="text-sm text-gray-500 mb-5">
                     Estás a punto de registrar el cierre financiero del folio
-                    <strong class="text-gray-800" x-text="'#' + (solActual && solActual.folio)"></strong>.
+                    <strong class="text-gray-800" x-text="'#' + (solActual && solActual.folio)"></strong>
+                    a nombre de <strong class="text-gray-800" x-text="solActual && (solActual.nombre + ' ' + solActual.apellido_paterno)"></strong>.
                     Esta acción es <strong>irreversible</strong>.
                 </p>
                 <div class="flex gap-3">
