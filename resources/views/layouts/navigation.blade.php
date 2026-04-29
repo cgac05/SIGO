@@ -24,10 +24,25 @@
         </x-nav-link>
     @endif
 
-    {{-- Dashboard: SOLO para Administrativo (Rol 1) --}}
+    {{-- Administrativo (Rol 1): Dashboard + 5 Apartados --}}
     @if($currentUser?->isPersonal() && (int) optional($currentUser->personal)->fk_rol === 1)
         <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
             {{ __('Dashboard') }}
+        </x-nav-link>
+        <x-nav-link :href="route('admin.solicitudes.index')" :active="request()->routeIs('admin.solicitudes.*')">
+            {{ __('Verificación') }}
+        </x-nav-link>
+        <x-nav-link :href="route('apoyos.index')" :active="request()->routeIs('apoyos.*')">
+            {{ __('Apoyos') }}
+        </x-nav-link>
+        <x-nav-link :href="route('personal.index')" :active="request()->routeIs('personal.*')">
+            {{ __('Personal') }}
+        </x-nav-link>
+        <x-nav-link :href="route('admin.calendario.config')" :active="request()->routeIs('admin.calendario.*')">
+            {{ __('Calendario') }}
+        </x-nav-link>
+        <x-nav-link :href="route('admin.padron.index')" :active="request()->routeIs('admin.padron.*')">
+            {{ __('Padrón') }}
         </x-nav-link>
     @endif
 
