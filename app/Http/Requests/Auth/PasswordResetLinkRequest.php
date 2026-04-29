@@ -32,7 +32,20 @@ class PasswordResetLinkRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email', 'max:100'],
+            'email' => ['required', 'string', 'email', 'max:100', 'exists:Usuarios,email'],
+        ];
+    }
+
+    /**
+     * Get custom messages for validator errors.
+     */
+    public function messages(): array
+    {
+        return [
+            'email.exists' => __('El correo electrónico ingresado no se encuentra asociado a ninguna cuenta.'),
+            'email.required' => __('El correo electrónico es obligatorio.'),
+            'email.email' => __('Ingrese un correo electrónico válido.'),
+            'email.max' => __('El correo electrónico no debe superar los 100 caracteres.'),
         ];
     }
 }
