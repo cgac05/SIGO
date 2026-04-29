@@ -734,19 +734,17 @@ class SolicitudProcesoController extends Controller
         $user = Auth::user();
         $this->authorizePersonal($request, 2);
 
-        // Obtener solicitud
-        $solicitud = DB::table('Solicitudes')
+        // Obtener solicitud usando DB
+        $solicitudDb = DB::table('Solicitudes')
             ->where('folio', $folio)
             ->first();
 
-        if (!$solicitud) {
+        if (!$solicitudDb) {
             abort(404, 'Solicitud no encontrada');
         }
 
-        // Información del beneficiario
-        $beneficiario = DB::table('Beneficiarios')
-            ->where('curp', $solicitud->fk_curp)
-            ->first();
+        // Obtener beneficiario como modelo Eloquent (para relaciones)
+        $beneficiario = \App\Models\Beneficiario::where('curp', $solicitudDb->fk_curp)->first();
 
         if (!$beneficiario) {
             abort(404, 'Beneficiario no encontrado');
@@ -763,16 +761,16 @@ class SolicitudProcesoController extends Controller
                 'Apoyos.id_categoria',
                 'presupuesto_categorias.nombre as categoria_nombre'
             )
-            ->where('Apoyos.id_apoyo', $solicitud->fk_id_apoyo)
+            ->where('Apoyos.id_apoyo', $solicitudDb->fk_id_apoyo)
             ->first();
 
         // Documentos asociados
         $documentos = DB::table('Documentos_Expediente')
-            ->where('fk_folio', $solicitud->folio)
+            ->where('fk_folio', $solicitudDb->folio)
             ->get();
 
         // ========== VALIDACIÓN DE PRESUPUESTO ==========
-        $presupuestoDisponible = $this->obtenerPresupuestoDisponibleSolicitud($solicitud->folio);
+        $presupuestoDisponible = $this->obtenerPresupuestoDisponibleSolicitud($solicitudDb->folio);
         $presupuestoCategoriaDisponible = $this->obtenerPresupuestoCategoriaDisponible($apoyo->id_categoria ?? 0);
 
         // Calcular total necesario (monto por beneficiario × cantidad máx beneficiarios)
@@ -783,7 +781,7 @@ class SolicitudProcesoController extends Controller
         // Solo contar solicitudes que tengan CUV (es decir, que fueron realmente firmadas)
         $montosAprobados = DB::table('presupuesto_apoyos')
             ->join('Solicitudes', 'presupuesto_apoyos.folio', '=', 'Solicitudes.folio')
-            ->where('Solicitudes.fk_id_apoyo', $solicitud->fk_id_apoyo)
+            ->where('Solicitudes.fk_id_apoyo', $solicitudDb->fk_id_apoyo)
             ->where('Solicitudes.fk_id_estado', 4) // Estado 4 = APROBADA
             ->whereNotNull('Solicitudes.cuv') // Solo contar si tiene CUV (fue firmada)
             ->sum('presupuesto_apoyos.monto_solicitado') ?? 0;
@@ -795,15 +793,15 @@ class SolicitudProcesoController extends Controller
                          && ($presupuestoCategoriaDisponible >= ($apoyo->monto_maximo ?? 0));
 
         // Verificar si la solicitud ya fue procesada (firmada o rechazada)
-        $yaFirmada = !empty($solicitud->cuv); // CUV no NULL = ya firmada
-        $yaRechazada = $solicitud->fk_id_estado == 5; // Estado 5 = RECHAZADA
+        $yaFirmada = !empty($solicitudDb->cuv); // CUV no NULL = ya firmada
+        $yaRechazada = $solicitudDb->fk_id_estado == 5; // Estado 5 = RECHAZADA
         $procesada = $yaFirmada || $yaRechazada;
 
         // ========== HISTORIAL DE APOYOS PREVIOS ==========
         $historialApoyos = DB::table('Solicitudes')
             ->join('Apoyos', 'Solicitudes.fk_id_apoyo', '=', 'Apoyos.id_apoyo')
             ->where('Solicitudes.fk_curp', $beneficiario->curp)
-            ->where('Solicitudes.folio', '!=', $solicitud->folio)
+            ->where('Solicitudes.folio', '!=', $solicitudDb->folio)
             ->where('Solicitudes.fk_id_estado', 4) // Solo aprobadas
             ->select(
                 'Solicitudes.folio',
@@ -818,7 +816,7 @@ class SolicitudProcesoController extends Controller
 
         // Estado actual
         $estadoActual = DB::table('Cat_EstadosSolicitud')
-            ->where('id_estado', $solicitud->fk_id_estado)
+            ->where('id_estado', $solicitudDb->fk_id_estado)
             ->first();
 
         // Total de apoyos previos
@@ -826,6 +824,9 @@ class SolicitudProcesoController extends Controller
             ->where('fk_curp', $beneficiario->curp)
             ->where('fk_id_estado', 4) // Aprobadas
             ->count();
+
+        // Para compatibilidad con la vista, usar solicitud db
+        $solicitud = $solicitudDb;
 
         return view('solicitudes.proceso.show', [
             'solicitud' => $solicitud,
