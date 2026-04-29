@@ -77,49 +77,50 @@ Route::get('/mis-solicitudes', [SolicitudController::class, 'historial'])
 Route::middleware('auth')->group(function () {
 
     // Rutas de debug/test (existentes)
-    Route::get('/apoyos-test', function() {
+    Route::get('/apoyos-test', function () {
         return view('apoyos.index-simple-test', [
             'user' => auth()->user(),
             'apoyos' => (new \App\Http\Controllers\ApoyoController())->getApoyosForDebug()
         ]);
     });
-    Route::get('/apoyos-logs', function() {
+    Route::get('/apoyos-logs', function () {
         $logFile = storage_path('logs/laravel.log');
-        if (!file_exists($logFile)) return response('No log file found', 404);
+        if (!file_exists($logFile))
+            return response('No log file found', 404);
         $content = file_get_contents($logFile);
         $lines = array_slice(explode("\n", $content), -100);
         return '<pre style="white-space:pre-wrap;background:#f5f5f5;padding:15px;font-size:12px;">' . htmlspecialchars(implode("\n", $lines)) . '</pre>';
     });
-    Route::get('/debug-docs-1014', function() {
+    Route::get('/debug-docs-1014', function () {
         return view('debug-docs-1014');
     });
-    Route::get('/debug-ruta-exacta', function() {
+    Route::get('/debug-ruta-exacta', function () {
         return view('debug-ruta-exacta');
     });
-    Route::get('/check-1013', function() {
+    Route::get('/check-1013', function () {
         $docs = \App\Models\Documento::where('fk_folio', 1013)->orderBy('id_doc', 'desc')->get();
-        
+
         echo "=== DOCUMENTOS DEL FOLIO 1013 ===\n";
         echo str_repeat("=", 150) . "\n\n";
-        
+
         foreach ($docs as $doc) {
             echo "ID: {$doc->id_doc} | ";
             echo "Ruta: {$doc->ruta_archivo} | ";
             echo "Origen: " . ($doc->origen_archivo ?? 'NULL') . " | ";
             echo "GoogleID: " . ($doc->google_file_id ?? 'NULL') . " | ";
-            
+
             // Verificar existencia
             $path1 = storage_path('app/public/' . $doc->ruta_archivo);
             $path2 = public_path('storage/' . $doc->ruta_archivo);
             $exists1 = file_exists($path1);
             $exists2 = file_exists($path2);
             $storageExists = \Illuminate\Support\Facades\Storage::disk('public')->exists($doc->ruta_archivo);
-            
+
             echo ($exists1 ? '✓' : '✗') . " path1 | ";
             echo ($exists2 ? '✓' : '✗') . " path2 | ";
             echo ($storageExists ? '✓' : '✗') . " Storage\n";
         }
-        
+
         if ($docs->isEmpty()) {
             echo "No hay documentos para folio 1013\n";
         }
@@ -144,31 +145,31 @@ Route::middleware('auth')->group(function () {
     Route::resource('personal', PersonalController::class);
 
     // Apoyos
-    Route::get('/apoyos',                  [ApoyoController::class, 'index'])->name('apoyos.index');
-    Route::get('/apoyos/imagen/{path}',    [ApoyoController::class, 'image'])->where('path', '.*')->name('apoyos.image');
-    
+    Route::get('/apoyos', [ApoyoController::class, 'index'])->name('apoyos.index');
+    Route::get('/apoyos/imagen/{path}', [ApoyoController::class, 'image'])->where('path', '.*')->name('apoyos.image');
+
     // Documentos (servir con validación)
     Route::get('/documentos/descargar/{path}', [DocumentController::class, 'download'])->where('path', '.*')->name('documentos.download');
     Route::get('/documentos/ver/{path}', [DocumentController::class, 'view'])->where('path', '.*')->name('documentos.view');
-    
+
     Route::get('/apoyos/{id}/comentarios', [ApoyoController::class, 'comments'])->name('apoyos.comments');
     Route::post('/apoyos/{id}/comentarios', [ApoyoController::class, 'storeComment'])->name('apoyos.comments.store');
     Route::put('/apoyos/{id}/comentarios/{commentId}', [ApoyoController::class, 'updateComment'])->name('apoyos.comments.update');
     Route::delete('/apoyos/{id}/comentarios/{commentId}', [ApoyoController::class, 'destroyComment'])->name('apoyos.comments.destroy');
     Route::post('/apoyos/{id}/comentarios/{commentId}/like', [ApoyoController::class, 'toggleCommentLike'])->name('apoyos.comments.like');
-    Route::get('/apoyos/create',           [ApoyoController::class, 'create'])->name('apoyos.create');
-    Route::post('/apoyos',                 [ApoyoController::class, 'store'])->name('apoyos.store');
-    Route::get('/apoyos/list',             [ApoyoController::class, 'list'])->name('apoyos.list');
-    Route::get('/apoyos/documentos',         [ApoyoController::class, 'getTiposDocumento'])->name('apoyos.documentos.index');
-    Route::post('/apoyos/documentos',         [ApoyoController::class, 'storeTipoDocumento'])->name('apoyos.documentos.store');
-    Route::put('/apoyos/documentos/{id}',     [ApoyoController::class, 'updateTipoDocumento'])->name('apoyos.documentos.update');
-    Route::delete('/apoyos/documentos/{id}',  [ApoyoController::class, 'deleteTipoDocumento'])->name('apoyos.documentos.destroy');
-    Route::post('/apoyos/check-inventario',   [ApoyoController::class, 'checkInventario'])->name('apoyos.check-inventario');
+    Route::get('/apoyos/create', [ApoyoController::class, 'create'])->name('apoyos.create');
+    Route::post('/apoyos', [ApoyoController::class, 'store'])->name('apoyos.store');
+    Route::get('/apoyos/list', [ApoyoController::class, 'list'])->name('apoyos.list');
+    Route::get('/apoyos/documentos', [ApoyoController::class, 'getTiposDocumento'])->name('apoyos.documentos.index');
+    Route::post('/apoyos/documentos', [ApoyoController::class, 'storeTipoDocumento'])->name('apoyos.documentos.store');
+    Route::put('/apoyos/documentos/{id}', [ApoyoController::class, 'updateTipoDocumento'])->name('apoyos.documentos.update');
+    Route::delete('/apoyos/documentos/{id}', [ApoyoController::class, 'deleteTipoDocumento'])->name('apoyos.documentos.destroy');
+    Route::post('/apoyos/check-inventario', [ApoyoController::class, 'checkInventario'])->name('apoyos.check-inventario');
     Route::post('/apoyos/aprobar-inventario', [ApoyoController::class, 'aprobarInventario'])->name('apoyos.aprobar-inventario');
-    Route::get('/apoyos/{id}/edit',        [ApoyoController::class, 'edit'])->name('apoyos.edit');
-    Route::put('/apoyos/{id}',             [ApoyoController::class, 'update'])->name('apoyos.update');
-    Route::delete('/apoyos/{id}',          [ApoyoController::class, 'destroy'])->name('apoyos.destroy');
-    Route::delete('/apoyos/{id}',          [ApoyoController::class, 'destroy'])->name('apoyos.destroy');
+    Route::get('/apoyos/{id}/edit', [ApoyoController::class, 'edit'])->name('apoyos.edit');
+    Route::put('/apoyos/{id}', [ApoyoController::class, 'update'])->name('apoyos.update');
+    Route::delete('/apoyos/{id}', [ApoyoController::class, 'destroy'])->name('apoyos.destroy');
+    Route::delete('/apoyos/{id}', [ApoyoController::class, 'destroy'])->name('apoyos.destroy');
 
     // Flujo de solicitudes
     Route::get('/solicitudes/proceso', [SolicitudProcesoController::class, 'index'])
@@ -462,7 +463,7 @@ Route::middleware(['auth', 'role:1,2'])->group(function () {
         // MOMENTO 1: Crear expediente presencial
         Route::get('/momento-uno', [\App\Http\Controllers\CasoAController::class, 'momentoUno'])
             ->name('momento-uno');
-        
+
         Route::post('/momento-uno/guardar', [\App\Http\Controllers\CasoAController::class, 'guardarMomentoUno'])
             ->name('guardar-momento-uno');
 
@@ -484,7 +485,7 @@ Route::middleware(['auth', 'role:1,2'])->group(function () {
 // API: Búsqueda de beneficiarios (pública para autocomplete)
 Route::get('/api/beneficiarios/buscar', function (\Illuminate\Http\Request $request) {
     $query = $request->input('q', '');
-    
+
     if (strlen($query) < 2) {
         return response()->json([]);
     }
@@ -517,4 +518,82 @@ Route::middleware(['auth', 'role:1,2'])->group(function () {
         ->name('api.caso-a.pendientes-escaneo');
 });
 
-require __DIR__.'/auth.php';
+Route::get('/debug-db', function () {
+    // Información completa de drivers y diagnóstico
+    $response = [
+        'timestamp' => now()->toIso8601String(),
+        'hostname' => gethostname(),
+        'php_version' => PHP_VERSION,
+        'server_api' => php_sapi_name(),
+
+        // Extensiones
+        'extensions' => [
+            'sqlsrv' => extension_loaded('sqlsrv'),
+            'pdo_sqlsrv' => extension_loaded('pdo_sqlsrv'),
+            'pdo' => extension_loaded('pdo'),
+            'odbc' => extension_loaded('odbc'),
+        ],
+
+        // PDO Drivers
+        'pdo_drivers' => PDO::getAvailableDrivers(),
+        'sqlsrv_available' => in_array('sqlsrv', PDO::getAvailableDrivers()),
+
+        // Configuración
+        'extension_dir' => ini_get('extension_dir'),
+        'php_ini' => php_ini_loaded_file(),
+
+        // Información de la BD
+        'database' => [
+            'driver' => config('database.default'),
+            'host' => config('database.connections.sqlsrv.host'),
+            'database' => config('database.connections.sqlsrv.database'),
+            'port' => config('database.connections.sqlsrv.port'),
+        ],
+
+        // Session
+        'session_driver' => config('session.driver'),
+        'session_connection' => config('session.connection'),
+
+        // Intentar conexión
+        'connection_test' => null,
+        'error' => null,
+    ];
+
+    // Intentar conexión a la base de datos
+    if (extension_loaded('pdo_sqlsrv')) {
+        try {
+            $connection = DB::connection('sqlsrv');
+            $connection->getPdo()->exec('SELECT 1');
+            $response['connection_test'] = true;
+        } catch (\Exception $e) {
+            $response['connection_test'] = false;
+            $response['error'] = $e->getMessage();
+        }
+    } else {
+        $response['error'] = 'pdo_sqlsrv extension not loaded';
+    }
+
+    // Información sobre los logs de instalación
+    $log_dir = storage_path('logs/eb_install');
+    if (is_dir($log_dir)) {
+        $logs = scandir($log_dir);
+        $logs = array_filter($logs, fn($f) => $f !== '.' && $f !== '..');
+        rsort($logs);
+        $response['installation_logs'] = array_slice($logs, 0, 5);
+    }
+
+    return response()->json($response, 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+});
+
+// Ruta de diagnóstico SQL Server (sin autenticación para troubleshooting)
+Route::get('/diagnostico-sqlserver', function () {
+    include storage_path('diagnostico.php');
+});
+
+Route::get('/clear', function () {
+    \Illuminate\Support\Facades\Artisan::call('config:clear');
+    \Illuminate\Support\Facades\Artisan::call('cache:clear');
+    return "Caché de SIGO limpia";
+});
+
+require __DIR__ . '/auth.php';

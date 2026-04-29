@@ -23,6 +23,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Forzar HTTP para contrarrestar cualquier APP_URL que esté forzando HTTPS en AWS
+        if (config('app.env') === 'production') {
+            \Illuminate\Support\Facades\URL::forceScheme('http');
+        }
+
         // Registrar observers para modelos
         HitosApoyo::observe(HitosApoyoObserver::class);
         Documento::observe(DocumentoObserver::class);
