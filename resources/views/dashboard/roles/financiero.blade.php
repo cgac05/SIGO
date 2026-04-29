@@ -36,9 +36,9 @@
             </div>
             <h3 class="font-bold text-slate-800 text-lg">Reportes de Egresos</h3>
             <p class="text-sm text-slate-500 mt-2">Consulta el histórico de apoyos entregados y estados de cuenta.</p>
-            <button class="mt-4 inline-block w-full text-center py-2 border border-emerald-600 text-emerald-600 rounded-lg font-semibold hover:bg-emerald-50 transition-colors">
+            <a href="{{ route('finanzas.historial') }}" class="mt-4 inline-block w-full text-center py-2 border border-emerald-600 text-emerald-600 rounded-lg font-semibold hover:bg-emerald-50 transition-colors">
                 Ver Historial
-            </button>
+            </a>
         </div>
 
     </div>

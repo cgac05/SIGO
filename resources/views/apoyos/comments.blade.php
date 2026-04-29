@@ -50,6 +50,22 @@
             </div>
         </header>
 
+        @if(session('success'))
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                    {{ session('success') }}
+                </div>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+                <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {{ session('error') }}
+                </div>
+            </div>
+        @endif
+
         <main>
             <div class="min-h-screen bg-slate-100 py-6" x-data="apoyoCommentsApp()">
         <script>

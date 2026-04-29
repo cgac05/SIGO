@@ -66,7 +66,7 @@
             <p>Para cualquier duda o aclaración, puede comunicarse con:</p>
             <ul>
                 <li><strong>Email:</strong> soporte@sigo.gob.mx</li>
-                <li><strong>Teléfono:</strong> +52 (000) 000-0000</li>
+                <li><strong>Teléfono:</strong> +52 (311) 2330853</li>
                 <li><strong>Horario de atención:</strong> Lunes a Viernes, 9:00 AM - 5:00 PM</li>
             </ul>
         </div>

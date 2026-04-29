@@ -116,7 +116,7 @@
 
                             <!-- Verification Panel -->
                             <div class="mt-4 pt-4 border-t border-slate-200" id="verify-form-{{ $documento->id_doc }}" style="display: {{ ($documento->admin_status === 'pendiente' || $documento->admin_status === null) ? 'block' : 'none' }}">
-                                <form class="space-y-3 verify-form" data-documento-id="{{ $documento->id_doc }}">
+                                <form class="space-y-3 verify-form" data-documento-id="{{ $documento->id_doc }}" novalidate>
                                     @csrf
                                     
                                     <!-- Status Buttons -->
@@ -134,10 +134,14 @@
                                         <label class="block text-sm font-semibold text-slate-900 mb-2">
                                             <span class="text-red-600">*</span> Motivo del rechazo (obligatorio)
                                         </label>
+                                        <span class="inline-flex items-center rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700 ring-1 ring-rose-200">
+                                            Mínimo 10 caracteres
+                                        </span>
                                         <textarea name="observations" placeholder="Explique clara y detalladamente por qué rechaza este documento. El beneficiario podrá ver este motivo..." 
                                                   class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-                                                  rows="4" minlength="10" required></textarea>
-                                        <p class="text-xs text-slate-500 mt-1">Mínimo 10 caracteres. El beneficiario recibirá este mensaje.</p>
+                                                  rows="4"></textarea>
+                                        <p class="text-xs text-rose-600 mt-2 rejection-inline-error" aria-live="polite"></p>
+                                        <p class="text-xs text-slate-500 mt-1">El beneficiario recibirá este mensaje.</p>
                                         <button type="submit" class="mt-3 w-full px-4 py-2 bg-red-600 text-white font-medium rounded hover:bg-red-700 transition-colors submit-reject-btn">
                                             Confirmar Rechazo
                                         </button>
@@ -192,6 +196,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const rejectionField = form.querySelector('.rejection-reason-field');
         const submitRejectBtn = form.querySelector('.submit-reject-btn');
         const textarea = form.querySelector('textarea[name="observations"]');
+        const inlineError = form.querySelector('.rejection-inline-error');
+
+        function clearInlineError() {
+            if (inlineError) {
+                inlineError.textContent = '';
+            }
+        }
+
+        function showInlineError(message) {
+            if (inlineError) {
+                inlineError.textContent = message;
+            }
+        }
 
         // Validar que los elementos existan
         if (!acceptBtn || !rejectBtn || !statusInput) {
@@ -205,9 +222,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 statusInput.value = 'aceptado';
                 if (rejectionField) rejectionField.style.display = 'none';
                 if (textarea) {
-                    textarea.removeAttribute('required');
                     textarea.value = '';
                 }
+                clearInlineError();
                 submitVerification(form, docId);
             });
         }
@@ -218,28 +235,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 statusInput.value = 'rechazado';
                 if (rejectionField) rejectionField.style.display = 'block';
                 if (textarea) {
-                    textarea.setAttribute('required', 'required');
                     textarea.focus();
                 }
+                clearInlineError();
             });
         }
 
-        // Handle rejection submission
-        if (submitRejectBtn && textarea) {
-            submitRejectBtn.addEventListener('click', function(e) {
+        // Handle rejection submission without browser validation popups
+        if (submitRejectBtn) {
+            form.addEventListener('submit', function(e) {
+                if (statusInput.value !== 'rechazado') {
+                    return;
+                }
+
                 e.preventDefault();
-                
-                if (!textarea.value.trim()) {
-                    alert('Por favor escriba el motivo del rechazo');
+
+                const observations = textarea?.value.trim() || '';
+
+                if (!observations) {
+                    showInlineError('Escribe el motivo del rechazo.');
+                    textarea?.focus();
                     return;
                 }
-                
-                if (textarea.value.trim().length < 10) {
-                    alert('El motivo debe tener al menos 10 caracteres');
+
+                if (observations.length < 10) {
+                    showInlineError('El motivo debe tener al menos 10 caracteres.');
+                    textarea?.focus();
                     return;
                 }
-                
-                statusInput.value = 'rechazado';
+
+                clearInlineError();
                 submitVerification(form, docId);
             });
         }
@@ -267,12 +292,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Success - reload to see changes
                 location.reload();
             } else {
-                alert('Error: ' + (data.message || 'Error desconocido'));
+                const inlineError = form.querySelector('.rejection-inline-error');
+                if (inlineError) {
+                    inlineError.textContent = data.message || 'Error desconocido';
+                }
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error al procesar la verificación');
+            const inlineError = form.querySelector('.rejection-inline-error');
+            if (inlineError) {
+                inlineError.textContent = 'No se pudo procesar la verificación.';
+            }
         });
     }
 });

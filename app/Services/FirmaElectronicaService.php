@@ -79,8 +79,8 @@ class FirmaElectronicaService
             ];
         }
 
-        // 5. Validar que estado de solicitud sea compatible (En revisión, Pendiente de firma, etc.)
-        $estadosValidos = [2, 3]; // En revisión, Aprobada
+        // 5. Validar que estado de solicitud sea compatible (Aprobada heredada o documentos verificados)
+        $estadosValidos = [4, 9]; // 4 = Aprobado, 9 = DOCS_VERIFICADOS
         if (!in_array($solicitud->fk_id_estado, $estadosValidos)) {
             return [
                 'valido' => false,
@@ -309,7 +309,7 @@ class FirmaElectronicaService
 
                 // Actualizar solicitud a RECHAZADA
                 DB::table('Solicitudes')->where('folio', $folio)->update([
-                    'fk_id_estado' => 4, // RECHAZADA
+                    'fk_id_estado' => 5, // RECHAZADA
                     'cuv' => $cuv,
                     'fecha_actualizacion' => now(),
                 ]);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Documento;
 use App\Rules\Recaptcha;
 use App\Services\PresupuestoService;
 use App\Services\FolioService;
@@ -109,7 +110,6 @@ class SolicitudController extends Controller
                 $folioRechazado = 0;
             }
         }
-
         $solicitudActiva = DB::table('Solicitudes')
             ->join('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
             ->where('Solicitudes.fk_curp', $curpBeneficiario)
@@ -167,8 +167,29 @@ class SolicitudController extends Controller
                 'Apoyos.fecha_fin as apoyo_fecha_fin',
                 'Cat_EstadosSolicitud.nombre_estado as estado_nombre',
             ])
-            ->get()
-            ->map(function ($solicitud) {
+            ->get();
+
+        $foliosSolicitudes = $solicitudes->pluck('folio')->all();
+        $documentosPorFolio = collect();
+
+        if (! empty($foliosSolicitudes)) {
+            $documentosPorFolio = DB::table('Documentos_Expediente')
+                ->select([
+                    'fk_folio',
+                    DB::raw('COUNT(*) as total_documentos'),
+                    DB::raw("SUM(CASE WHEN admin_status = 'aceptado' THEN 1 ELSE 0 END) as aceptados"),
+                    DB::raw("SUM(CASE WHEN admin_status = 'rechazado' THEN 1 ELSE 0 END) as rechazados"),
+                    DB::raw("SUM(CASE WHEN admin_status = 'pendiente' OR admin_status IS NULL THEN 1 ELSE 0 END) as pendientes"),
+                ])
+                ->whereIn('fk_folio', $foliosSolicitudes)
+                ->groupBy('fk_folio')
+                ->get()
+                ->keyBy('fk_folio');
+        }
+
+        $solicitudes = $solicitudes->map(function ($solicitud) use ($documentosPorFolio) {
+                $documentos = $documentosPorFolio->get($solicitud->folio);
+
                 $solicitud->fecha_creacion = ! empty($solicitud->fecha_creacion) ? Carbon::parse($solicitud->fecha_creacion) : null;
                 $solicitud->fecha_actualizacion = ! empty($solicitud->fecha_actualizacion) ? Carbon::parse($solicitud->fecha_actualizacion) : null;
                 $solicitud->fecha_confirmacion_presupuesto = ! empty($solicitud->fecha_confirmacion_presupuesto) ? Carbon::parse($solicitud->fecha_confirmacion_presupuesto) : null;
@@ -177,18 +198,31 @@ class SolicitudController extends Controller
                 $solicitud->apoyo_fecha_inicio = ! empty($solicitud->apoyo_fecha_inicio) ? Carbon::parse($solicitud->apoyo_fecha_inicio) : null;
                 $solicitud->apoyo_fecha_fin = ! empty($solicitud->apoyo_fecha_fin) ? Carbon::parse($solicitud->apoyo_fecha_fin) : null;
 
+                [$faseDocumentalEtiqueta, $faseDocumentalClasses, $faseDocumentalIcon] = $this->determinarFaseDocumental(
+                    (int) ($documentos->total_documentos ?? 0),
+                    (int) ($documentos->aceptados ?? 0),
+                    (int) ($documentos->rechazados ?? 0),
+                    (int) ($documentos->pendientes ?? 0),
+                    ! empty($solicitud->cuv)
+                );
+
+                $solicitud->fase_documental_etiqueta = $faseDocumentalEtiqueta;
+                $solicitud->fase_documental_classes = $faseDocumentalClasses;
+                $solicitud->fase_documental_icon = $faseDocumentalIcon;
+
                 $estadoNombreNormalizado = mb_strtolower(trim((string) ($solicitud->estado_nombre ?? '')));
-                $esAprobada = str_contains($estadoNombreNormalizado, 'aprob')
-                    || str_contains($estadoNombreNormalizado, 'correct')
-                    || str_contains($estadoNombreNormalizado, 'firm')
-                    || str_contains($estadoNombreNormalizado, 'autoriz');
                 $esRechazada = str_contains($estadoNombreNormalizado, 'rechaz')
                     || str_contains($estadoNombreNormalizado, 'incorrect')
                     || str_contains($estadoNombreNormalizado, 'cancel')
                     || str_contains($estadoNombreNormalizado, 'deneg');
 
-                $solicitud->estado_clave = $esAprobada ? 'aprobada' : ($esRechazada ? 'rechazada' : 'proceso');
-                $solicitud->estado_etiqueta = Str::headline($solicitud->estado_nombre ?? 'Pendiente');
+                // El CUV solo existe después de la firma del directivo; antes de eso sigue en proceso.
+                $esAprobada = ! empty($solicitud->cuv);
+
+                $solicitud->estado_clave = $esRechazada ? 'rechazada' : ($esAprobada ? 'aprobada' : 'proceso');
+                $solicitud->estado_etiqueta = $esRechazada
+                    ? 'Rechazada'
+                    : ($esAprobada ? 'Aprobada' : 'En proceso');
                 $solicitud->ultima_actualizacion = $solicitud->fecha_actualizacion ?: $solicitud->fecha_creacion;
                 $solicitud->ultima_actualizacion_formatted = $solicitud->ultima_actualizacion?->format('d/m/Y H:i') ?? '—';
                 $solicitud->fecha_solicitud_formatted = $solicitud->fecha_creacion?->format('d/m/Y H:i') ?? '—';
@@ -422,7 +456,11 @@ class SolicitudController extends Controller
 
                 DB::commit();
 
-                return redirect()->back()->with('exito', true);
+                return redirect()->route('apoyos.comments', [
+                    'id' => $request->apoyo,
+                    'origen' => 'solicitud',
+                    'folio' => $folioRechazado,
+                ])->with('success', 'Documentos rechazados reenviados correctamente.');
             } catch (\Exception $e) {
                 DB::rollBack();
 
@@ -637,5 +675,28 @@ class SolicitudController extends Controller
 
             return redirect()->back()->with('error', 'Error al guardar: ' . $e->getMessage());
         }
+    }
+
+    private function determinarFaseDocumental(int $totalDocumentos, int $aceptados, int $rechazados, int $pendientes, bool $firmada): array
+    {
+        if ($totalDocumentos <= 0) {
+            return ['Sin documentos', 'bg-slate-100 text-slate-700 ring-slate-200', '○'];
+        }
+
+        if ($rechazados > 0) {
+            return ['Subsanación requerida', 'bg-rose-100 text-rose-800 ring-rose-200', '✗'];
+        }
+
+        if ($aceptados === $totalDocumentos) {
+            return $firmada
+                ? ['Aprobada por directivo', 'bg-emerald-100 text-emerald-800 ring-emerald-200', '✓']
+                : ['En validación del directivo', 'bg-blue-100 text-blue-800 ring-blue-200', '⏳'];
+        }
+
+        if ($pendientes === $totalDocumentos) {
+            return ['En revisión documental', 'bg-amber-100 text-amber-800 ring-amber-200', '⏳'];
+        }
+
+        return ['En revisión documental', 'bg-amber-100 text-amber-800 ring-amber-200', '⏳'];
     }
 }

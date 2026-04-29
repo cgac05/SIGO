@@ -68,7 +68,17 @@ class SolicitudProcesoController extends Controller
             $solicitudesQuery->where('Solicitudes.folio', $folio);
         }
         if ($estado) {
-            $solicitudesQuery->where('Cat_EstadosSolicitud.nombre_estado', $estado);
+            // Cuando se filtra por estado, mapear a los valores correctos de la BD
+            $estadoMap = [
+                'ANALISIS_ADMIN' => 3,      // Estado ID 3
+                'DOCUMENTOS_VERIFICADOS' => 9, // Estado ID 9
+                'APROBADA' => 4,             // Estado ID 4
+                'RECHAZADA' => 5,            // Estado ID 5
+            ];
+            
+            if (isset($estadoMap[$estado])) {
+                $solicitudesQuery->where('Solicitudes.fk_id_estado', $estadoMap[$estado]);
+            }
         }
         if ($apoyo) {
             $solicitudesQuery->where('Solicitudes.fk_id_apoyo', $apoyo);
@@ -77,39 +87,57 @@ class SolicitudProcesoController extends Controller
             $solicitudesQuery->where(DB::raw("CONCAT(Beneficiarios.nombre, ' ', Beneficiarios.apellido_paterno, ' ', Beneficiarios.apellido_materno)"), 'LIKE', "%$beneficiario%");
         }
 
-        // Separar por tab
-        if ($tab === 'firmadas') {
-            // Solo mostrar solicitudes con CUV (firmadas)
-            $solicitudesQuery->whereNotNull('Solicitudes.cuv');
-        } elseif ($tab === 'rechazadas') {
-            // Solo mostrar solicitudes rechazadas (estado 5)
-            $solicitudesQuery->where('Solicitudes.fk_id_estado', 5); // Estado 5 = RECHAZADA
-        } else {
-            // Mostrar pendientes (sin CUV y NO rechazadas)
-            $solicitudesQuery->whereNull('Solicitudes.cuv')
-                            ->where('Solicitudes.fk_id_estado', '!=', 5); // Excluir rechazadas
+        // Separar por tab - SOLO si no hay filtro de estado aplicado
+        if (!$estado) {
+            if ($tab === 'firmadas') {
+                // Solo mostrar solicitudes con CUV (firmadas)
+                $solicitudesQuery->whereNotNull('Solicitudes.cuv');
+            } elseif ($tab === 'rechazadas') {
+                // Solo mostrar solicitudes rechazadas (estado 5)
+                $solicitudesQuery->where('Solicitudes.fk_id_estado', 5); // Estado 5 = RECHAZADA
+            } else {
+                // Mostrar pendientes (sin CUV y NO rechazadas)
+                $solicitudesQuery->whereNull('Solicitudes.cuv')
+                                ->where('Solicitudes.fk_id_estado', '!=', 5); // Excluir rechazadas
+            }
         }
 
         // ✅ FILTRO CRÍTICO: Solo mostrar solicitudes si TODOS sus documentos están aprobados por admin
-        // Las solicitudes deben tener al menos 1 documento
-        $solicitudesQuery->whereExists(function ($query) {
-            $query->select(DB::raw(1))
-                ->from('Documentos_Expediente')
-                ->whereColumn('Documentos_Expediente.fk_folio', 'Solicitudes.folio')
-                ->where('Documentos_Expediente.admin_status', 'aceptado');
-        });
+        // PERO: Solo aplicar este filtro cuando NO se está filtrando por estado específico
+        // Cuando se filtra por "Aprobada" o "Rechazada", no aplicar restricción de documentos
+        if (!$estado) {
+            // Las solicitudes deben tener al menos 1 documento aprobado
+            $solicitudesQuery->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('Documentos_Expediente')
+                    ->whereColumn('Documentos_Expediente.fk_folio', 'Solicitudes.folio')
+                    ->where('Documentos_Expediente.admin_status', 'aceptado');
+            });
 
-        // Y NO deben tener ningún documento pendiente/rechazado
-        $solicitudesQuery->whereNotExists(function ($query) {
-            $query->select(DB::raw(1))
-                ->from('Documentos_Expediente')
-                ->whereColumn('Documentos_Expediente.fk_folio', 'Solicitudes.folio')
-                ->where('admin_status', '!=', 'aceptado')
-                ->whereNotNull('admin_status');
-        });
+            // Y NO deben tener ningún documento pendiente/rechazado
+            $solicitudesQuery->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('Documentos_Expediente')
+                    ->whereColumn('Documentos_Expediente.fk_folio', 'Solicitudes.folio')
+                    ->where('admin_status', '!=', 'aceptado')
+                    ->whereNotNull('admin_status');
+            });
+        }
 
         // Obtener solicitudes paginadas
         $solicitudes = $solicitudesQuery->orderByDesc('Solicitudes.folio')->paginate(10);
+
+        // Determinar el tab actual - si hay filtro de estado, usar ese
+        $tabActualDisplay = $tab;
+        if ($estado) {
+            $tabMap = [
+                'APROBADA' => 'aprobadas',
+                'RECHAZADA' => 'rechazadas',
+                'DOCUMENTOS_VERIFICADOS' => 'pendientes',
+                'ANALISIS_ADMIN' => 'analisis',
+            ];
+            $tabActualDisplay = $tabMap[$estado] ?? $tab;
+        }
 
         // Estadísticas
         $hoy = now()->startOfDay();
@@ -157,6 +185,8 @@ class SolicitudProcesoController extends Controller
             'stats' => $stats,
             'apoyosDisponibles' => $apoyosDisponibles,
             'tabActual' => $tab,
+            'tabActualDisplay' => $tabActualDisplay,
+            'estadoFiltrado' => $estado,
         ]);
     }
 
@@ -843,8 +873,8 @@ class SolicitudProcesoController extends Controller
             return back()->withErrors(['error' => 'Solicitud no encontrada']);
         }
 
-        // Validar estado (debe ser 10 = DOCUMENTOS_VERIFICADOS O 4 = Aprobado)
-        if (!in_array($solicitud->fk_id_estado, [4, 10])) {
+        // Validar estado (debe ser 9 = DOCS_VERIFICADOS o 4 = Aprobado heredado)
+        if (!in_array($solicitud->fk_id_estado, [4, 9])) {
             $estado = DB::table('Cat_EstadosSolicitud')
                 ->where('id_estado', $solicitud->fk_id_estado)
                 ->first(['nombre_estado']);
@@ -907,8 +937,47 @@ class SolicitudProcesoController extends Controller
 
             DB::commit();
 
+            // Enviar notificación de aprobación
+            if ($solicitud && $folio) {
+                try {
+                    $solicitudCompleta = DB::table('Solicitudes')
+                        ->join('Beneficiarios', 'Solicitudes.fk_curp', '=', 'Beneficiarios.curp')
+                        ->join('Usuarios', 'Beneficiarios.fk_id_usuario', '=', 'Usuarios.id_usuario')
+                        ->join('Apoyos', 'Solicitudes.fk_id_apoyo', '=', 'Apoyos.id_apoyo')
+                        ->where('Solicitudes.folio', $folio)
+                        ->select([
+                            'Beneficiarios.nombre',
+                            'Beneficiarios.curp',
+                            'Usuarios.email',
+                            'Apoyos.nombre_apoyo',
+                            'Apoyos.monto_maximo',
+                        ])
+                        ->first();
+                    
+                    if ($solicitudCompleta) {
+                        $beneficiario = (object)[
+                            'nombre' => $solicitudCompleta->nombre,
+                            'curp' => $solicitudCompleta->curp,
+                            'email' => $solicitudCompleta->email,
+                        ];
+                        $apoyo = (object)[
+                            'nombre_apoyo' => $solicitudCompleta->nombre_apoyo,
+                        ];
+                        \App\Services\NotificacionAprobacionService::enviarNotificacionAprobacion(
+                            $folio,
+                            $cuv,
+                            $beneficiario,
+                            $apoyo,
+                            $solicitudCompleta->monto_maximo
+                        );
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning('Error al enviar notificación de aprobación: ' . $e->getMessage());
+                }
+            }
+
             return redirect()->route('solicitudes.proceso.show', $folio)
-                ->with('success', "✓ Solicitud firmada exitosamente. CUV: {$cuv}");
+                ->with('success', "Solicitud firmada exitosamente. CUV: {$cuv}");
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -967,7 +1036,7 @@ class SolicitudProcesoController extends Controller
         }
 
         // Validar estado - Se puede rechazar en múltiples estados
-        // Estados permitidos: 1 (Pendiente), 2 (Validado), 3 (Subsanación), 4 (Aprobado), 9 (Docs Verificados)
+        // Estados permitidos: 1 (Pendiente), 2 (Validado), 3 (Subsanación), 4 (Aprobado), 9 (DOCS_VERIFICADOS)
         $estadosPermitidos = [1, 2, 3, 4, 9];
         
         if (!in_array($solicitud->fk_id_estado, $estadosPermitidos)) {
@@ -1026,7 +1095,7 @@ class SolicitudProcesoController extends Controller
             DB::commit();
 
             return redirect()->route('solicitudes.proceso.show', $folio)
-                ->with('success', '✓ Solicitud rechazada. Se envió notificación al beneficiario.');
+                ->with('success', 'Solicitud rechazada. Se envió notificación al beneficiario.');
 
         } catch (\Exception $e) {
             DB::rollBack();

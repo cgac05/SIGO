@@ -140,8 +140,9 @@ Route::middleware('auth')->group(function () {
             ->name('finanzas.comprobante');
     });
 
-    Route::get('/personal/crear', [PersonalController::class, 'create'])->name('personal.crear');
-    Route::post('/personal/guardar', [PersonalController::class, 'store'])->name('personal.store');
+    //Route::get('/personal/crear', [PersonalController::class, 'create'])->name('personal.crear');
+    //Route::post('/personal/guardar', [PersonalController::class, 'store'])->name('personal.store');
+    Route::resource('personal', PersonalController::class);
 
     // Apoyos
     Route::get('/apoyos', [ApoyoController::class, 'index'])->name('apoyos.index');
