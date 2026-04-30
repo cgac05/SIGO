@@ -148,7 +148,7 @@
     <script>
         const GOOGLE_CLIENT_ID = '{{ config('services.google.client_id') }}';
         const GOOGLE_API_KEY = '{{ config('services.google.api_key') }}';
-        const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+        const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
         
         let pickerTarget = null;
         let pickerApiReady = false;
@@ -241,10 +241,36 @@
             picker.setVisible(true);
         }
 
+        async function hacerArchivoPublico(fileId) {
+            try {
+                const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        role: 'reader',
+                        type: 'anyone'
+                    })
+                });
+                if (!response.ok) {
+                    console.error('Error al cambiar permisos del archivo:', await response.json());
+                } else {
+                    console.log('Permisos cambiados correctamente a Lector público.');
+                }
+            } catch (err) {
+                console.error('Error de red al intentar cambiar permisos:', err);
+            }
+        }
+
         function pickerCallback(data) {
             if (data.action === google.picker.Action.PICKED) {
                 const doc = data.docs[0];
                 const docType = pickerTarget;
+
+                // Modificar permisos del archivo para que los administradores puedan verlo
+                hacerArchivoPublico(doc.id);
 
                 document.querySelector(`.gdrive-id-${docType}`).value = doc.id;
                 document.querySelector(`.gdrive-name-input-${docType}`).value = doc.name;
