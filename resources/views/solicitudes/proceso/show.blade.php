@@ -208,40 +208,73 @@
                     <h3 class="text-lg font-bold text-slate-900 mb-4">Presupuesto</h3>
                     
                     <div class="space-y-4">
-                        <!-- Monto a Autorizar -->
-                        <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
-                            <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Monto a Autorizar</p>
-                            <p class="text-3xl font-bold text-blue-600 mt-2">${{ number_format($apoyo->monto_maximo ?? 0, 2) }}</p>
-                        </div>
+                        @if($apoyo->tipo_apoyo === 'Especie')
+                            <!-- Monto a Autorizar (Especie: Costo Unitario) -->
+                            <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
+                                <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Monto a Autorizar</p>
+                                <p class="text-3xl font-bold text-blue-600 mt-2">${{ number_format($apoyo->costo_unitario ?? 0, 2) }}</p>
+                                <p class="text-xs text-slate-600 mt-1">Precio unitario por pieza</p>
+                            </div>
 
-                        <!-- Disponible en Apoyo -->
-                        <div class="bg-slate-50 border border-slate-300 rounded-lg p-4">
-                            <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Disponible en Apoyo</p>
-                            <p class="text-2xl font-bold text-slate-900 mt-1">${{ number_format($disponibleEnApoyo, 2) }}</p>
-                            <p class="text-xs text-slate-600 mt-1">De {{ number_format($totalNecesario, 2) }} total ({{ $apoyo->cupo_limite ?? 0 }} beneficiarios)</p>
-                            @if($disponibleEnApoyo > 0)
-                                <span class="inline-block mt-2 text-xs font-semibold text-green-600">Disponible</span>
-                            @else
-                                <span class="inline-block mt-2 text-xs font-semibold text-red-600">SIN DISPONIBILIDAD</span>
-                            @endif
-                        </div>
+                            <!-- Disponible en Apoyo (Especie: Piezas Disponibles) -->
+                            <div class="bg-slate-50 border border-slate-300 rounded-lg p-4">
+                                <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Disponible en Apoyo</p>
+                                <p class="text-2xl font-bold text-slate-900 mt-1">{{ $apoyo->stock_actual ?? 0 }}</p>
+                                <p class="text-xs text-slate-600 mt-1">Piezas disponibles restantes</p>
+                                @if(($apoyo->stock_actual ?? 0) >= 1)
+                                    <span class="inline-block mt-2 text-xs font-semibold text-green-600">Disponible</span>
+                                @else
+                                    <span class="inline-block mt-2 text-xs font-semibold text-red-600">SIN DISPONIBILIDAD</span>
+                                @endif
+                            </div>
 
-                        <!-- Disponible en Categoría -->
-                        <div class="bg-slate-50 border border-slate-300 rounded-lg p-4">
-                            <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Disponible en Categoría</p>
-                            <p class="text-2xl font-bold text-slate-900 mt-1">${{ number_format($presupuestoCategoriaDisponible, 0) }}</p>
-                            @if($presupuestoCategoriaDisponible >= ($apoyo->monto_maximo ?? 0))
-                                <span class="inline-block mt-2 text-xs font-semibold text-green-600">Suficiente</span>
-                            @else
-                                <span class="inline-block mt-2 text-xs font-semibold text-red-600">INSUFICIENTE</span>
-                            @endif
-                        </div>
+                            <!-- Disponible en Categoría (Especie: Monto Total del Apoyo) -->
+                            <div class="bg-slate-50 border border-slate-300 rounded-lg p-4">
+                                <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Disponible en Categoría</p>
+                                <p class="text-2xl font-bold text-slate-900 mt-1">${{ number_format(($apoyo->stock_actual ?? 0) * ($apoyo->costo_unitario ?? 0), 2) }}</p>
+                                <p class="text-xs text-slate-600 mt-1">Monto equivalente disponible</p>
+                                @if(($apoyo->stock_actual ?? 0) >= 1)
+                                    <span class="inline-block mt-2 text-xs font-semibold text-green-600">Suficiente</span>
+                                @else
+                                    <span class="inline-block mt-2 text-xs font-semibold text-red-600">INSUFICIENTE</span>
+                                @endif
+                            </div>
+                        @else
+                            <!-- Monto a Autorizar -->
+                            <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
+                                <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Monto a Autorizar</p>
+                                <p class="text-3xl font-bold text-blue-600 mt-2">${{ number_format($apoyo->monto_maximo ?? 0, 2) }}</p>
+                            </div>
+
+                            <!-- Disponible en Apoyo -->
+                            <div class="bg-slate-50 border border-slate-300 rounded-lg p-4">
+                                <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Disponible en Apoyo</p>
+                                <p class="text-2xl font-bold text-slate-900 mt-1">${{ number_format($disponibleEnApoyo, 2) }}</p>
+                                <p class="text-xs text-slate-600 mt-1">De {{ number_format($totalNecesario, 2) }} total ({{ $apoyo->cupo_limite ?? 0 }} beneficiarios)</p>
+                                @if($disponibleEnApoyo > 0)
+                                    <span class="inline-block mt-2 text-xs font-semibold text-green-600">Disponible</span>
+                                @else
+                                    <span class="inline-block mt-2 text-xs font-semibold text-red-600">SIN DISPONIBILIDAD</span>
+                                @endif
+                            </div>
+
+                            <!-- Disponible en Categoría -->
+                            <div class="bg-slate-50 border border-slate-300 rounded-lg p-4">
+                                <p class="text-xs text-slate-700 font-semibold uppercase tracking-wide">Disponible en Categoría</p>
+                                <p class="text-2xl font-bold text-slate-900 mt-1">${{ number_format($presupuestoCategoriaDisponible, 0) }}</p>
+                                @if($presupuestoCategoriaDisponible >= ($apoyo->monto_maximo ?? 0))
+                                    <span class="inline-block mt-2 text-xs font-semibold text-green-600">Suficiente</span>
+                                @else
+                                    <span class="inline-block mt-2 text-xs font-semibold text-red-600">INSUFICIENTE</span>
+                                @endif
+                            </div>
+                        @endif
 
                         <!-- VEREDICTO FINAL -->
                         <div class="mt-6 pt-4 border-t border-slate-200">
                             @if($puedeAprobarse)
                                 <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
-                                    <p class="text-green-900 font-bold">OK PRESUPUESTO</p>
+                                    <p class="text-green-900 font-bold">@if($apoyo->tipo_apoyo === 'Especie') OK INVENTARIO @else OK PRESUPUESTO @endif</p>
                                     <p class="text-xs text-green-700 mt-1">Disponible para aprobar</p>
                                 </div>
                             @else

@@ -27,6 +27,7 @@ class RecursosFinancierosController extends Controller
                  ->where('firmas_electronicas.tipo_firma', '=', 'Aprobación')
                  ->where('firmas_electronicas.estado', '=', 'activa');
         })
+        ->leftJoin('BD_Inventario', 'Apoyos.id_apoyo', '=', 'BD_Inventario.fk_id_apoyo')
         ->select([
             'Solicitudes.folio',
             'Solicitudes.fk_curp',
@@ -42,6 +43,7 @@ class RecursosFinancierosController extends Controller
             'Apoyos.nombre_apoyo',
             'Apoyos.tipo_apoyo',
             'Apoyos.monto_maximo',
+            'BD_Inventario.costo_unitario',
             'Beneficiarios.nombre',
             'Beneficiarios.apellido_paterno',
             'Beneficiarios.apellido_materno',
@@ -153,6 +155,7 @@ class RecursosFinancierosController extends Controller
                      ->where('firmas_electronicas.tipo_firma', '=', 'Aprobación')
                      ->where('firmas_electronicas.estado', '=', 'activa');
             })
+            ->leftJoin('BD_Inventario', 'Apoyos.id_apoyo', '=', 'BD_Inventario.fk_id_apoyo')
             ->select([
                 'Solicitudes.folio',
                 'Solicitudes.fk_curp',
@@ -168,6 +171,7 @@ class RecursosFinancierosController extends Controller
                 'Apoyos.nombre_apoyo',
                 'Apoyos.tipo_apoyo',
                 'Apoyos.monto_maximo',
+                'BD_Inventario.costo_unitario',
                 'Beneficiarios.nombre',
                 'Beneficiarios.apellido_paterno',
                 'Beneficiarios.apellido_materno',
