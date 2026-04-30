@@ -41,10 +41,21 @@
                     <td><strong>Programa</strong></td>
                     <td>{{ $apoyo_nombre }}</td>
                 </tr>
+                @if(($tipo_apoyo ?? '') === 'Especie')
+                <tr>
+                    <td><strong>Piezas</strong></td>
+                    <td>1</td>
+                </tr>
+                <tr>
+                    <td><strong>Precio de pieza</strong></td>
+                    <td class="monto">${{ number_format($costo_unitario ?? 0, 2, '.', ',') }}</td>
+                </tr>
+                @else
                 <tr>
                     <td><strong>Monto Aprobado</strong></td>
-                    <td class="monto">${{ number_format($monto, 2, '.', ',') }}</td>
+                    <td class="monto">${{ number_format($monto ?? 0, 2, '.', ',') }}</td>
                 </tr>
+                @endif
                 <tr>
                     <td><strong>Fecha de Aprobación</strong></td>
                     <td>{{ now()->format('d/m/Y H:i') }}</td>

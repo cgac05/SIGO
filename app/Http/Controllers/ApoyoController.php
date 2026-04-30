@@ -956,6 +956,29 @@ class ApoyoController extends Controller
                 }
             }
 
+            // Validar costo_unitario para Especie
+            if ($data['tipo_apoyo'] === 'Especie') {
+                $stockInicial = $data['stock_inicial'] ?? 0;
+                $cupoLimite = $data['cupo_limite'] ?? 1;
+                $montoMaximo = $data['monto_maximo'] ?? 0;
+                $costoUnitario = $data['costo_unitario'] ?? 0;
+
+                // Validacion: total inventario cost (costo unitario * stock) <= total budget allowed (monto maximo * cupo limite)
+                // O equivalentemente: costo_unitario * (stock_inicial / cupo_limite) <= monto_maximo
+                if ($cupoLimite > 0) {
+                    $piezasPorBeneficiario = $stockInicial / $cupoLimite;
+                    $costoTotalPorBeneficiario = $costoUnitario * $piezasPorBeneficiario;
+
+                    if ($costoTotalPorBeneficiario > $montoMaximo) {
+                        DB::rollBack();
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'El costo unitario estimado es demasiado alto. El costo total por beneficiario ($' . number_format($costoTotalPorBeneficiario, 2) . ') excede el monto máximo por beneficiario ($' . number_format($montoMaximo, 2) . ').',
+                        ], 422);
+                    }
+                }
+            }
+
             // Validar reglas específicas de hitos (períodos obligatorios, rangos, etc.)
             $this->validateMilestonesDateRanges($data['hitos'] ?? []);
 
@@ -1042,6 +1065,8 @@ class ApoyoController extends Controller
                 DB::table('BD_Inventario')->insert([
                     'fk_id_apoyo' => $apoyo->id_apoyo,
                     'stock_actual' => $data['stock_inicial'] ?? 0,
+                    'costo_unitario' => $data['costo_unitario'] ?? 0,
+                    'unidad_medida' => $data['unidad_medida'] ?? 'pieza',
                 ]);
                 
                 \Log::info('BD_Inventario insertado exitosamente');
@@ -1140,6 +1165,10 @@ class ApoyoController extends Controller
             ->where('fk_id_apoyo', $id)
             ->value('stock_actual');
 
+        $inventario = DB::table('BD_Inventario')->where('fk_id_apoyo', $id)->first();
+        $unidadMedida = $inventario->unidad_medida ?? 'pieza';
+        $costoUnitario = $inventario->costo_unitario ?? 0;
+
         $milestonesBase = $this->getBaseMilestonesTemplate();
         $existingMilestones = collect();
         if (Schema::hasTable('Hitos_Apoyo')) {
@@ -1162,7 +1191,7 @@ $categoriasPresupuesto = PresupuestoCategoria::select('id_categoria', 'nombre', 
         )->where('estado', 'RESERVADO')
             ->first();
 
-        return view('apoyos.form', compact('apoyo', 'tiposDocumentos', 'requisitosActuales', 'montoInicialAsignado', 'stockInicial', 'milestonesBase', 'existingMilestones', 'categoriasPresupuesto', 'presupuestoActual', 'solicitudesAprobadas'));
+        return view('apoyos.form', compact('apoyo', 'tiposDocumentos', 'requisitosActuales', 'montoInicialAsignado', 'stockInicial', 'unidadMedida', 'costoUnitario', 'milestonesBase', 'existingMilestones', 'categoriasPresupuesto', 'presupuestoActual', 'solicitudesAprobadas'));
     }
 
     /**
@@ -1184,6 +1213,8 @@ $categoriasPresupuesto = PresupuestoCategoria::select('id_categoria', 'nombre', 
             'monto_inicial_asignado' => 'nullable|numeric|required_if:tipo_apoyo,Económico',
             'stock_inicial' => 'nullable|integer|required_if:tipo_apoyo,Especie',
             'cupo_limite' => 'nullable|integer|min:1',
+            'unidad_medida' => 'nullable|string|max:30',
+            'costo_unitario' => 'nullable|numeric|min:0',
             'activo' => 'nullable|boolean',
             'fechaInicio' => 'required|date_format:Y-m-d',
             'fechafin' => 'required|date_format:Y-m-d|after_or_equal:fechaInicio',
@@ -1202,6 +1233,26 @@ $categoriasPresupuesto = PresupuestoCategoria::select('id_categoria', 'nombre', 
 
         // Validar reglas específicas de hitos (períodos obligatorios, rangos, etc.)
         $this->validateMilestonesDateRanges($data['hitos'] ?? []);
+
+        // Validar costo_unitario para Especie
+        if ($data['tipo_apoyo'] === 'Especie') {
+            $stockInicial = $data['stock_inicial'] ?? 0;
+            $cupoLimite = $data['cupo_limite'] ?? 1;
+            $montoMaximo = $data['monto_maximo'] ?? 0;
+            $costoUnitario = $data['costo_unitario'] ?? 0;
+
+            if ($cupoLimite > 0) {
+                $piezasPorBeneficiario = $stockInicial / $cupoLimite;
+                $costoTotalPorBeneficiario = $costoUnitario * $piezasPorBeneficiario;
+
+                if ($costoTotalPorBeneficiario > $montoMaximo) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'El costo unitario estimado es demasiado alto. El costo total por beneficiario ($' . number_format($costoTotalPorBeneficiario, 2) . ') excede el monto máximo por beneficiario ($' . number_format($montoMaximo, 2) . ').',
+                    ], 422);
+                }
+            }
+        }
 
         $this->validateMilestonesDateRanges($data['hitos'] ?? []);
 
@@ -1255,11 +1306,17 @@ $categoriasPresupuesto = PresupuestoCategoria::select('id_categoria', 'nombre', 
                 if ($inventario) {
                     DB::table('BD_Inventario')
                         ->where('fk_id_apoyo', $id)
-                        ->update(['stock_actual' => $data['stock_inicial'] ?? 0]);
+                        ->update([
+                            'stock_actual' => $data['stock_inicial'] ?? 0,
+                            'costo_unitario' => $data['costo_unitario'] ?? 0,
+                            'unidad_medida' => $data['unidad_medida'] ?? 'pieza',
+                        ]);
                 } else {
                     DB::table('BD_Inventario')->insert([
                         'fk_id_apoyo' => $id,
                         'stock_actual' => $data['stock_inicial'] ?? 0,
+                        'costo_unitario' => $data['costo_unitario'] ?? 0,
+                        'unidad_medida' => $data['unidad_medida'] ?? 'pieza',
                     ]);
                 }
             }

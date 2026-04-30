@@ -413,14 +413,14 @@ if ($isEditing) {
 
                                         <div>
                                             <label class="field-label" for="unidad_medida">Unidad de medida <span class="req">*</span></label>
-                                            <input id="unidad_medida" name="unidad_medida" type="text" class="field-input" placeholder="Ej: pieza, kit, paquete" value="{{ old('unidad_medida', 'pieza') }}">
+                                            <input id="unidad_medida" name="unidad_medida" type="text" class="field-input" placeholder="Ej: pieza, kit, paquete" value="{{ old('unidad_medida', $unidadMedida ?? 'pieza') }}">
                                         </div>
 
                                         <div>
                                             <label class="field-label" for="costo_unitario">Costo unitario estimado</label>
                                             <div class="prefix-wrap">
                                                 <span class="prefix">$</span>
-                                                <input id="costo_unitario" name="costo_unitario" type="number" class="field-input" step="0.01" min="0" placeholder="0.00" value="{{ old('costo_unitario', 0) }}">
+                                                <input id="costo_unitario" name="costo_unitario" type="number" class="field-input" step="0.01" min="0" placeholder="0.00" value="{{ old('costo_unitario', $costoUnitario ?? 0) }}">
                                             </div>
                                         </div>
                                     </div>
@@ -757,17 +757,65 @@ if ($isEditing) {
 
             // Cambio de tipo de apoyo
             try {
-                document.getElementById('tipo_apoyo').addEventListener('change', function () {
-                    const isEconomico = this.value === 'Económico';
+                function updateEspecieLogic() {
+                    const tipo = document.getElementById('tipo_apoyo').value;
+                    const isEconomico = tipo === 'Económico';
+                    const isEspecie = tipo === 'Especie';
+                    
                     document.getElementById('grp-economico').classList.toggle('hidden', !isEconomico);
-                    document.getElementById('grp-especie').classList.toggle('hidden', isEconomico);
+                    document.getElementById('grp-especie').classList.toggle('hidden', !isEspecie);
                     document.getElementById('panel-fin-title').textContent = isEconomico ? 'Financiamiento' : 'Inventario';
                     document.getElementById('lbl-presupuesto-seccion').textContent = isEconomico ? 'Presupuesto' : 'Gestión de Inventario';
-                    document.getElementById('badge-tipo').textContent = this.value;
-                });
-                console.log("✅ Tipo apoyo listener agregado");
+                    document.getElementById('badge-tipo').textContent = tipo;
+                    
+                    const cupoLimiteInput = document.getElementById('cupo_limite');
+                    const montoMaximoInput = document.getElementById('monto_maximo');
+                    
+                    if (isEspecie) {
+                        cupoLimiteInput.readOnly = true;
+                        cupoLimiteInput.classList.add('bg-gray-100', 'cursor-not-allowed');
+                        montoMaximoInput.readOnly = true;
+                        montoMaximoInput.classList.add('bg-gray-100', 'cursor-not-allowed');
+                    } else {
+                        cupoLimiteInput.readOnly = false;
+                        cupoLimiteInput.classList.remove('bg-gray-100', 'cursor-not-allowed');
+                        montoMaximoInput.readOnly = false;
+                        montoMaximoInput.classList.remove('bg-gray-100', 'cursor-not-allowed');
+                    }
+                }
+
+                document.getElementById('tipo_apoyo').addEventListener('change', updateEspecieLogic);
+                updateEspecieLogic(); // Llamar al cargar la página
+                
+                // Lógica de autocompletado para Especie
+                const stockInicialInput = document.getElementById('stock_inicial');
+                const costoUnitarioInput = document.getElementById('costo_unitario');
+                const cupoLimiteInput = document.getElementById('cupo_limite');
+                const montoMaximoInput = document.getElementById('monto_maximo');
+
+                function syncEspecieFields() {
+                    if (document.getElementById('tipo_apoyo').value === 'Especie') {
+                        const stock = parseInt(stockInicialInput.value) || 0;
+                        const costo = parseFloat(costoUnitarioInput.value) || 0;
+                        
+                        // 1 beneficiario = 1 pieza
+                        cupoLimiteInput.value = stock;
+                        
+                        // Monto máximo = Total del apoyo (stock * costo)
+                        montoMaximoInput.value = (stock * costo).toFixed(2);
+                        
+                        // Disparar evento change para que se actualice el "Cálculo Automático" del layout general
+                        montoMaximoInput.dispatchEvent(new Event('input'));
+                        cupoLimiteInput.dispatchEvent(new Event('input'));
+                    }
+                }
+
+                if (stockInicialInput) stockInicialInput.addEventListener('input', syncEspecieFields);
+                if (costoUnitarioInput) costoUnitarioInput.addEventListener('input', syncEspecieFields);
+
+                console.log("✅ Tipo apoyo listener y sincronización de Especie agregados");
             } catch (e) {
-                console.error("❌ Error en tipo_apoyo:", e);
+                console.error("❌ Error en lógica de tipo_apoyo o sincronización Especie:", e);
             }
 
             // Observar disponibilidad de presupuesto
