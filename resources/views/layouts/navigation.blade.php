@@ -22,6 +22,9 @@
         <x-nav-link href="/admin/ciclos/1" :active="request()->is('admin/ciclos/*')">
             {{ __('Ciclos') }}
         </x-nav-link>
+        <x-nav-link :href="route('apoyos.index')" :active="request()->routeIs('apoyos.*')">
+            {{ __('Apoyos') }}
+        </x-nav-link>
         <x-nav-link :href="route('personal.index')" :active="request()->routeIs('personal.*')">
             {{ __('Personal') }}
         </x-nav-link>
@@ -46,6 +49,9 @@
         </x-nav-link>
         <x-nav-link :href="route('admin.padron.index')" :active="request()->routeIs('admin.padron.*')">
             {{ __('Padrón') }}
+        </x-nav-link>
+        <x-nav-link :href="route('admin.caso-a.momento-uno')" :active="request()->routeIs('admin.caso-a.*')">
+            {{ __('Caso Presencial') }}
         </x-nav-link>
     @endif
 
@@ -205,6 +211,13 @@
                 </x-responsive-nav-link>
             @endif
 
+            {{-- Administrativo (Rol 1) --}}
+            @if($currentUser?->isPersonal() && (int) optional($currentUser->personal)->fk_rol === 1)
+                <x-responsive-nav-link :href="route('admin.caso-a.momento-uno')" :active="request()->routeIs('admin.caso-a.*')">
+                    {{ __('Caso Presencial') }}
+                </x-responsive-nav-link>
+            @endif
+
             {{-- Ciclos: Solo para Personal que NO sea Financiero --}}
             @if($currentUser?->isPersonal() && (int) $currentUser?->tipo_usuario !== 3)
                 <x-responsive-nav-link href="/admin/ciclos/1" :active="request()->is('admin/ciclos/*')">
@@ -212,9 +225,12 @@
                 </x-responsive-nav-link>
             @endif
 
-            {{-- Personal: Solo para Directivo (Rol 2), el admin ya lo tiene en otro lado? 
+            {{-- Personal y Apoyos: Solo para Directivo (Rol 2), el admin ya lo tiene en otro lado? 
                  Actually admin didn't have it in mobile block unless it's missing, but let's just add it for directivo --}}
             @if($currentUser?->isPersonal() && (int) optional($currentUser->personal)->fk_rol === 2)
+                <x-responsive-nav-link :href="route('apoyos.index')" :active="request()->routeIs('apoyos.*')">
+                    {{ __('Apoyos') }}
+                </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('personal.index')" :active="request()->routeIs('personal.*')">
                     {{ __('Personal') }}
                 </x-responsive-nav-link>

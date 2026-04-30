@@ -164,36 +164,29 @@ class PresupuestaryControlService
             }
 
             // Obtener presupuestos
-            // 🧪 COMENTADO PARA PRUEBAS: Tabla presupuesto_apoyos no configurada correctamente
-            // $presupuestoApoyo = PresupuestoApoyo::where('folio', $solicitud->folio)
-            //     ->where('ano_fiscal', $ano)
-            //     ->first();
+            $presupuestoApoyo = PresupuestoApoyo::where('id_apoyo', $solicitud->apoyo->id_apoyo)
+                ->where('ano_fiscal', $ano)
+                ->first();
 
-            // Por ahora, permitir continuar sin validación de presupuesto
-            return [
-                'valido' => true,
-                'mensaje' => '✅ Presupuesto OK - Puede autorizar (MODO PRUEBAS)',
-                'datos' => [
-                    'monto' => $solicitud->monto_solicitado ?? 0,
-                    'disponible_apoyo' => 999999,
-                    'disponible_categoria' => 999999,
-                ],
-            ];
-
-            /*
             if (!$presupuestoApoyo) {
+                // MODO PRUEBAS: Si no hay presupuesto configurado, devolvemos OK falso
                 return [
-                    'valido' => false,
-                    'mensaje' => 'No hay presupuesto configurado para este apoyo en ' . $ano,
+                    'valido' => true,
+                    'mensaje' => '✅ Presupuesto OK - Puede autorizar (MODO PRUEBAS)',
+                    'datos' => [
+                        'monto' => $solicitud->monto_solicitado ?? 0,
+                        'disponible_apoyo' => 999999,
+                        'disponible_categoria' => 999999,
+                    ],
                 ];
             }
 
-            $presupuestoCategoria = PresupuestoCategoria::find($presupuestoApoyo->fk_id_categoria);
+            $presupuestoCategoria = PresupuestoCategoria::find($presupuestoApoyo->id_categoria);
 
             if (!$presupuestoCategoria || $presupuestoCategoria->estado !== 'ABIERTO') {
                 return [
                     'valido' => false,
-                    'mensaje' => 'El ciclo presupuestario está cerrado.',
+                    'mensaje' => 'El ciclo presupuestario está cerrado o inactivo.',
                 ];
             }
 
@@ -203,7 +196,7 @@ class PresupuestaryControlService
             if ($presupuestoApoyo->disponible < $monto) {
                 return [
                     'valido' => false,
-                    'mensaje' => "❌ Presupuesto insuficiente en apoyo '{$solicitud->apoyo->nombre}'.\n" .
+                    'mensaje' => "❌ Presupuesto insuficiente en apoyo '{$solicitud->apoyo->nombre_apoyo}'.\n" .
                         "Disponible: \$" . number_format($presupuestoApoyo->disponible, 2) . "\n" .
                         "Se requiere: \$" . number_format($monto, 2),
                 ];
@@ -227,7 +220,6 @@ class PresupuestaryControlService
                     'disponible_categoria' => $presupuestoCategoria->disponible,
                 ],
             ];
-            */
 
         } catch (Exception $e) {
             return [

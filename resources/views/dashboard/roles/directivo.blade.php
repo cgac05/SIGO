@@ -120,5 +120,19 @@
             </a>
         </div>
 
+        <!-- Gestión de Apoyos -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:border-red-500 transition-all duration-300">
+            <div class="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+            </div>
+            <h3 class="font-bold text-slate-800 text-lg">Gestión de Apoyos</h3>
+            <p class="text-sm text-slate-500 mt-2">Administra los apoyos disponibles, tipos de documentos y configuraciones.</p>
+            <a href="{{ route('apoyos.index') }}" class="mt-4 inline-block w-full text-center py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 shadow-sm transition-colors">
+                Acceder
+            </a>
+        </div>
+
     </div>
 </div>
