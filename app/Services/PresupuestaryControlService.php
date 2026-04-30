@@ -266,6 +266,35 @@ class PresupuestaryControlService
                 ->lockForUpdate()
                 ->first();
 
+            if (!$presupuestoApoyo) {
+                // MODO PRUEBAS: Si no hay presupuesto configurado, igual marcamos la solicitud
+                $solicitud->update([
+                    'presupuesto_confirmado' => 1,
+                    'fecha_confirmacion_presupuesto' => now(),
+                    'directivo_autorizo' => $idDirectivo,
+                ]);
+
+                // 4. Registrar movimiento (AUDITORÍA - MODO PRUEBAS)
+                MovimientoPresupuestario::create([
+                    'fk_id_solicitud' => $idSolicitud,
+                    'fk_id_apoyo' => $solicitud->apoyo->id_apoyo,
+                    'fk_id_categoria' => 1, // ID dummy o la primera categoría si existe
+                    'tipo_movimiento' => 'ASIGNACION_DIRECTIVO',
+                    'monto_movimiento' => $monto,
+                    'ano_fiscal' => $ano,
+                    'directivo_id' => $idDirectivo,
+                    'estado_movimiento' => 'CONFIRMADO',
+                    'observaciones' => "Solicitud autorizada por directivo (Modo pruebas). Folio: {$solicitud->folio_institucional}",
+                ]);
+
+                DB::commit();
+
+                return [
+                    'exitoso' => true,
+                    'mensaje' => "✅ Presupuesto asignado (MODO PRUEBAS) - \$" . number_format($monto, 2),
+                ];
+            }
+
             $presupuestoCategoria = PresupuestoCategoria::lockForUpdate()
                 ->find($presupuestoApoyo->id_categoria);
 
@@ -365,6 +394,21 @@ class PresupuestaryControlService
                 ->lockForUpdate()
                 ->first();
 
+            if (!$presupuestoApoyo) {
+                 // MODO PRUEBAS: Si no hay presupuesto configurado, igual marcamos la solicitud
+                 $solicitud->update([
+                     'presupuesto_confirmado' => 0,
+                     'fk_id_estado' => 5, // RECHAZADA
+                 ]);
+
+                 DB::commit();
+
+                 return [
+                     'exitoso' => true,
+                     'mensaje' => "✅ Presupuesto liberado (MODO PRUEBAS) - \$" . number_format($monto, 2),
+                 ];
+            }
+
             $presupuestoCategoria = PresupuestoCategoria::lockForUpdate()
                 ->find($presupuestoApoyo->id_categoria);
 
@@ -383,13 +427,13 @@ class PresupuestaryControlService
             // Marcar solicitud
             $solicitud->update([
                 'presupuesto_confirmado' => 0,
-                'estado' => 'RECHAZADA',
+                'fk_id_estado' => 5, // RECHAZADA
             ]);
 
             // Registrar movimiento
             MovimientoPresupuestario::create([
                 'fk_id_solicitud' => $idSolicitud,
-                'fk_id_apoyo' => $solicitud->apoyo->id,
+                'fk_id_apoyo' => $solicitud->apoyo->id_apoyo,
                 'fk_id_categoria' => $presupuestoCategoria->id_presupuesto,
                 'tipo_movimiento' => 'LIBERACION',
                 'monto_movimiento' => $monto,
