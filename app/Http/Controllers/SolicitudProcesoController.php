@@ -805,12 +805,13 @@ class SolicitudProcesoController extends Controller
         // ========== CALCULAR DISPONIBLE EN APOYO (DINÁMICO) ==========
         // Obtener suma de montos ya aprobados y FIRMADOS para este apoyo
         // Solo contar solicitudes que tengan CUV (es decir, que fueron realmente firmadas)
-        $montosAprobados = DB::table('presupuesto_apoyos')
-            ->join('Solicitudes', 'presupuesto_apoyos.folio', '=', 'Solicitudes.folio')
-            ->where('Solicitudes.fk_id_apoyo', $solicitudDb->fk_id_apoyo)
-            ->where('Solicitudes.fk_id_estado', 4) // Estado 4 = APROBADA
-            ->whereNotNull('Solicitudes.cuv') // Solo contar si tiene CUV (fue firmada)
-            ->sum('presupuesto_apoyos.monto_solicitado') ?? 0;
+        $solicitudesAprobadas = DB::table('Solicitudes')
+            ->where('fk_id_apoyo', $solicitudDb->fk_id_apoyo)
+            ->where('fk_id_estado', 4) // Estado 4 = APROBADA
+            ->whereNotNull('cuv') // Solo contar si tiene CUV (fue firmada)
+            ->count();
+        
+        $montosAprobados = $solicitudesAprobadas * ($apoyo->monto_maximo ?? 0);
 
         // Disponible en apoyo = Total necesario - Montos ya aprobados y firmados
         $disponibleEnApoyo = max(0, $totalNecesario - $montosAprobados);
