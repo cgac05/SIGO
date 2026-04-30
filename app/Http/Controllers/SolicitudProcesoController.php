@@ -60,6 +60,7 @@ class SolicitudProcesoController extends Controller
             ->join('Apoyos', 'Solicitudes.fk_id_apoyo', '=', 'Apoyos.id_apoyo')
             ->join('Beneficiarios', 'Solicitudes.fk_curp', '=', 'Beneficiarios.curp')
             ->leftJoin('Cat_EstadosSolicitud', 'Solicitudes.fk_id_estado', '=', 'Cat_EstadosSolicitud.id_estado')
+            ->leftJoin('BD_Inventario', 'Apoyos.id_apoyo', '=', 'BD_Inventario.fk_id_apoyo')
             ->select([
                 'Solicitudes.folio',
                 'Solicitudes.fk_id_apoyo',
@@ -72,7 +73,9 @@ class SolicitudProcesoController extends Controller
                 'Solicitudes.presupuesto_confirmado',
                 'Solicitudes.monto_entregado',
                 'Apoyos.nombre_apoyo',
+                'Apoyos.tipo_apoyo',
                 'Apoyos.monto_maximo',
+                'BD_Inventario.costo_unitario',
                 'Beneficiarios.nombre as beneficiario_nombre',
                 'Beneficiarios.apellido_paterno',
                 'Beneficiarios.apellido_materno',
@@ -340,26 +343,34 @@ class SolicitudProcesoController extends Controller
 
         $folio = (int) $data['folio'];
 
+        $solicitudModel = \App\Models\Solicitud::with('apoyo')->findOrFail($folio);
+        $esEspecie = $solicitudModel->apoyo->tipo_apoyo === 'Especie';
+        $esEconomico = $solicitudModel->apoyo->tipo_apoyo === 'Económico';
+
         // ⚠️ PRE-VALIDATION: Validar presupuesto ANTES de firma
         // Esto previene que se firme una solicitud sin presupuesto disponible
-        try {
-            $validacionPresupuesto = $this->presupuestaryControl->validarPresupuestoParaSolicitud($folio);
-            if (!$validacionPresupuesto['valido']) {
-                return back()->with('error', 'Presupuesto insuficiente: ' . $validacionPresupuesto['mensaje']);
+        if ($esEconomico) {
+            try {
+                $validacionPresupuesto = $this->presupuestaryControl->validarPresupuestoParaSolicitud($folio);
+                if (!$validacionPresupuesto['valido']) {
+                    return back()->with('error', 'Presupuesto insuficiente: ' . $validacionPresupuesto['mensaje']);
+                }
+            } catch (\Exception $e) {
+                return back()->with('error', 'Error validando presupuesto: ' . $e->getMessage());
             }
-        } catch (\Exception $e) {
-            return back()->with('error', 'Error validando presupuesto: ' . $e->getMessage());
         }
 
         // ⚠️ PRE-VALIDATION: Validar inventario para apoyos tipo Especie
         // Esto previene que se apruebe una solicitud sin inventario suficiente
-        try {
-            $validacionInventario = $this->inventarioValidation->validarInventarioParaSolicitud($folio);
-            if (!$validacionInventario['valido']) {
-                return back()->with('error', 'Inventario insuficiente: ' . $validacionInventario['razon']);
+        if ($esEspecie) {
+            try {
+                $validacionInventario = $this->inventarioValidation->validarInventarioParaSolicitud($folio);
+                if (!$validacionInventario['valido']) {
+                    return back()->with('error', 'Inventario insuficiente: ' . $validacionInventario['razon']);
+                }
+            } catch (\Exception $e) {
+                return back()->with('error', 'Error validando inventario: ' . $e->getMessage());
             }
-        } catch (\Exception $e) {
-            return back()->with('error', 'Error validando inventario: ' . $e->getMessage());
         }
 
         // Usar FirmaElectronicaService para manejar la firma
@@ -376,19 +387,30 @@ class SolicitudProcesoController extends Controller
         // ✅ TRANSACCIÓN: Asignar presupuesto tras firma exitosa
         // Esta es la operación IRREVERSIBLE que marca presupuesto como confirmado
         try {
-            $this->presupuestaryControl->asignarPresupuestoSolicitud($folio, $user->id_usuario);
+            if ($esEconomico) {
+                $this->presupuestaryControl->asignarPresupuestoSolicitud($folio, $user->id_usuario);
+            }
             
-            // 📦 REGISTRO: Registrar SALIDA de inventario tras presupuesto asignado
-            // Esto decrementa stock_actual en BD_Inventario
-            $resultadoMovimiento = $this->inventarioValidation->registrarSalidaInventario($folio, $user->id_usuario);
-            if (!$resultadoMovimiento['exito']) {
-                \Log::warning("Movimiento inventario falló para folio {$folio}: " . $resultadoMovimiento['mensaje']);
-                // No revertir firma, pero notificar admin
-                event(new NotificacionGenerada(
-                    'admin',
-                    'Error registro inventario',
-                    "Solicitud {$folio} aprobada pero registro inventario falló: " . $resultadoMovimiento['mensaje']
-                ));
+            if ($esEspecie) {
+                // 📦 REGISTRO: Registrar SALIDA de inventario tras firma asignada
+                // Esto decrementa stock_actual en BD_Inventario
+                $resultadoMovimiento = $this->inventarioValidation->registrarSalidaInventario($folio, $user->id_usuario);
+                if (!$resultadoMovimiento['exito']) {
+                    \Log::warning("Movimiento inventario falló para folio {$folio}: " . $resultadoMovimiento['mensaje']);
+                    // No revertir firma, pero notificar admin
+                    event(new NotificacionGenerada(
+                        'admin',
+                        'Error registro inventario',
+                        "Solicitud {$folio} aprobada pero registro inventario falló: " . $resultadoMovimiento['mensaje']
+                    ));
+                }
+
+                // Para apoyos en especie, no hay tabla de presupuestos, actualizamos directo
+                $solicitudModel->update([
+                    'presupuesto_confirmado' => 1,
+                    'fecha_confirmacion_presupuesto' => now(),
+                    'directivo_autorizo' => $user->id_usuario,
+                ]);
             }
         } catch (\Exception $e) {
             // Log error pero no revertir firma (ya está en BD)
@@ -441,16 +463,19 @@ class SolicitudProcesoController extends Controller
         }
 
         // ✅ LIBERACIÓN DE PRESUPUESTO: Al rechazar, liberar presupuesto reservado
-        // Solo se libera si la solicitud fue previamente confirmada
-        try {
-            $this->presupuestaryControl->liberarPresupuestoSolicitud($folio);
-        } catch (\Exception $e) {
-            // Log error pero no revertir rechazo (ya está en BD)
-            \Log::warning("Error liberando presupuesto para solicitud rechazada {$folio}: " . $e->getMessage());
+        // Solo se libera si la solicitud fue previamente confirmada y es económico
+        $solicitud = \App\Models\Solicitud::with('apoyo')->where('folio', $folio)->firstOrFail();
+        
+        if ($solicitud->apoyo->tipo_apoyo === 'Económico') {
+            try {
+                $this->presupuestaryControl->liberarPresupuestoSolicitud($folio, $user->id_usuario);
+            } catch (\Exception $e) {
+                // Log error pero no revertir rechazo (ya está en BD)
+                \Log::warning("Error liberando presupuesto para solicitud rechazada {$folio}: " . $e->getMessage());
+            }
         }
 
         // 🔔 Disparar evento de solicitud rechazada
-        $solicitud = \App\Models\Solicitud::where('folio', $folio)->firstOrFail();
         event(new SolicitudRechazada(
             solicitud: $solicitud,
             motivo: $data['motivo']
@@ -752,13 +777,17 @@ class SolicitudProcesoController extends Controller
         // Información del apoyo (con categoría)
         $apoyo = DB::table('Apoyos')
             ->leftJoin('presupuesto_categorias', 'Apoyos.id_categoria', '=', 'presupuesto_categorias.id_categoria')
+            ->leftJoin('BD_Inventario', 'Apoyos.id_apoyo', '=', 'BD_Inventario.fk_id_apoyo')
             ->select(
                 'Apoyos.id_apoyo',
                 'Apoyos.nombre_apoyo',
+                'Apoyos.tipo_apoyo',
                 'Apoyos.monto_maximo',
                 'Apoyos.cupo_limite',
                 'Apoyos.id_categoria',
-                'presupuesto_categorias.nombre as categoria_nombre'
+                'presupuesto_categorias.nombre as categoria_nombre',
+                'BD_Inventario.stock_actual',
+                'BD_Inventario.costo_unitario'
             )
             ->where('Apoyos.id_apoyo', $solicitudDb->fk_id_apoyo)
             ->first();
@@ -788,8 +817,12 @@ class SolicitudProcesoController extends Controller
         // Disponible en apoyo = Total necesario - Montos ya aprobados y firmados
         $disponibleEnApoyo = max(0, $totalNecesario - $montosAprobados);
 
-        $puedeAprobarse = ($presupuestoDisponible >= ($apoyo->monto_maximo ?? 0)) 
-                         && ($presupuestoCategoriaDisponible >= ($apoyo->monto_maximo ?? 0));
+        if ($apoyo->tipo_apoyo === 'Especie') {
+            $puedeAprobarse = ($apoyo->stock_actual >= 1);
+        } else {
+            $puedeAprobarse = ($presupuestoDisponible >= ($apoyo->monto_maximo ?? 0)) 
+                             && ($presupuestoCategoriaDisponible >= ($apoyo->monto_maximo ?? 0));
+        }
 
         // Verificar si la solicitud ya fue procesada (firmada o rechazada)
         $yaFirmada = !empty($solicitudDb->cuv); // CUV no NULL = ya firmada
@@ -883,12 +916,21 @@ class SolicitudProcesoController extends Controller
             return back()->withErrors(['error' => "Solicitud no está en estado para firmar (estado actual: {$estadoNombre})."]);
         }
 
-        // Validar presupuesto
-        $presupuestoDisponible = $this->obtenerPresupuestoDisponibleSolicitud($folio);
-        $montoEntregado = $solicitud->monto_entregado ?? 0;
+        // Validar tipo de apoyo
+        $apoyoInfo = DB::table('Apoyos')
+            ->where('id_apoyo', $solicitud->fk_id_apoyo)
+            ->first();
 
-        if ($presupuestoDisponible < $montoEntregado) {
-            return back()->withErrors(['error' => "Presupuesto insuficiente. Disponible: \${$presupuestoDisponible}, Requerido: \${$montoEntregado}"]);
+        $esEspecie = ($apoyoInfo->tipo_apoyo ?? 'Económico') === 'Especie';
+
+        if (!$esEspecie) {
+            // Validar presupuesto
+            $presupuestoDisponible = $this->obtenerPresupuestoDisponibleSolicitud($folio);
+            $montoEntregado = $solicitud->monto_entregado ?? 0;
+
+            if ($presupuestoDisponible < $montoEntregado) {
+                return back()->withErrors(['error' => "Presupuesto insuficiente. Disponible: \${$presupuestoDisponible}, Requerido: \${$montoEntregado}"]);
+            }
         }
 
         // Iniciar transacción
@@ -937,6 +979,15 @@ class SolicitudProcesoController extends Controller
 
             DB::commit();
 
+            // Descontar inventario si es especie
+            if ($esEspecie) {
+                try {
+                    $this->inventarioValidation->registrarSalidaInventario($folio, $user->id_usuario);
+                } catch (\Exception $e) {
+                    \Log::warning('Error al descontar inventario en firma: ' . $e->getMessage());
+                }
+            }
+
             // Enviar notificación de aprobación
             if ($solicitud && $folio) {
                 try {
@@ -944,13 +995,16 @@ class SolicitudProcesoController extends Controller
                         ->join('Beneficiarios', 'Solicitudes.fk_curp', '=', 'Beneficiarios.curp')
                         ->join('Usuarios', 'Beneficiarios.fk_id_usuario', '=', 'Usuarios.id_usuario')
                         ->join('Apoyos', 'Solicitudes.fk_id_apoyo', '=', 'Apoyos.id_apoyo')
+                        ->leftJoin('BD_Inventario', 'Apoyos.id_apoyo', '=', 'BD_Inventario.fk_id_apoyo')
                         ->where('Solicitudes.folio', $folio)
                         ->select([
                             'Beneficiarios.nombre',
                             'Beneficiarios.curp',
                             'Usuarios.email',
                             'Apoyos.nombre_apoyo',
+                            'Apoyos.tipo_apoyo',
                             'Apoyos.monto_maximo',
+                            'BD_Inventario.costo_unitario'
                         ])
                         ->first();
                     
@@ -962,6 +1016,8 @@ class SolicitudProcesoController extends Controller
                         ];
                         $apoyo = (object)[
                             'nombre_apoyo' => $solicitudCompleta->nombre_apoyo,
+                            'tipo_apoyo' => $solicitudCompleta->tipo_apoyo,
+                            'costo_unitario' => $solicitudCompleta->costo_unitario
                         ];
                         \App\Services\NotificacionAprobacionService::enviarNotificacionAprobacion(
                             $folio,
@@ -1055,6 +1111,8 @@ class SolicitudProcesoController extends Controller
             ->first();
 
         $apoyo = DB::table('Apoyos')
+            ->leftJoin('BD_Inventario', 'Apoyos.id_apoyo', '=', 'BD_Inventario.fk_id_apoyo')
+            ->select('Apoyos.*', 'BD_Inventario.costo_unitario')
             ->where('id_apoyo', $solicitud->fk_id_apoyo)
             ->first();
 

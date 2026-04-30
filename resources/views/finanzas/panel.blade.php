@@ -244,7 +244,7 @@
                                         <td>
                                             <span class="badge" :class="sol.tipo_apoyo === 'Económico' ? 'badge-eco' : 'badge-esp'" x-text="sol.tipo_apoyo"></span>
                                         </td>
-                                        <td x-text="sol.monto_maximo ? '$' + Number(sol.monto_maximo).toLocaleString('es-MX') : 'N/A'"></td>
+                                        <td x-text="sol.tipo_apoyo === 'Especie' ? (sol.costo_unitario ? '$' + Number(sol.costo_unitario).toLocaleString('es-MX') : 'N/A') : (sol.monto_maximo ? '$' + Number(sol.monto_maximo).toLocaleString('es-MX') : 'N/A')"></td>
                                         <td>
                                             <span class="badge badge-cuv" x-text="sol.cuv ? sol.cuv.substring(0,12) + '...' : '—'"></span>
                                         </td>
@@ -313,8 +313,8 @@
                             <div class="val" x-text="solActual && solActual.tipo_apoyo"></div>
                         </div>
                         <div class="info-cell">
-                            <div class="lbl">Monto máximo autorizado</div>
-                            <div class="val" x-text="solActual && solActual.monto_maximo ? '$' + Number(solActual.monto_maximo).toLocaleString('es-MX', {minimumFractionDigits:2}) : 'N/A'"></div>
+                            <div class="lbl" x-text="solActual && solActual.tipo_apoyo === 'Especie' ? 'Precio Unitario' : 'Monto máximo autorizado'"></div>
+                            <div class="val" x-text="solActual && solActual.tipo_apoyo === 'Especie' ? (solActual.costo_unitario ? '$' + Number(solActual.costo_unitario).toLocaleString('es-MX', {minimumFractionDigits:2}) : 'N/A') : (solActual.monto_maximo ? '$' + Number(solActual.monto_maximo).toLocaleString('es-MX', {minimumFractionDigits:2}) : 'N/A')"></div>
                         </div>
                         <div class="info-cell">
                             <div class="lbl">Fecha de solicitud</div>

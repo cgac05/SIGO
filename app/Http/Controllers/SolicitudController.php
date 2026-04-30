@@ -468,13 +468,16 @@ class SolicitudController extends Controller
             }
         }
 
-        // NUEVO: Validar que hay presupuesto disponible en la categoría
+        // NUEVO: Validar que hay presupuesto disponible en la categoría (Solo para económicos)
         $apoyoModel = \App\Models\Apoyo::find($request->apoyo);
-        $estadoPresupuesto = $this->presupuestoService->obtenerEstadoDetalladoApoyo($apoyoModel);
         
-        if ($estadoPresupuesto['estado'] === 'AGOTADO') {
-            return redirect()->back()->with('error', 
-                'No hay presupuesto disponible para el apoyo: ' . $estadoPresupuesto['disponible_formato'] . ' disponible.');
+        if ($apoyoModel->tipo_apoyo === 'Económico') {
+            $estadoPresupuesto = $this->presupuestoService->obtenerEstadoDetalladoApoyo($apoyoModel);
+            
+            if ($estadoPresupuesto['estado'] === 'AGOTADO') {
+                return redirect()->back()->with('error', 
+                    'No hay presupuesto disponible para el apoyo: ' . $estadoPresupuesto['disponible_formato'] . ' disponible.');
+            }
         }
 
         // Validar que no haya solicitud activa previa para este apoyo
@@ -558,9 +561,9 @@ class SolicitudController extends Controller
                 }
             }
 
-            // NUEVO: Reservar presupuesto para la solicitud
+            // NUEVO: Reservar presupuesto para la solicitud (Solo para Económico)
             $solicitud = \App\Models\Solicitud::find($folio);
-            if ($solicitud) {
+            if ($solicitud && $apoyoModel->tipo_apoyo === 'Económico') {
                 // Obtener monto máximo del apoyo para reservar
                 $montoMaximo = (float) ($apoyoModel->monto_maximo ?? 0);
                 
