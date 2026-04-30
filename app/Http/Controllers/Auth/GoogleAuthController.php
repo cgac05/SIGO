@@ -112,6 +112,15 @@ class GoogleAuthController extends Controller
             ]);
         }
 
+        // If the user exists but was deactivated, do not reactivate on Google login.
+        if ($user && $user->exists && ! $user->activo) {
+            return $this->failedGoogleOAuthRedirect(
+                $request,
+                'Esta cuenta ha sido desactivada y no puede iniciar sesión.',
+                false
+            );
+        }
+
         $this->syncGoogleIdentity($user, $googleUser);
         $this->clearGoogleOAuthContext($request);
 

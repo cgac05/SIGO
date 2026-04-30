@@ -149,12 +149,14 @@
             const initialTab = getProfileTabFromHash();
             switchTab(initialTab);
             normalizeProfileHash(initialTab);
+            handleProfileFocus();
         });
 
         window.addEventListener('hashchange', function() {
             const currentTab = getProfileTabFromHash();
             switchTab(currentTab);
             normalizeProfileHash(currentTab);
+            handleProfileFocus();
         });
 
         function switchTab(tabName) {
@@ -182,6 +184,29 @@
 
             // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function handleProfileFocus() {
+            try {
+                const focus = sessionStorage.getItem('profile_focus');
+                if (!focus) return;
+
+                if (focus === 'password') {
+                    const el = document.getElementById('password-section');
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                } else if (focus === 'rectification') {
+                    const el = document.getElementById('rectification-form');
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+
+                sessionStorage.removeItem('profile_focus');
+            } catch (e) {
+                // silent
+            }
         }
     </script>
     <x-site-footer class="mt-16" />
