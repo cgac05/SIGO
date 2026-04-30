@@ -26,11 +26,15 @@ class GoogleAuthController extends Controller
 
         $this->clearGoogleOAuthContext($request);
 
+        $stateData = ['context' => 'login'];
+
         if ($isLinkingRequest) {
             if (! Auth::check()) {
                 return redirect()->route('login')->with('auth_error', 'Debes iniciar sesión para vincular tu cuenta de Google.');
             }
 
+            $stateData = ['context' => 'link', 'user_id' => $request->user()->getAuthIdentifier()];
+            
             $request->session()->put(self::OAUTH_CONTEXT_SESSION_KEY, self::OAUTH_CONTEXT_LINK);
             $request->session()->put(self::OAUTH_LINK_SESSION_KEY, $request->user()->getAuthIdentifier());
         }
@@ -40,9 +44,13 @@ class GoogleAuthController extends Controller
                 return redirect()->route('login')->with('auth_error', 'Debes iniciar sesión para confirmar la eliminación de tu cuenta.');
             }
 
+            $stateData = ['context' => 'delete_account', 'user_id' => $request->user()->getAuthIdentifier()];
+
             $request->session()->put(self::OAUTH_CONTEXT_SESSION_KEY, self::OAUTH_CONTEXT_DELETE_ACCOUNT);
             $request->session()->put(self::OAUTH_DELETE_ACCOUNT_SESSION_KEY, $request->user()->getAuthIdentifier());
         }
+
+        $state = encrypt(json_encode($stateData));
 
         return Socialite::driver('google')
             ->scopes([
@@ -52,13 +60,22 @@ class GoogleAuthController extends Controller
             ])
             ->redirectUrl(route('auth.google.callback'))
             ->stateless()
+            ->with(['state' => $state])
             ->redirect();
     }
 
     public function callback(Request $request): RedirectResponse
     {
-        $isLinkingRequest = $this->isGoogleLinkingRequest($request);
-        $isDeleteAccountRequest = $this->isGoogleDeleteAccountRequest($request);
+        try {
+            $stateStr = decrypt($request->query('state'));
+            $stateData = json_decode($stateStr, true) ?? [];
+        } catch (\Exception $e) {
+            $stateData = [];
+        }
+
+        $isLinkingRequest = ($stateData['context'] ?? '') === 'link' || $this->isGoogleLinkingRequest($request);
+        $isDeleteAccountRequest = ($stateData['context'] ?? '') === 'delete_account' || $this->isGoogleDeleteAccountRequest($request);
+        $stateUserId = $stateData['user_id'] ?? null;
 
         try {
             $googleUser = Socialite::driver('google')
@@ -80,11 +97,11 @@ class GoogleAuthController extends Controller
         }
 
         if ($isDeleteAccountRequest) {
-            return $this->confirmAccountDeletion($request, $googleUser);
+            return $this->confirmAccountDeletion($request, $googleUser, $stateUserId);
         }
 
         return $isLinkingRequest
-            ? $this->linkGoogleAccount($request, $googleUser)
+            ? $this->linkGoogleAccount($request, $googleUser, $stateUserId)
             : $this->authenticateGoogleAccount($request, $googleUser);
     }
 
@@ -133,9 +150,9 @@ class GoogleAuthController extends Controller
         return redirect()->route('dashboard');
     }
 
-    private function linkGoogleAccount(Request $request, object $googleUser): RedirectResponse
+    private function linkGoogleAccount(Request $request, object $googleUser, ?int $stateUserId = null): RedirectResponse
     {
-        $user = $this->resolveLinkTargetUser($request);
+        $user = $this->resolveLinkTargetUser($request, $stateUserId);
 
         if (! $user) {
             return $this->failedGoogleOAuthRedirect(
@@ -167,9 +184,9 @@ class GoogleAuthController extends Controller
             ->with('status', 'Cuenta de Google vinculada correctamente.');
     }
 
-    private function confirmAccountDeletion(Request $request, object $googleUser): RedirectResponse
+    private function confirmAccountDeletion(Request $request, object $googleUser, ?int $stateUserId = null): RedirectResponse
     {
-        $user = $this->resolveDeleteAccountTargetUser($request);
+        $user = $this->resolveDeleteAccountTargetUser($request, $stateUserId);
 
         if (! $user) {
             return $this->failedGoogleOAuthRedirect(
@@ -235,9 +252,9 @@ class GoogleAuthController extends Controller
         $user->forceFill($updates)->save();
     }
 
-    private function resolveLinkTargetUser(Request $request): ?User
+    private function resolveLinkTargetUser(Request $request, ?int $stateUserId = null): ?User
     {
-        $userId = $request->session()->pull(self::OAUTH_LINK_SESSION_KEY);
+        $userId = $stateUserId ?? $request->session()->pull(self::OAUTH_LINK_SESSION_KEY);
 
         if (! $userId) {
             return $request->user();
@@ -246,9 +263,9 @@ class GoogleAuthController extends Controller
         return User::find($userId);
     }
 
-    private function resolveDeleteAccountTargetUser(Request $request): ?User
+    private function resolveDeleteAccountTargetUser(Request $request, ?int $stateUserId = null): ?User
     {
-        $userId = $request->session()->pull(self::OAUTH_DELETE_ACCOUNT_SESSION_KEY);
+        $userId = $stateUserId ?? $request->session()->pull(self::OAUTH_DELETE_ACCOUNT_SESSION_KEY);
 
         if (! $userId) {
             return $request->user();
