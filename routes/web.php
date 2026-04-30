@@ -48,6 +48,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/profile/eliminar-cuenta', [ProfileController::class, 'deleteAccountConfirmation'])->name('profile.delete-account');
+    Route::get('/profile/eliminar-cuenta/google', [ProfileController::class, 'deleteAccountWithGoogle'])->name('profile.delete-account.google');
     Route::post('/profile/photo', [ProfileController::class, 'uploadPhoto'])->name('profile.upload-photo');
     Route::post('/profile/google-disconnect', [ProfileController::class, 'googleDisconnect'])->name('profile.google-disconnect');
     Route::post('/profile/arco/download', [ProfileController::class, 'arcoDownload'])->name('profile.arco.download');

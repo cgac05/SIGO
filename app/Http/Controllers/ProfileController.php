@@ -253,20 +253,68 @@ class ProfileController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
-        $request->validateWithBag('userDeletion', [
-            'password' => ['required', 'current_password'],
-        ]);
-
         $user = $request->user();
 
-        Auth::logout();
+        if (! $user) {
+            abort(403);
+        }
 
-        $user->delete();
+        if (filled($user->password)) {
+            $request->validateWithBag('userDeletion', [
+                'password' => ['required', 'current_password'],
+            ]);
+        } else {
+            $request->validateWithBag('userDeletion', [
+                'google_confirmation' => ['accepted'],
+            ]);
+
+            if (! $request->boolean('google_confirmation')) {
+                return back()->withErrors([
+                    'google_confirmation' => 'Debes confirmar la identidad con Google para continuar.',
+                ], 'userDeletion');
+            }
+        }
+
+        DB::transaction(function () use ($user): void {
+            $user->forceFill([
+                'activo' => 0,
+            ])->save();
+        });
+
+        Auth::logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
         return Redirect::to('/');
+    }
+
+    /**
+     * Mostrar la pantalla de confirmación para eliminar la cuenta.
+     */
+    public function deleteAccountConfirmation(Request $request): View
+    {
+        $user = $request->user();
+
+        abort_unless($user?->isBeneficiario(), 403);
+
+        return view('profile.delete-account', [
+            'user' => $user,
+        ]);
+    }
+
+    /**
+     * Iniciar la verificación por Google para eliminar la cuenta.
+     */
+    public function deleteAccountWithGoogle(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        abort_unless($user?->isBeneficiario(), 403);
+
+        return redirect()->route('auth.google', [
+            'delete_account' => 1,
+        ]);
     }
 
     /**
