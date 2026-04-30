@@ -18,7 +18,7 @@ class PersonalController extends Controller
             'nombre'           => 'required|string|max:100',
             'apellido_paterno' => 'required|string|max:100',
             'apellido_materno' => 'nullable|string|max:100',
-            'email'            => 'required|email|max:100|unique:Usuarios,email',
+            'email'            => 'required|email|max:100|unique:Usuarios,email,NULL,id_usuario,activo,1',
             'password'         => 'required|string|min:8|confirmed',
             'fk_rol'           => 'required|integer|exists:Cat_Roles,id_rol',
         ], [
@@ -92,7 +92,7 @@ class PersonalController extends Controller
             'nombre'           => 'required|string|max:100',
             'apellido_paterno' => 'required|string|max:100',
             'apellido_materno' => 'nullable|string|max:100',
-            'email'            => 'required|email|max:100|unique:Usuarios,email,' . $personal->fk_id_usuario . ',id_usuario',
+            'email'            => 'required|email|max:100|unique:Usuarios,email,' . $personal->fk_id_usuario . ',id_usuario,activo,1',
             'password'         => 'nullable|string|min:8|confirmed',
             'fk_rol'           => 'required|integer',
         ]);

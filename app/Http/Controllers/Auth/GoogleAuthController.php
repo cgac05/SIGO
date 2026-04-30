@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Laravel\Socialite\Facades\Socialite;
 
@@ -14,11 +15,14 @@ class GoogleAuthController extends Controller
 {
     private const OAUTH_CONTEXT_SESSION_KEY = 'google_oauth_context';
     private const OAUTH_LINK_SESSION_KEY = 'google_oauth_link_user_id';
+    private const OAUTH_DELETE_ACCOUNT_SESSION_KEY = 'google_oauth_delete_account_user_id';
     private const OAUTH_CONTEXT_LINK = 'link';
+    private const OAUTH_CONTEXT_DELETE_ACCOUNT = 'delete_account';
 
     public function redirect(Request $request): RedirectResponse
     {
         $isLinkingRequest = $request->routeIs('auth.google') || $request->boolean('link');
+        $isDeleteAccountRequest = $request->boolean('delete_account');
 
         $this->clearGoogleOAuthContext($request);
 
@@ -29,6 +33,15 @@ class GoogleAuthController extends Controller
 
             $request->session()->put(self::OAUTH_CONTEXT_SESSION_KEY, self::OAUTH_CONTEXT_LINK);
             $request->session()->put(self::OAUTH_LINK_SESSION_KEY, $request->user()->getAuthIdentifier());
+        }
+
+        if ($isDeleteAccountRequest) {
+            if (! Auth::check()) {
+                return redirect()->route('login')->with('auth_error', 'Debes iniciar sesión para confirmar la eliminación de tu cuenta.');
+            }
+
+            $request->session()->put(self::OAUTH_CONTEXT_SESSION_KEY, self::OAUTH_CONTEXT_DELETE_ACCOUNT);
+            $request->session()->put(self::OAUTH_DELETE_ACCOUNT_SESSION_KEY, $request->user()->getAuthIdentifier());
         }
 
         return Socialite::driver('google')
@@ -45,6 +58,7 @@ class GoogleAuthController extends Controller
     public function callback(Request $request): RedirectResponse
     {
         $isLinkingRequest = $this->isGoogleLinkingRequest($request);
+        $isDeleteAccountRequest = $this->isGoogleDeleteAccountRequest($request);
 
         try {
             $googleUser = Socialite::driver('google')
@@ -63,6 +77,10 @@ class GoogleAuthController extends Controller
                 'No fue posible completar la autenticación con Google.',
                 $isLinkingRequest
             );
+        }
+
+        if ($isDeleteAccountRequest) {
+            return $this->confirmAccountDeletion($request, $googleUser);
         }
 
         return $isLinkingRequest
@@ -141,6 +159,52 @@ class GoogleAuthController extends Controller
             ->with('status', 'Cuenta de Google vinculada correctamente.');
     }
 
+    private function confirmAccountDeletion(Request $request, object $googleUser): RedirectResponse
+    {
+        $user = $this->resolveDeleteAccountTargetUser($request);
+
+        if (! $user) {
+            return $this->failedGoogleOAuthRedirect(
+                $request,
+                'Tu sesión expiró antes de confirmar la eliminación de la cuenta.',
+                true
+            );
+        }
+
+        $currentGoogleId = trim((string) ($user->google_id ?? ''));
+        $currentEmail = mb_strtolower(trim((string) ($user->email ?? '')));
+        $googleId = trim((string) ($googleUser->getId() ?? ''));
+        $googleEmail = mb_strtolower(trim((string) ($googleUser->getEmail() ?? '')));
+
+        if ($currentGoogleId !== '' && $currentGoogleId !== $googleId) {
+            return $this->failedGoogleOAuthRedirect(
+                $request,
+                'La cuenta de Google utilizada no coincide con la cuenta que se quiere eliminar.',
+                true
+            );
+        }
+
+        if ($currentEmail !== '' && $googleEmail !== '' && $currentEmail !== $googleEmail) {
+            return $this->failedGoogleOAuthRedirect(
+                $request,
+                'El correo de Google no coincide con el usuario autenticado.',
+                true
+            );
+        }
+
+        DB::transaction(function () use ($user): void {
+            $user->forceFill([
+                'activo' => 0,
+            ])->save();
+        });
+
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect('/')->with('status', 'Tu cuenta fue desactivada correctamente.');
+    }
+
     private function syncGoogleIdentity(User $user, object $googleUser): void
     {
         $updates = [
@@ -175,10 +239,27 @@ class GoogleAuthController extends Controller
         return User::find($userId);
     }
 
+    private function resolveDeleteAccountTargetUser(Request $request): ?User
+    {
+        $userId = $request->session()->pull(self::OAUTH_DELETE_ACCOUNT_SESSION_KEY);
+
+        if (! $userId) {
+            return $request->user();
+        }
+
+        return User::find($userId);
+    }
+
     private function isGoogleLinkingRequest(Request $request): bool
     {
         return $request->session()->get(self::OAUTH_CONTEXT_SESSION_KEY) === self::OAUTH_CONTEXT_LINK
             && $request->session()->has(self::OAUTH_LINK_SESSION_KEY);
+    }
+
+    private function isGoogleDeleteAccountRequest(Request $request): bool
+    {
+        return $request->session()->get(self::OAUTH_CONTEXT_SESSION_KEY) === self::OAUTH_CONTEXT_DELETE_ACCOUNT
+            && $request->session()->has(self::OAUTH_DELETE_ACCOUNT_SESSION_KEY);
     }
 
     private function failedGoogleOAuthRedirect(Request $request, string $message, bool $isLinkingRequest): RedirectResponse
@@ -197,6 +278,7 @@ class GoogleAuthController extends Controller
         $request->session()->forget([
             self::OAUTH_CONTEXT_SESSION_KEY,
             self::OAUTH_LINK_SESSION_KEY,
+            self::OAUTH_DELETE_ACCOUNT_SESSION_KEY,
         ]);
     }
 }

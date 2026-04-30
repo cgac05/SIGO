@@ -36,7 +36,9 @@ class ProfileUpdateRequest extends FormRequest
         if ($isGoogleLinked) {
             $emailRules[] = Rule::in([mb_strtolower((string) ($user?->email ?? ''))]);
         } else {
-            $emailRules[] = Rule::unique('Usuarios', 'email')->ignore($user?->id_usuario, 'id_usuario');
+            $emailRules[] = Rule::unique('Usuarios', 'email')
+                ->ignore($user?->id_usuario, 'id_usuario')
+                ->where(fn ($query) => $query->where('activo', 1));
         }
 
         return [
