@@ -75,7 +75,7 @@ class NotificacionRechazoDocumentoService
                 'apoyo_nombre' => $nombreApoyo,
                 'motivo' => $motivo,
                 'fecha_rechazo' => now()->format('d/m/Y H:i'),
-                'soporte_email' => config('mail.from.address', 'soporte@sigo.gob.mx'),
+                'soporte_email' => config('mail.from.address', 'injuvesigo@gmail.com'),
                 'soporte_telefono' => '+52 (311) 2330853',
                 'soporte_horario' => 'Lunes a Viernes 9:00 - 17:00 hrs',
             ], function ($message) use ($email, $beneficiario, $solicitud) {

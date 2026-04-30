@@ -44,36 +44,7 @@
                     </div>
                 </div>
 
-                <!-- Documents Status -->
-                <div class="rounded-lg border border-slate-200 bg-white p-4">
-                    <h3 class="text-sm font-semibold text-slate-900 uppercase tracking-wide mb-3">Estatus Documentos</h3>
-                    <div class="space-y-2 text-xs">
-                        @php
-                            $pendientes = $documentos->where('admin_status', 'pendiente')->count();
-                            $aceptados = $documentos->where('admin_status', 'aceptado')->count();
-                            $rechazados = $documentos->where('admin_status', 'rechazado')->count();
-                        @endphp
-                        <div class="flex items-center justify-between">
-                            <span class="text-slate-600">Pendientes:</span>
-                            <span class="font-bold text-amber-600">{{ $pendientes }}</span>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-slate-600">Aceptados:</span>
-                            <span class="font-bold text-green-600">{{ $aceptados }}</span>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-slate-600">Rechazados:</span>
-                            <span class="font-bold text-red-600">{{ $rechazados }}</span>
-                        </div>
-                    </div>
 
-                    @if($rechazados > 0)
-                        <a href="{{ route('solicitud.create', ['id' => $solicitud->apoyo->id_apoyo, 'folio' => $solicitud->folio, 'solo_rechazados' => 1]) }}"
-                           class="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-500 transition">
-                            Re-cargar documentos rechazados
-                        </a>
-                    @endif
-                </div>
             </div>
 
             <!-- Documents Panel (Right) -->

@@ -77,7 +77,7 @@
             <h3>Contacto</h3>
             <p>Para cualquier duda o aclaración, puede comunicarse con:</p>
             <ul>
-                <li><strong>Email:</strong> soporte@sigo.gob.mx</li>
+                <li><strong>Email:</strong> injuvesigo@gmail.com</li>
                 <li><strong>Teléfono:</strong> +52 (311) 2330853</li>
                 <li><strong>Horario de atención:</strong> Lunes a Viernes, 9:00 AM - 5:00 PM</li>
             </ul>

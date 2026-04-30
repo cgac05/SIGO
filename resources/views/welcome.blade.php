@@ -145,21 +145,21 @@
     <x-site-footer class="mt-16" />
 
     <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                        const counterEl = document.getElementById('counter');
-                                    const target = 2378;
-                                                let current = 0;
-                                                            const step = Math.ceil(target / 80);
-                                                                        const timer = setInterval(() => {
-                                                                                        current += step;
-                                                                                                        if (current >= target) {
-                                                                                                                            current = target;
-                                                                                                                                                clearInterval(timer);
-                                                                                                                                                                }
-                                                                                                                                                                                counterEl.textContent = current.toLocaleString();
-                                                                                                                                                                                            }, 25);
-                                                                                                                                                                                                    });
-                                                                                                                                                                                                        </script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const counterEl = document.getElementById('counter');
+            const target = {{ $beneficiariosCount }};
+            let current = 0;
+            const step = Math.ceil(target / 80) || 1;
+            const timer = setInterval(() => {
+                current += step;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                counterEl.textContent = current.toLocaleString();
+            }, 25);
+        });
+    </script>
                                                                                                                                                                                                         </body>
                                                                                                                                                                                                         </html>
                                                                                                                                                                                                         
