@@ -114,13 +114,15 @@ class SolicitudProcesoController extends Controller
                     ->where('Documentos_Expediente.admin_status', 'aceptado');
             });
 
-            // Y NO deben tener ningún documento pendiente/rechazado
+            // Y NO deben tener ningún documento pendiente/rechazado (incluyendo null)
             $solicitudesQuery->whereNotExists(function ($query) {
                 $query->select(DB::raw(1))
                     ->from('Documentos_Expediente')
                     ->whereColumn('Documentos_Expediente.fk_folio', 'Solicitudes.folio')
-                    ->where('admin_status', '!=', 'aceptado')
-                    ->whereNotNull('admin_status');
+                    ->where(function($q) {
+                        $q->where('admin_status', '!=', 'aceptado')
+                          ->orWhereNull('admin_status');
+                    });
             });
         }
 
@@ -156,8 +158,10 @@ class SolicitudProcesoController extends Controller
                 $query->select(DB::raw(1))
                     ->from('Documentos_Expediente')
                     ->whereColumn('Documentos_Expediente.fk_folio', 'Solicitudes.folio')
-                    ->where('admin_status', '!=', 'aceptado')
-                    ->whereNotNull('admin_status');
+                    ->where(function($q) {
+                        $q->where('admin_status', '!=', 'aceptado')
+                          ->orWhereNull('admin_status');
+                    });
             });
         
         $stats = [
