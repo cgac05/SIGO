@@ -38,9 +38,9 @@
                     <p class="text-sm text-gray-600 mt-1">
                         Corrige o actualiza información personal incorrecta o incompleta.
                     </p>
-                    <button 
-                        type="button" 
-                        onclick="document.getElementById('rectification-form').scrollIntoView({ behavior: 'smooth' })"
+                    <button
+                        type="button"
+                        onclick="sessionStorage.setItem('profile_focus','password'); window.location.href='{{ route('profile.edit') }}#security'"
                         class="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 mt-3"
                     >
                         ✏️ Editar Mi Información
