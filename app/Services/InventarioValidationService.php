@@ -49,8 +49,9 @@ class InventarioValidationService
                 ];
             }
 
-            // Obtener cantidad de monto_maximo (número de beneficiarios esperados)
-            $cantidadSolicitada = $solicitud->monto_maximo ?? 1;
+            // Para apoyos en especie, cada solicitud aprobada representa 1 beneficiario
+            // por lo que se descuenta 1 unidad (paquete/kit/beneficio) del inventario total de cupos
+            $cantidadSolicitada = 1;
 
             // Validar si hay suficiente inventario en BD_Inventario
             $inventario = InventarioMaterial::where('fk_id_apoyo', $apoyo->id_apoyo)
@@ -132,7 +133,7 @@ class InventarioValidationService
                 return ['exito' => true, 'mensaje' => 'Apoyo no requiere movimiento de inventario'];
             }
 
-            $cantidadSolicitada = $solicitud->monto_maximo ?? 1;
+            $cantidadSolicitada = 1;
 
             // Obtener inventario
             $inventario = InventarioMaterial::where('fk_id_apoyo', $apoyo->id_apoyo)

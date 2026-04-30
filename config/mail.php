@@ -112,7 +112,7 @@ return [
 
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
-        'name' => env('MAIL_FROM_NAME', 'Example'),
+        'name' => str_replace(['"${APP_NAME}"', '${APP_NAME}'], env('APP_NAME', 'SIGO'), env('MAIL_FROM_NAME', env('APP_NAME', 'SIGO'))),
     ],
 
 ];
