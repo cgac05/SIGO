@@ -7,6 +7,7 @@ use App\Models\Solicitud;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use App\Services\NotificacionRechazoDocumentoService;
 
 /**
  * Servicio para gestión de verificación administrativa de documentos.
@@ -135,6 +136,9 @@ class AdministrativeVerificationService
                     'fk_id_estado' => 5, // Rechazada
                     'observaciones_internas' => $observations
                 ]);
+
+                // Enviar notificación específica de rechazo de documento
+                NotificacionRechazoDocumentoService::enviarNotificacionRechazo($documento, $observations);
 
                 // Notificar al beneficiario sobre el rechazo
                 event(new \App\Events\SolicitudRechazada($solicitud, $observations));

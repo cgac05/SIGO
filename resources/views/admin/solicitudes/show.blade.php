@@ -44,36 +44,7 @@
                     </div>
                 </div>
 
-                <!-- Documents Status -->
-                <div class="rounded-lg border border-slate-200 bg-white p-4">
-                    <h3 class="text-sm font-semibold text-slate-900 uppercase tracking-wide mb-3">Estatus Documentos</h3>
-                    <div class="space-y-2 text-xs">
-                        @php
-                            $pendientes = $documentos->where('admin_status', 'pendiente')->count();
-                            $aceptados = $documentos->where('admin_status', 'aceptado')->count();
-                            $rechazados = $documentos->where('admin_status', 'rechazado')->count();
-                        @endphp
-                        <div class="flex items-center justify-between">
-                            <span class="text-slate-600">Pendientes:</span>
-                            <span class="font-bold text-amber-600">{{ $pendientes }}</span>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-slate-600">Aceptados:</span>
-                            <span class="font-bold text-green-600">{{ $aceptados }}</span>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-slate-600">Rechazados:</span>
-                            <span class="font-bold text-red-600">{{ $rechazados }}</span>
-                        </div>
-                    </div>
 
-                    @if($rechazados > 0)
-                        <a href="{{ route('solicitud.create', ['id' => $solicitud->apoyo->id_apoyo, 'folio' => $solicitud->folio, 'solo_rechazados' => 1]) }}"
-                           class="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-500 transition">
-                            Re-cargar documentos rechazados
-                        </a>
-                    @endif
-                </div>
             </div>
 
             <!-- Documents Panel (Right) -->
@@ -116,7 +87,7 @@
 
                             <!-- Verification Panel -->
                             <div class="mt-4 pt-4 border-t border-slate-200" id="verify-form-{{ $documento->id_doc }}" style="display: {{ ($documento->admin_status === 'pendiente' || $documento->admin_status === null) ? 'block' : 'none' }}">
-                                <form class="space-y-3 verify-form" data-documento-id="{{ $documento->id_doc }}" novalidate>
+                                <form class="space-y-3 verify-form" data-documento-id="{{ $documento->id_doc }}" data-verify-url="{{ route('admin.documentos.verify', ['id' => $documento->id_doc]) }}" novalidate>
                                     @csrf
                                     
                                     <!-- Status Buttons -->
@@ -142,7 +113,7 @@
                                                   rows="4"></textarea>
                                         <p class="text-xs text-rose-600 mt-2 rejection-inline-error" aria-live="polite"></p>
                                         <p class="text-xs text-slate-500 mt-1">El beneficiario recibirá este mensaje.</p>
-                                        <button type="submit" class="mt-3 w-full px-4 py-2 bg-red-600 text-white font-medium rounded hover:bg-red-700 transition-colors submit-reject-btn">
+                                        <button type="button" class="mt-3 w-full px-4 py-2 bg-red-600 text-white font-medium rounded hover:bg-red-700 transition-colors submit-reject-btn">
                                             Confirmar Rechazo
                                         </button>
                                     </div>
@@ -241,14 +212,12 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Handle rejection submission without browser validation popups
+        // Handle rejection submission via button click instead of form submit
         if (submitRejectBtn) {
-            form.addEventListener('submit', function(e) {
-                if (statusInput.value !== 'rechazado') {
-                    return;
-                }
-
+            submitRejectBtn.addEventListener('click', function(e) {
                 e.preventDefault();
+                
+                statusInput.value = 'rechazado';
 
                 const observations = textarea?.value.trim() || '';
 
@@ -265,7 +234,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 clearInlineError();
-                submitVerification(form, docId);
+                
+                // Deshabilitar botón para prevenir doble clic
+                const originalText = submitRejectBtn.innerText;
+                submitRejectBtn.disabled = true;
+                submitRejectBtn.innerText = 'Procesando...';
+                
+                submitVerification(form, docId).finally(() => {
+                    submitRejectBtn.disabled = false;
+                    submitRejectBtn.innerText = originalText;
+                });
             });
         }
     });
@@ -274,8 +252,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function submitVerification(form, docId) {
         const observations = form.querySelector('textarea[name="observations"]')?.value || '';
         const status = form.querySelector('.status-input').value;
+        const verifyUrl = form.dataset.verifyUrl;
 
-        fetch(`/admin/solicitudes/${docId}/verify`, {
+        return fetch(verifyUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -50,58 +50,77 @@
                 <div class="bg-white rounded-lg shadow p-6">
                     <h2 class="text-2xl font-bold text-slate-900 mb-6">Información General</h2>
                     
-                    <div class="grid grid-cols-2 gap-6">
-                        <!-- Beneficiario -->
-                        <div>
-                            <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Beneficiario</p>
-                            <p class="text-lg font-bold text-slate-900 mt-2">{{ $beneficiario->nombre }} {{ $beneficiario->apellido_paterno }} {{ $beneficiario->apellido_materno }}</p>
-                            <p class="text-xs text-slate-600 mt-1">CURP: {{ $beneficiario->curp }}</p>
+                    <div class="space-y-6">
+                        <!-- Beneficiario con Foto -->
+                        <div class="flex items-start gap-6 pb-6 border-b border-slate-200">
+                            <!-- Foto del Beneficiario -->
+                            <div class="flex-shrink-0">
+                                <img 
+                                    src="{{ $beneficiario->user?->getFotoUrl() ?? 'https://ui-avatars.com/api/?name=' . urlencode($beneficiario->nombre . ' ' . $beneficiario->apellido_paterno) . '&background=3b82f6&color=fff&size=120' }}"
+                                    alt="{{ $beneficiario->nombre }}"
+                                    class="w-24 h-24 rounded-full object-cover border-2 border-slate-200 shadow-md"
+                                >
+                            </div>
+                            
+                            <!-- Datos del Beneficiario -->
+                            <div class="flex-1">
+                                <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-2">Beneficiario</p>
+                                <p class="text-2xl font-bold text-slate-900">{{ $beneficiario->nombre }} {{ $beneficiario->apellido_paterno }} {{ $beneficiario->apellido_materno }}</p>
+                                <div class="mt-3 space-y-1">
+                                    <p class="text-sm text-slate-600"><span class="font-semibold">CURP:</span> {{ $beneficiario->curp }}</p>
+                                    <p class="text-sm text-slate-600"><span class="font-semibold">Edad:</span> {{ $beneficiario->edad ?? 'N/A' }} años</p>
+                                    <p class="text-sm text-slate-600"><span class="font-semibold">Género:</span> {{ $beneficiario->sexo_label }}</p>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Apoyo -->
-                        <div>
-                            <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Apoyo</p>
-                            <p class="text-lg font-bold text-slate-900 mt-2">{{ $apoyo->nombre_apoyo }}</p>
-                        </div>
+                        <!-- Resto de Información en Grid -->
+                        <div class="grid grid-cols-2 gap-6">
+                            <!-- Apoyo -->
+                            <div>
+                                <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Apoyo</p>
+                                <p class="text-lg font-bold text-slate-900 mt-2">{{ $apoyo->nombre_apoyo }}</p>
+                            </div>
 
-                        <!-- Categoría del Apoyo (Nuevo) -->
-                        <div>
-                            <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Categoría del Apoyo</p>
-                            <p class="text-lg font-bold text-slate-900 mt-2">{{ $apoyo->categoria_nombre ?? 'Sin Categoría' }}</p>
-                        </div>
+                            <!-- Categoría del Apoyo -->
+                            <div>
+                                <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Categoría del Apoyo</p>
+                                <p class="text-lg font-bold text-slate-900 mt-2">{{ $apoyo->categoria_nombre ?? 'Sin Categoría' }}</p>
+                            </div>
 
-                        <!-- Monto por Beneficiario -->
-                        <div>
-                            <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Monto por Beneficiario</p>
-                            <p class="text-2xl font-bold text-green-600 mt-2">${{ number_format($apoyo->monto_maximo ?? 0, 2) }}</p>
-                        </div>
+                            <!-- Monto por Beneficiario -->
+                            <div>
+                                <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Monto por Beneficiario</p>
+                                <p class="text-2xl font-bold text-green-600 mt-2">${{ number_format($apoyo->monto_maximo ?? 0, 2) }}</p>
+                            </div>
 
-                        <!-- Fecha Solicitud -->
-                        <div>
-                            <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Fecha Solicitud</p>
-                            <p class="text-lg text-slate-900 mt-2">{{ \Carbon\Carbon::parse($solicitud->fecha_creacion)->format('d/m/Y H:i') }}</p>
-                        </div>
+                            <!-- Fecha Solicitud -->
+                            <div>
+                                <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Fecha Solicitud</p>
+                                <p class="text-lg text-slate-900 mt-2">{{ \Carbon\Carbon::parse($solicitud->fecha_creacion)->format('d/m/Y H:i') }}</p>
+                            </div>
 
-                        <!-- Estado Actual -->
-                        <div>
-                            <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Estado</p>
-                            @if($yaFirmada)
-                                <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800 mt-2">Aprobada</span>
-                            @elseif($yaRechazada)
-                                <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800 mt-2">Rechazada</span>
-                            @else
-                                <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800 mt-2">En proceso</span>
-                            @endif
-                        </div>
+                            <!-- Estado Actual -->
+                            <div>
+                                <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Estado</p>
+                                @if($yaFirmada)
+                                    <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800 mt-2">Aprobada</span>
+                                @elseif($yaRechazada)
+                                    <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800 mt-2">Rechazada</span>
+                                @else
+                                    <span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800 mt-2">En proceso</span>
+                                @endif
+                            </div>
 
-                        <!-- CUV -->
-                        <div>
-                            <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">CUV</p>
-                            @if($solicitud->cuv)
-                                <p class="text-sm font-mono text-slate-900 mt-2 bg-slate-100 px-3 py-1 rounded">{{ $solicitud->cuv }}</p>
-                            @else
-                                <p class="text-sm text-slate-500 mt-2">— Por generar</p>
-                            @endif
+                            <!-- CUV -->
+                            <div>
+                                <p class="text-sm font-semibold text-slate-600 uppercase tracking-wide">CUV</p>
+                                @if($solicitud->cuv)
+                                    <p class="text-sm font-mono text-slate-900 mt-2 bg-slate-100 px-3 py-1 rounded">{{ $solicitud->cuv }}</p>
+                                @else
+                                    <p class="text-sm text-slate-500 mt-2">— Por generar</p>
+                                @endif
+                            </div>
                         </div>
                     </div>
                 </div>
