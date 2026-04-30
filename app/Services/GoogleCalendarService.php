@@ -662,7 +662,7 @@ class GoogleCalendarService
             // Configurar cliente Google con credenciales
             $clientId = config('services.google.client_id');
             $clientSecret = config('services.google.client_secret');
-            $redirectUri = config('services.google.redirect');
+            $redirectUri = route('admin.calendario.callback');
             
             Log::info("GoogleCalendarService::generarUrlAutenticacion - Configurando cliente:");
             Log::info("  - CLIENT_ID: {$clientId}");
@@ -714,7 +714,7 @@ class GoogleCalendarService
             // Configurar cliente Google con credenciales ANTES de intercambiar el código
             $clientId = config('services.google.client_id');
             $clientSecret = config('services.google.client_secret');
-            $redirectUri = config('services.google.redirect');
+            $redirectUri = route('admin.calendario.callback');
             
             Log::info("GoogleCalendarService::manejarCallbackOAuth - Configuración:");
             Log::info("  - CLIENT_ID: {$clientId}");
