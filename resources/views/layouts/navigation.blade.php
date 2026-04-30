@@ -22,6 +22,9 @@
         <x-nav-link href="/admin/ciclos/1" :active="request()->is('admin/ciclos/*')">
             {{ __('Ciclos') }}
         </x-nav-link>
+        <x-nav-link :href="route('personal.index')" :active="request()->routeIs('personal.*')">
+            {{ __('Personal') }}
+        </x-nav-link>
     @endif
 
     {{-- Administrativo (Rol 1): Dashboard + 5 Apartados --}}
@@ -206,6 +209,14 @@
             @if($currentUser?->isPersonal() && (int) $currentUser?->tipo_usuario !== 3)
                 <x-responsive-nav-link href="/admin/ciclos/1" :active="request()->is('admin/ciclos/*')">
                     {{ __('Ciclos') }}
+                </x-responsive-nav-link>
+            @endif
+
+            {{-- Personal: Solo para Directivo (Rol 2), el admin ya lo tiene en otro lado? 
+                 Actually admin didn't have it in mobile block unless it's missing, but let's just add it for directivo --}}
+            @if($currentUser?->isPersonal() && (int) optional($currentUser->personal)->fk_rol === 2)
+                <x-responsive-nav-link :href="route('personal.index')" :active="request()->routeIs('personal.*')">
+                    {{ __('Personal') }}
                 </x-responsive-nav-link>
             @endif
 
