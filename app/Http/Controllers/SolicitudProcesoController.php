@@ -820,7 +820,7 @@ class SolicitudProcesoController extends Controller
         if ($apoyo->tipo_apoyo === 'Especie') {
             $puedeAprobarse = ($apoyo->stock_actual >= 1);
         } else {
-            $puedeAprobarse = ($presupuestoDisponible >= ($apoyo->monto_maximo ?? 0)) 
+            $puedeAprobarse = ($disponibleEnApoyo >= ($apoyo->monto_maximo ?? 0)) 
                              && ($presupuestoCategoriaDisponible >= ($apoyo->monto_maximo ?? 0));
         }
 
