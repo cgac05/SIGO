@@ -1211,6 +1211,8 @@ if ($isEditing) {
             });
 
             // Recargar lista de documentos
+            const requisitosActuales = @json($requisitosActuales ?? []);
+
             async function recargarDocumentos() {
                 try {
                     const response = await fetch('/apoyos/documentos', {
@@ -1248,9 +1250,10 @@ if ($isEditing) {
                 } else {
                     html = '<div class="space-y-2">';
                     documentos.forEach(doc => {
+                        const isChecked = requisitosActuales.includes(doc.id_tipo_doc) ? 'checked' : '';
                         html += `
                             <div class="flex items-center gap-2 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition">
-                                <input type="checkbox" name="documentos_requeridos[]" value="${doc.id_tipo_doc}" class="w-4 h-4 accent-blue-700">
+                                <input type="checkbox" name="documentos_requeridos[]" value="${doc.id_tipo_doc}" class="w-4 h-4 accent-blue-700" ${isChecked}>
                                 <div class="flex-1 min-w-0">
                                     <div class="text-xs font-medium text-gray-800">${doc.nombre_documento}</div>
                                     <div class="text-xs text-gray-500 mt-0.5">
