@@ -107,7 +107,7 @@
                                             <p class="text-sm font-semibold text-slate-700">Haz clic o arrastra para cargar</p>
                                             <p class="text-xs text-slate-500 mt-1">Máximo 10 MB</p>
                                         </div>
-                                        <input type="file" id="file-{{ $req->fk_id_tipo_doc }}" name="documento_{{ $req->fk_id_tipo_doc }}" class="hidden" data-doc-type="{{ $req->fk_id_tipo_doc }}" data-required="{{ $modoReenvio ? 1 : (int) $req->es_obligatorio }}" @if($modoReenvio || (int) $req->es_obligatorio === 1) required @endif onchange="updateFileDisplay(this)">
+                                        <input type="file" id="file-{{ $req->fk_id_tipo_doc }}" name="documento_{{ $req->fk_id_tipo_doc }}" class="hidden" data-doc-type="{{ $req->fk_id_tipo_doc }}" data-required="{{ $modoReenvio ? 1 : (int) $req->es_obligatorio }}" onchange="updateFileDisplay(this)">
                                         <p class="text-xs text-slate-600 mt-2 file-name-{{ $req->fk_id_tipo_doc }}"></p>
                                     </div>
 
