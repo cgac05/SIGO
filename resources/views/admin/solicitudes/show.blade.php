@@ -116,7 +116,7 @@
 
                             <!-- Verification Panel -->
                             <div class="mt-4 pt-4 border-t border-slate-200" id="verify-form-{{ $documento->id_doc }}" style="display: {{ ($documento->admin_status === 'pendiente' || $documento->admin_status === null) ? 'block' : 'none' }}">
-                                <form class="space-y-3 verify-form" data-documento-id="{{ $documento->id_doc }}" novalidate>
+                                <form class="space-y-3 verify-form" data-documento-id="{{ $documento->id_doc }}" data-verify-url="{{ route('admin.documentos.verify', ['id' => $documento->id_doc]) }}" novalidate>
                                     @csrf
                                     
                                     <!-- Status Buttons -->
@@ -142,7 +142,7 @@
                                                   rows="4"></textarea>
                                         <p class="text-xs text-rose-600 mt-2 rejection-inline-error" aria-live="polite"></p>
                                         <p class="text-xs text-slate-500 mt-1">El beneficiario recibirá este mensaje.</p>
-                                        <button type="submit" class="mt-3 w-full px-4 py-2 bg-red-600 text-white font-medium rounded hover:bg-red-700 transition-colors submit-reject-btn">
+                                        <button type="button" class="mt-3 w-full px-4 py-2 bg-red-600 text-white font-medium rounded hover:bg-red-700 transition-colors submit-reject-btn">
                                             Confirmar Rechazo
                                         </button>
                                     </div>
@@ -241,14 +241,12 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Handle rejection submission without browser validation popups
+        // Handle rejection submission via button click instead of form submit
         if (submitRejectBtn) {
-            form.addEventListener('submit', function(e) {
-                if (statusInput.value !== 'rechazado') {
-                    return;
-                }
-
+            submitRejectBtn.addEventListener('click', function(e) {
                 e.preventDefault();
+                
+                statusInput.value = 'rechazado';
 
                 const observations = textarea?.value.trim() || '';
 
@@ -265,7 +263,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 clearInlineError();
-                submitVerification(form, docId);
+                
+                // Deshabilitar botón para prevenir doble clic
+                const originalText = submitRejectBtn.innerText;
+                submitRejectBtn.disabled = true;
+                submitRejectBtn.innerText = 'Procesando...';
+                
+                submitVerification(form, docId).finally(() => {
+                    submitRejectBtn.disabled = false;
+                    submitRejectBtn.innerText = originalText;
+                });
             });
         }
     });
@@ -274,8 +281,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function submitVerification(form, docId) {
         const observations = form.querySelector('textarea[name="observations"]')?.value || '';
         const status = form.querySelector('.status-input').value;
+        const verifyUrl = form.dataset.verifyUrl;
 
-        fetch(`/admin/solicitudes/${docId}/verify`, {
+        return fetch(verifyUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
