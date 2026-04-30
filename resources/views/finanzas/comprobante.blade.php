@@ -100,6 +100,9 @@
     </div>
 
     <div class="header">
+        <div style="text-align: center; margin-bottom: 15px;">
+            <img src="{{ public_path('images/logo injuve.png') }}" style="max-height: 80px; width: auto;" alt="Logo INJUVE">
+        </div>
         <h1>
             @if($solicitud->tipo_apoyo === 'Económico')
                 Acuse de Recibo de Pago Económico
