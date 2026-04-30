@@ -39,12 +39,27 @@ class CasoADocumentService
     private function crearBeneficiarioPartial($curp, $nombre, $apellido_paterno, $apellido_materno, $telefono = null)
     {
         try {
+            $nombre = trim((string) $nombre);
+            $apellido_paterno = trim((string) ($apellido_paterno ?? ''));
+            $apellido_materno = trim((string) ($apellido_materno ?? ''));
+
             // Verificar si ya existe
             $existe = DB::table('Beneficiarios')
                 ->where('curp', $curp)
-                ->exists();
+                ->first();
             
             if ($existe) {
+                if (is_null($existe->fk_id_usuario)) {
+                    DB::table('Beneficiarios')
+                        ->where('curp', $curp)
+                        ->update([
+                            'nombre' => $nombre,
+                            'apellido_paterno' => $apellido_paterno,
+                            'apellido_materno' => $apellido_materno,
+                            'telefono' => $telefono,
+                        ]);
+                }
+
                 return true;  // Ya existe, no hacer nada
             }
             
@@ -101,10 +116,8 @@ class CasoADocumentService
                 $this->crearBeneficiarioPartial(
                     $curp,
                     $datoBeneficiario->nombre_completo,
-                    // Dividir nombre_completo en apellido_paterno y apellido_materno
-                    // Format: "NOMBRE APELLIDO_PATERNO APELLIDO_MATERNO"
-                    explode(' ', $datoBeneficiario->nombre_completo)[0] ?? '',  // Placeholder
-                    explode(' ', $datoBeneficiario->nombre_completo)[1] ?? '',  // Placeholder
+                    null,
+                    null,
                     $datoBeneficiario->telefono ?? null
                 );
             } else {
@@ -215,8 +228,43 @@ class CasoADocumentService
             $this->validarArchivo($archivo);
             
             // 2. Obtener solicitud para folio
-            $solicitud = Solicitud::with('beneficiario')->findOrFail($solicitud_id);
+            $solicitud = Solicitud::with(['beneficiario', 'apoyo'])->findOrFail($solicitud_id);
             $folio = $solicitud->folio ?? 'UNKN-' . $solicitud_id;
+
+            $documentosRequeridos = DB::table('Requisitos_Apoyo')
+                ->join('Cat_TiposDocumento', 'Requisitos_Apoyo.fk_id_tipo_doc', '=', 'Cat_TiposDocumento.id_tipo_doc')
+                ->where('Requisitos_Apoyo.fk_id_apoyo', $solicitud->fk_id_apoyo)
+                ->where('Requisitos_Apoyo.es_obligatorio', 1)
+                ->select('Cat_TiposDocumento.id_tipo_doc')
+                ->distinct()
+                ->pluck('id_tipo_doc')
+                ->map(fn ($id) => (int) $id)
+                ->values();
+
+            if ($documentosRequeridos->isEmpty()) {
+                throw new \Exception('Este apoyo no tiene documentos obligatorios configurados para Momento 2.');
+            }
+
+            $tipoDocumentoId = (int) $tipo_documento;
+
+            if (! $documentosRequeridos->contains($tipoDocumentoId)) {
+                throw new \Exception('El tipo de documento seleccionado no es obligatorio para este apoyo.');
+            }
+
+            $documentosCargados = Documento::where('fk_folio', $folio)
+                ->where('origen_archivo', 'admin_escaneo_presencial')
+                ->pluck('fk_id_tipo_doc')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values();
+
+            if ($documentosCargados->contains($tipoDocumentoId)) {
+                throw new \Exception('Este documento ya fue cargado para este folio.');
+            }
+
+            if ($documentosCargados->count() >= $documentosRequeridos->count()) {
+                throw new \Exception('Este folio ya tiene todos los documentos requeridos cargados.');
+            }
             
             // 3. Generar hash SHA256 del contenido
             $contenidoArchivo = file_get_contents($archivo->getRealPath());
@@ -238,13 +286,18 @@ class CasoADocumentService
             
             // 7. Crear registro Documento usando DB::table para evitar conflictos con casts
             // Esto evita que Eloquent intente procesar DB::raw('GETDATE()') como datetime
+            $verificationToken = hash('sha256', $folio . '|' . $tipoDocumentoId . '|' . $admin_id . '|' . now()->timestamp . '|' . config('app.key'));
+
             $doc_id = DB::table('Documentos_Expediente')->insertGetId([
                 'fk_folio' => $folio,
-                'fk_id_tipo_doc' => $tipo_documento,
+                'fk_id_tipo_doc' => $tipoDocumentoId,
                 'ruta_archivo' => $rutaAlmacenamiento,
-                'origen_archivo' => 'admin_caso_a',
+                'origen_archivo' => 'admin_escaneo_presencial',
                 'id_admin' => $admin_id,
-                'estado_validacion' => 'PENDIENTE',
+                'estado_validacion' => 'Correcto',
+                'admin_status' => 'aceptado',
+                'verification_token' => $verificationToken,
+                'fecha_verificacion' => DB::raw('GETDATE()'),
                 'fecha_carga' => DB::raw('GETDATE()'),
             ]);
             
@@ -278,6 +331,21 @@ class CasoADocumentService
                     'nombre_archivo_original' => $archivo->getClientOriginalName(),
                 ]),
             ]);
+
+            $documentosCargadosActuales = Documento::where('fk_folio', $folio)
+                ->where('origen_archivo', 'admin_escaneo_presencial')
+                ->pluck('fk_id_tipo_doc')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values();
+
+            if ($documentosCargadosActuales->count() >= $documentosRequeridos->count()) {
+                $solicitud->update([
+                    'fk_id_estado' => 9,
+                    'estado_solicitud' => 'DOCUMENTOS_VERIFICADOS',
+                    'fecha_cambio_estado' => DB::raw('GETDATE()'),
+                ]);
+            }
             
             // 10. Crear política de retención usando DB::table
             // NOTA: Tabla politicas_retencion_documentos será creada en futuro

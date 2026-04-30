@@ -494,8 +494,13 @@ Route::get('/api/beneficiarios/buscar', function (\Illuminate\Http\Request $requ
     }
 
     $beneficiarios = \App\Models\Beneficiario::with('user')
-        ->where('nombre', 'LIKE', "%$query%")
-        ->orWhere('curp', 'LIKE', "%$query%")
+        ->where(function ($beneficiariosQuery) use ($query) {
+            $beneficiariosQuery
+                ->where('nombre', 'LIKE', "%{$query}%")
+                ->orWhere('apellido_paterno', 'LIKE', "%{$query}%")
+                ->orWhere('apellido_materno', 'LIKE', "%{$query}%")
+                ->orWhere('curp', 'LIKE', "%{$query}%");
+        })
         ->limit(10)
         ->get(['fk_id_usuario', 'nombre', 'apellido_paterno', 'apellido_materno', 'curp', 'telefono'])
         ->map(function ($b) {
@@ -505,6 +510,7 @@ Route::get('/api/beneficiarios/buscar', function (\Illuminate\Http\Request $requ
                 'curp' => $b->curp,
                 'telefono' => $b->telefono,
                 'email' => $b->user ? $b->user->email : null,
+                'es_registrado' => $b->fk_id_usuario !== null,
             ];
         });
 
