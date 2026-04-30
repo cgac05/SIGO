@@ -170,16 +170,20 @@ Route::middleware('auth')->group(function () {
     Route::delete('/apoyos/{id}',          [ApoyoController::class, 'destroy'])->name('apoyos.destroy');
     Route::delete('/apoyos/{id}',          [ApoyoController::class, 'destroy'])->name('apoyos.destroy');
 
-    // Flujo de solicitudes
+    // Flujo de solicitudes (Solo para Directivo - Rol 2)
     Route::get('/solicitudes/proceso', [SolicitudProcesoController::class, 'index'])
+        ->middleware('role:2')
         ->name('solicitudes.proceso.index');
     Route::get('/solicitudes/proceso/{folio}', [SolicitudProcesoController::class, 'show'])
+        ->middleware('role:2')
         ->whereNumber('folio')
         ->name('solicitudes.proceso.show');
     Route::post('/solicitudes/proceso/{folio}/firmar', [SolicitudProcesoController::class, 'firmar'])
+        ->middleware('role:2')
         ->whereNumber('folio')
         ->name('solicitudes.proceso.firmar');
     Route::post('/solicitudes/proceso/{folio}/rechazar', [SolicitudProcesoController::class, 'rechazar'])
+        ->middleware('role:2')
         ->whereNumber('folio')
         ->name('solicitudes.proceso.rechazar');
     Route::get('/solicitudes/{folio}/timeline', [SolicitudProcesoController::class, 'timeline'])
@@ -210,23 +214,23 @@ Route::middleware('auth')->group(function () {
         Route::get('/{id}/view', [DocumentVerificationController::class, 'viewDocument'])->whereNumber('id')->name('admin.documentos.view');
     });
 
-    // Padrón
+    // Padrón (Solo para Administrativo - Rol 1)
     Route::prefix('admin/padron')->group(function () {
-        Route::get('', [PadronController::class, 'index'])->middleware('role:2,3')->name('admin.padron.index');
-        Route::get('exportar', [PadronController::class, 'exportar'])->middleware('role:2,3')->name('admin.padron.exportar');
-        Route::get('{id}', [PadronController::class, 'show'])->middleware('role:2,3')->whereNumber('id')->name('admin.padron.show');
+        Route::get('', [PadronController::class, 'index'])->middleware('role:1')->name('admin.padron.index');
+        Route::get('exportar', [PadronController::class, 'exportar'])->middleware('role:1')->name('admin.padron.exportar');
+        Route::get('{id}', [PadronController::class, 'show'])->middleware('role:1')->whereNumber('id')->name('admin.padron.show');
     });
 
-    // Calendario Google
+    // Calendario Google (Solo para Administrativo - Rol 1)
     Route::prefix('admin/calendario')->group(function () {
-        Route::get('', [GoogleCalendarController::class, 'mostrarConfiguracion'])->middleware('role:2,3')->name('admin.calendario.config');
-        Route::get('auth', [GoogleCalendarController::class, 'redirectToGoogle'])->middleware('role:2,3')->name('admin.calendario.auth');
-        Route::get('callback', [GoogleCalendarController::class, 'handleGoogleCallback'])->middleware('role:2,3')->name('admin.calendario.callback');
-        Route::post('sync', [GoogleCalendarController::class, 'sincronizar'])->middleware('role:2,3')->name('admin.calendario.sync');
-        Route::post('disconnect', [GoogleCalendarController::class, 'desconectar'])->middleware('role:2,3')->name('admin.calendario.disconnect');
-        Route::get('logs', [GoogleCalendarController::class, 'mostrarLogs'])->middleware('role:2,3')->name('admin.calendario.logs');
+        Route::get('', [GoogleCalendarController::class, 'mostrarConfiguracion'])->middleware('role:1')->name('admin.calendario.config');
+        Route::get('auth', [GoogleCalendarController::class, 'redirectToGoogle'])->middleware('role:1')->name('admin.calendario.auth');
+        Route::get('callback', [GoogleCalendarController::class, 'handleGoogleCallback'])->middleware('role:1')->name('admin.calendario.callback');
+        Route::post('sync', [GoogleCalendarController::class, 'sincronizar'])->middleware('role:1')->name('admin.calendario.sync');
+        Route::post('disconnect', [GoogleCalendarController::class, 'desconectar'])->middleware('role:1')->name('admin.calendario.disconnect');
+        Route::get('logs', [GoogleCalendarController::class, 'mostrarLogs'])->middleware('role:1')->name('admin.calendario.logs');
         Route::post('webhook', [GoogleCalendarController::class, 'webhookGoogleCalendar'])->withoutMiddleware('auth')->name('admin.calendario.webhook');
-        Route::get('api/status', [GoogleCalendarController::class, 'apiStatus'])->middleware('role:2,3')->name('admin.calendario.api.status');
+        Route::get('api/status', [GoogleCalendarController::class, 'apiStatus'])->middleware('role:1')->name('admin.calendario.api.status');
     });
 
     // Presupuestación
