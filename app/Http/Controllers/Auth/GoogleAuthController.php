@@ -104,6 +104,14 @@ class GoogleAuthController extends Controller
             ->orWhere('email', $googleUser->getEmail())
             ->first();
 
+        if ($user && ! $user->activo) {
+            return $this->failedGoogleOAuthRedirect(
+                $request,
+                'Tu cuenta ha sido desactivada. No puedes iniciar sesión.',
+                false
+            );
+        }
+
         if (! $user) {
             $user = User::create([
                 'email' => $googleUser->getEmail(),
@@ -221,7 +229,6 @@ class GoogleAuthController extends Controller
             'google_token' => json_encode($googleUser->token ?? null),
             'google_token_expires_at' => now()->addSeconds($googleUser->expiresIn ?? 3600),
             'ultima_conexion' => now(),
-            'activo' => true,
         ];
 
         if (! empty($googleUser->refreshToken)) {
