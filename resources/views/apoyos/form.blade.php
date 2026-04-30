@@ -1071,9 +1071,17 @@ if ($isEditing) {
                 const lblPresupuesto = document.getElementById('chk-presupuesto-lbl');
                 if (lblPresupuesto) lblPresupuesto.textContent = isEco ? 'Presupuesto asignado' : 'Stock inicial';
 
+                // Parse dates in dd/mm/yyyy format to compare correctly
+                function parseDateMX(dStr) {
+                    if (!dStr) return 0;
+                    const parts = dStr.split('/');
+                    if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`).getTime();
+                    return new Date(dStr).getTime();
+                }
+
                 // Update checklist
                 setChk(chkNombre, nombre.length > 0);
-                setChk(chkFechas, inicio && fin && (new Date(fin) >= new Date(inicio)));
+                setChk(chkFechas, inicio && fin && (parseDateMX(fin) >= parseDateMX(inicio)));
                 setChk(chkMonto,  isEco ? (monto > 0) : true, false);
                 setChk(chkCupo,   !isNaN(cupo) && cupo > 0);
                 setChk(chkPresupuesto, presup > 0);
