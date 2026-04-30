@@ -519,6 +519,9 @@
         document.getElementById('etiquetaDatos').innerHTML = '📋 Datos del Beneficiario';
         document.getElementById('estatusDatos').className = 'bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full';
         document.getElementById('estatusDatos').innerHTML = '⚡ Editable';
+
+        document.getElementById('beneficiario_id').value = '';
+        document.getElementById('es_beneficiario_registrado').value = '0';
     }
 
     function bloquearCampos() {
@@ -537,23 +540,30 @@
     }
 
     function seleccionarBeneficiario(beneficiario) {
-        document.getElementById('beneficiario_id').value = beneficiario.fk_id_usuario;
-        document.getElementById('es_beneficiario_registrado').value = '1';
+        const esRegistrado = Boolean(beneficiario.fk_id_usuario);
+
+        document.getElementById('beneficiario_id').value = esRegistrado ? beneficiario.fk_id_usuario : '';
+        document.getElementById('es_beneficiario_registrado').value = esRegistrado ? '1' : '0';
         
         // Llenar campos
         document.getElementById('manual_nombre').value = beneficiario.nombre_completo;
         document.getElementById('manual_curp').value = beneficiario.curp || '';
         document.getElementById('manual_email').value = beneficiario.email || '';
         document.getElementById('manual_telefono').value = beneficiario.telefono || '';
-        
-        // Bloquear campos
-        bloquearCampos();
-        
-        // Bloquear búsqueda de CURP (readonly) - no puede recapturar
-        document.getElementById('beneficiarioBusqueda').readOnly = true;
-        document.getElementById('beneficiarioBusqueda').style.backgroundColor = '#f3f4f6';
-        document.getElementById('beneficiarioBusqueda').style.cursor = 'not-allowed';
-        document.getElementById('beneficiarioBusqueda').title = 'CURP capturado - Click derecho para limpiar si es necesario';
+
+        if (esRegistrado) {
+            // Bloquear campos
+            bloquearCampos();
+
+            // Bloquear búsqueda de CURP (readonly) - no puede recapturar
+            document.getElementById('beneficiarioBusqueda').readOnly = true;
+            document.getElementById('beneficiarioBusqueda').style.backgroundColor = '#f3f4f6';
+            document.getElementById('beneficiarioBusqueda').style.cursor = 'not-allowed';
+            document.getElementById('beneficiarioBusqueda').title = 'CURP capturado - Click derecho para limpiar si es necesario';
+        } else {
+            desbloquearCampos();
+            document.getElementById('beneficiarioBusqueda').title = 'Beneficiario no vinculado a un usuario del sistema';
+        }
         
         document.getElementById('resultadosBusqueda').classList.add('hidden');
         document.getElementById('noBuscado').classList.add('hidden');

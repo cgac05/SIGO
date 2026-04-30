@@ -168,8 +168,8 @@
                             class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">
                         Limpiar
                     </button>
-                    <button type="submit" 
-                            class="px-8 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-semibold flex items-center ml-auto">
+                        <button id="btnCargarDocumentos" type="submit" disabled
+                            class="px-8 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-semibold flex items-center ml-auto disabled:opacity-50 disabled:cursor-not-allowed">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                         </svg>
@@ -204,9 +204,9 @@
                                     <td class="px-4 py-2">{{ $doc->solicitud?->beneficiario?->nombre ?? 'N/A' }}</td>
                                     <td class="px-4 py-2">{{ $doc->fecha_carga?->format('H:i') ?? 'N/A' }}</td>
                                     <td class="px-4 py-2">
-                                        @if($doc->estado_validacion === 'VERIFICADO')
+                                        @if(in_array($doc->estado_validacion, ['Correcto', 'VERIFICADO', 'Validado', 'Aprobado']))
                                             <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">✓ Verificado</span>
-                                        @elseif($doc->estado_validacion === 'RECHAZADO')
+                                        @elseif(in_array($doc->estado_validacion, ['Incorrecto', 'RECHAZADO']))
                                             <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">✗ Rechazado</span>
                                         @else
                                             <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">⏱ Pendiente</span>
@@ -443,63 +443,77 @@
         areasCargas.innerHTML = '';
 
         if (datos.documentos_requeridos && datos.documentos_requeridos.length > 0) {
-            datos.documentos_requeridos.forEach(doc => {
-                // Crear área de carga para cada documento NO cargado
-                if (!doc.ya_cargado) {
-                    const areaCarga = document.createElement('div');
-                    areaCarga.className = 'bg-white p-6 rounded-lg border-2 border-dashed border-green-300 hover:border-green-500 transition';
-                    areaCarga.dataset.tipoDoc = doc.id_tipo_doc;
-                    areaCarga.dataset.nombreDoc = doc.nombre_documento;
-                    areaCarga.dataset.tiposPermitidos = doc.tipo_archivo_permitido;
-                    areaCarga.dataset.pesoMaximo = doc.peso_maximo_mb;
-                    
-                    const inputFile = document.createElement('input');
-                    inputFile.type = 'file';
-                    inputFile.className = 'hidden';
-                    
-                    // Construir atributo accept de los tipos permitidos
-                    const tiposPermitidos = (doc.tipo_archivo_permitido || 'pdf,jpg,jpeg,png').split(',').map(t => '.' + t.trim());
-                    inputFile.accept = tiposPermitidos.join(',');
-                    inputFile.dataset.tipoDoc = doc.id_tipo_doc;
-                    inputFile.dataset.tiposPermitidos = doc.tipo_archivo_permitido;
-                    inputFile.dataset.pesoMaximo = doc.peso_maximo_mb;
-                    
-                    const html = `
-                        <h4 class="text-lg font-semibold text-gray-900 mb-4">📄 ${doc.nombre_documento}</h4>
-                        <div class="border-2 border-dashed border-green-300 bg-green-50 rounded-lg p-8 text-center cursor-pointer transition hover:border-green-500 hover:bg-green-100" 
-                             ondrop="handleDrop(event, ${doc.id_tipo_doc})" 
-                             ondragover="handleDragOver(event)" 
-                             ondragleave="handleDragLeave(event)">
-                            <svg class="w-12 h-12 mx-auto text-green-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                            </svg>
-                            <p class="text-gray-700 font-semibold">Arrastra archivo aquí o haz clic</p>
-                            <p class="text-sm text-gray-600 mt-1">${tiposPermitidos.join(', ').toUpperCase()} (máximo ${doc.peso_maximo_mb} MB)</p>
+            const documentosPendientes = datos.documentos_requeridos.filter(doc => !doc.ya_cargado);
+
+            documentosPendientes.forEach(doc => {
+                const areaCarga = document.createElement('div');
+                areaCarga.className = 'bg-white p-6 rounded-lg border-2 border-dashed border-green-300 hover:border-green-500 transition';
+                areaCarga.dataset.tipoDoc = doc.id_tipo_doc;
+                areaCarga.dataset.nombreDoc = doc.nombre_documento;
+                areaCarga.dataset.tiposPermitidos = doc.tipo_archivo_permitido;
+                areaCarga.dataset.pesoMaximo = doc.peso_maximo_mb;
+                
+                const inputFile = document.createElement('input');
+                inputFile.type = 'file';
+                inputFile.className = 'hidden';
+                
+                // Construir atributo accept de los tipos permitidos
+                const tiposPermitidos = (doc.tipo_archivo_permitido || 'pdf,jpg,jpeg,png').split(',').map(t => '.' + t.trim());
+                inputFile.accept = tiposPermitidos.join(',');
+                inputFile.dataset.tipoDoc = doc.id_tipo_doc;
+                inputFile.dataset.tiposPermitidos = doc.tipo_archivo_permitido;
+                inputFile.dataset.pesoMaximo = doc.peso_maximo_mb;
+                
+                const html = `
+                    <h4 class="text-lg font-semibold text-gray-900 mb-4">📄 ${doc.nombre_documento}</h4>
+                    <div class="border-2 border-dashed border-green-300 bg-green-50 rounded-lg p-8 text-center cursor-pointer transition hover:border-green-500 hover:bg-green-100" 
+                         onclick="abrirSelectorArchivo(${doc.id_tipo_doc})"
+                         onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); abrirSelectorArchivo(${doc.id_tipo_doc}); }"
+                         role="button"
+                         tabindex="0"
+                         ondrop="handleDrop(event, ${doc.id_tipo_doc})" 
+                         ondragover="handleDragOver(event)" 
+                         ondragleave="handleDragLeave(event)">
+                        <svg class="w-12 h-12 mx-auto text-green-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <p class="text-gray-700 font-semibold">Arrastra archivo aquí o haz clic</p>
+                        <p class="text-sm text-gray-600 mt-1">${tiposPermitidos.join(', ').toUpperCase()} (máximo ${doc.peso_maximo_mb} MB)</p>
+                    </div>
+                    <div class="mt-4 flex gap-2">
+                        <button type="button" 
+                                onclick="document.querySelector('input[data-tipo-doc=&quot;${doc.id_tipo_doc}&quot;]').click()" 
+                                class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition text-sm">
+                            Seleccionar Archivo
+                        </button>
+                        <div class="flex-1 text-left" id="preview-${doc.id_tipo_doc}">
+                            <p class="text-sm text-gray-500">Sin archivo seleccionado</p>
                         </div>
-                        <div class="mt-4 flex gap-2">
-                            <button type="button" 
-                                    onclick="document.querySelector('input[data-tipo-doc=&quot;${doc.id_tipo_doc}&quot;]').click()" 
-                                    class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition text-sm">
-                                Seleccionar Archivo
-                            </button>
-                            <div class="flex-1 text-left" id="preview-${doc.id_tipo_doc}">
-                                <p class="text-sm text-gray-500">Sin archivo seleccionado</p>
-                            </div>
-                        </div>
-                    `;
-                    
-                    areaCarga.innerHTML = html;
-                    areaCarga.appendChild(inputFile);
-                    areasCargas.appendChild(areaCarga);
-                    
-                    // Agregar event listeners para el archivo
-                    inputFile.addEventListener('change', (e) => {
-                        handleFileSelect(e, doc.id_tipo_doc, doc.nombre_documento);
-                    });
-                }
+                    </div>
+                `;
+                
+                areaCarga.innerHTML = html;
+                areaCarga.appendChild(inputFile);
+                areasCargas.appendChild(areaCarga);
+                
+                // Agregar event listeners para el archivo
+                inputFile.addEventListener('change', (e) => {
+                    handleFileSelect(e, doc.id_tipo_doc, doc.nombre_documento);
+                });
             });
 
-            document.getElementById('botonesEnvio').classList.remove('hidden');
+            if (documentosPendientes.length > 0) {
+                document.getElementById('botonesEnvio').classList.remove('hidden');
+                actualizarEstadoBotonEnvio();
+            } else {
+                document.getElementById('botonesEnvio').classList.add('hidden');
+                areasCargas.innerHTML = `
+                    <div class="p-4 rounded-lg border border-green-200 bg-green-50 text-green-800">
+                        <p class="font-semibold">Todos los documentos requeridos ya fueron cargados.</p>
+                        <p class="text-sm mt-1">Esta solicitud ya puede pasar al flujo del directivo.</p>
+                    </div>
+                `;
+            }
         } else {
             document.getElementById('botonesEnvio').classList.add('hidden');
         }
@@ -512,6 +526,10 @@
         document.getElementById('datosContainer').classList.add('hidden');
         document.getElementById('areasCarguaDocumentos').innerHTML = '';
         document.getElementById('botonesEnvio').classList.add('hidden');
+        const submitButton = document.getElementById('btnCargarDocumentos');
+        if (submitButton) {
+            submitButton.disabled = true;
+        }
         datosDelFolio = null;
     }
 
@@ -536,6 +554,36 @@
         }
     }
 
+    function abrirSelectorArchivo(tipoDoc) {
+        const input = document.querySelector(`input[data-tipo-doc="${tipoDoc}"]`);
+        input?.click();
+    }
+
+    function actualizarEstadoBotonEnvio() {
+        const submitButton = document.getElementById('btnCargarDocumentos');
+        const botonEnvio = document.getElementById('botonesEnvio');
+        const inputs = Array.from(document.querySelectorAll('input[type="file"][data-tipo-doc]'));
+        const totalInputs = inputs.length;
+        const seleccionados = inputs.filter(input => input.files && input.files.length > 0).length;
+
+        if (totalInputs === 0) {
+            if (submitButton) {
+                submitButton.disabled = true;
+            }
+            botonEnvio.classList.add('hidden');
+            return;
+        }
+
+        botonEnvio.classList.remove('hidden');
+
+        if (submitButton) {
+            submitButton.disabled = seleccionados !== totalInputs;
+            submitButton.title = seleccionados === totalInputs
+                ? 'Listo para cargar documentos'
+                : `Faltan ${totalInputs - seleccionados} documento(s) por seleccionar`;
+        }
+    }
+
     function handleFileSelect(e, tipoDoc, nombreDoc) {
         const file = e.target.files[0];
         if (!file) return;
@@ -553,6 +601,7 @@
             previewDiv.innerHTML = `<p class="text-sm text-red-600 font-semibold">✗ Tipo de archivo no permitido</p>
                                    <p class="text-xs text-red-500">Solo se permiten: ${tiposArray.join(', ').toUpperCase()}</p>`;
             e.target.value = '';
+            actualizarEstadoBotonEnvio();
             return;
         }
 
@@ -562,6 +611,7 @@
             previewDiv.innerHTML = `<p class="text-sm text-red-600 font-semibold">✗ Archivo muy grande</p>
                                    <p class="text-xs text-red-500">Máximo permitido: ${pesoMaximoMb} MB</p>`;
             e.target.value = '';
+            actualizarEstadoBotonEnvio();
             return;
         }
 
@@ -576,6 +626,8 @@
         } else {
             previewDiv.innerHTML = `<p class="text-sm text-green-600 font-semibold">✓ ${file.name}</p><p class="text-xs text-green-500">${(file.size / 1024 / 1024).toFixed(2)} MB</p>`;
         }
+
+        actualizarEstadoBotonEnvio();
     }
 
     function limpiarCargas() {
@@ -584,6 +636,7 @@
             const tipoDoc = input.dataset.tipoDoc;
             document.getElementById(`preview-${tipoDoc}`).innerHTML = '<p class="text-sm text-gray-500">Sin archivo seleccionado</p>';
         });
+        actualizarEstadoBotonEnvio();
     }
 
     function mostrarCarga() {
@@ -650,6 +703,7 @@
 
         const folio = document.getElementById('folioInput').value;
         const archivosSeleccionados = [];
+        const totalRequeridos = document.querySelectorAll('input[type="file"][data-tipo-doc]').length;
 
         // Recopilar todos los archivos seleccionados
         document.querySelectorAll('input[type="file"][data-tipo-doc]').forEach(input => {
@@ -663,6 +717,11 @@
 
         if (archivosSeleccionados.length === 0) {
             alert('Por favor selecciona al menos un documento');
+            return;
+        }
+
+        if (archivosSeleccionados.length !== totalRequeridos) {
+            alert('Debes cargar todos los documentos requeridos antes de continuar');
             return;
         }
 

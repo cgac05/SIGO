@@ -28,6 +28,22 @@ class SolicitudProcesoController extends Controller
     ) {
     }
 
+    private function aplicarFiltroDocumentosMomentoDosCompletos($query): void
+    {
+        $requiredDocsSql = "(SELECT COUNT(DISTINCT RA.fk_id_tipo_doc) FROM Requisitos_Apoyo RA WHERE RA.fk_id_apoyo = Solicitudes.fk_id_apoyo AND RA.es_obligatorio = 1)";
+        $acceptedDocsSql = "(SELECT COUNT(DISTINCT D.fk_id_tipo_doc) FROM Documentos_Expediente D WHERE D.fk_folio = Solicitudes.folio AND D.origen_archivo = 'admin_escaneo_presencial' AND D.admin_status = 'aceptado')";
+
+        $query->whereRaw($requiredDocsSql . ' > 0')
+            ->whereRaw($requiredDocsSql . ' = ' . $acceptedDocsSql)
+            ->whereNotExists(function ($subquery) {
+                $subquery->select(DB::raw(1))
+                    ->from('Documentos_Expediente')
+                    ->whereColumn('Documentos_Expediente.fk_folio', 'Solicitudes.folio')
+                    ->where('Documentos_Expediente.admin_status', '!=', 'aceptado')
+                    ->whereNotNull('Documentos_Expediente.admin_status');
+            });
+    }
+
     public function index(Request $request)
     {
         $this->authorizePersonal($request);
@@ -106,24 +122,7 @@ class SolicitudProcesoController extends Controller
         // PERO: Solo aplicar este filtro cuando NO se está filtrando por estado específico
         // Cuando se filtra por "Aprobada" o "Rechazada", no aplicar restricción de documentos
         if (!$estado) {
-            // Las solicitudes deben tener al menos 1 documento aprobado
-            $solicitudesQuery->whereExists(function ($query) {
-                $query->select(DB::raw(1))
-                    ->from('Documentos_Expediente')
-                    ->whereColumn('Documentos_Expediente.fk_folio', 'Solicitudes.folio')
-                    ->where('Documentos_Expediente.admin_status', 'aceptado');
-            });
-
-            // Y NO deben tener ningún documento pendiente/rechazado (incluyendo null)
-            $solicitudesQuery->whereNotExists(function ($query) {
-                $query->select(DB::raw(1))
-                    ->from('Documentos_Expediente')
-                    ->whereColumn('Documentos_Expediente.fk_folio', 'Solicitudes.folio')
-                    ->where(function($q) {
-                        $q->where('admin_status', '!=', 'aceptado')
-                          ->orWhereNull('admin_status');
-                    });
-            });
+            $this->aplicarFiltroDocumentosMomentoDosCompletos($solicitudesQuery);
         }
 
         // Obtener solicitudes paginadas
@@ -148,12 +147,8 @@ class SolicitudProcesoController extends Controller
         $pendientesQuery = DB::table('Solicitudes')
             ->whereNull('Solicitudes.cuv')
             ->where('Solicitudes.fk_id_estado', '!=', 5) // Excluir rechazadas
-            ->whereExists(function ($query) {
-                $query->select(DB::raw(1))
-                    ->from('Documentos_Expediente')
-                    ->whereColumn('Documentos_Expediente.fk_folio', 'Solicitudes.folio')
-                    ->where('Documentos_Expediente.admin_status', 'aceptado');
-            })
+            ->whereRaw("(SELECT COUNT(DISTINCT RA.fk_id_tipo_doc) FROM Requisitos_Apoyo RA WHERE RA.fk_id_apoyo = Solicitudes.fk_id_apoyo AND RA.es_obligatorio = 1) > 0")
+            ->whereRaw("(SELECT COUNT(DISTINCT RA.fk_id_tipo_doc) FROM Requisitos_Apoyo RA WHERE RA.fk_id_apoyo = Solicitudes.fk_id_apoyo AND RA.es_obligatorio = 1) = (SELECT COUNT(DISTINCT D.fk_id_tipo_doc) FROM Documentos_Expediente D WHERE D.fk_folio = Solicitudes.folio AND D.origen_archivo = 'admin_escaneo_presencial' AND D.admin_status = 'aceptado')")
             ->whereNotExists(function ($query) {
                 $query->select(DB::raw(1))
                     ->from('Documentos_Expediente')

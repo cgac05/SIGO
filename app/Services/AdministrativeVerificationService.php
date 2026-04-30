@@ -204,18 +204,6 @@ class AdministrativeVerificationService
             ->limit($limit)
             ->get();
 
-        // Si no hay documentos sin verificar, buscar por estado de solicitud "En revisión"
-        if ($documentosPendientes->isEmpty()) {
-            $documentosPendientes = Documento::query()
-                ->with(['solicitud.apoyo', 'solicitud.beneficiario', 'tipoDocumento'])
-                ->whereHas('solicitud', function ($query) {
-                    $query->whereIn('fk_id_estado', [1, 2]); // Pendiente o En revisión
-                })
-                ->orderBy('fecha_carga', 'desc')
-                ->limit($limit)
-                ->get();
-        }
-
         // Agrupar por folio de solicitud
         $solicitudes = [];
         foreach ($documentosPendientes as $doc) {

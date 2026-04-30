@@ -102,7 +102,8 @@ class CasoAController extends Controller
 
         // Historial de expedientes creados hoy (por este admin)
         $expedientesHoy = \App\Models\ClaveSegumientoPrivada::with(['solicitud.apoyo', 'solicitud.beneficiario'])
-            ->whereDate('fecha_creacion', today())
+            ->whereRaw('CONVERT(date, fecha_creacion) = CONVERT(date, GETDATE())')
+            ->orderByDesc('fecha_creacion')
             ->get();
 
         return view('admin.caso-a.momento-uno', [
@@ -315,15 +316,33 @@ class CasoAController extends Controller
                 )
                 ->first();
         } else {
-            // Beneficiario no registrado o manual - obtener de observaciones
-            // Los datos se guardaron en observaciones_internas durante la creación
-            $beneficiario = (object)[
+            // Beneficiario no registrado o manual - usar el registro parcial por CURP si existe
+            $beneficiarioParcial = \DB::table('Beneficiarios')
+                ->where('curp', $solicitud->fk_curp)
+                ->first();
+
+            $emailTemporal = null;
+            if ($solicitud->observaciones_internas && preg_match('/\| Email:\s*([^\|]+)\s*\|/', $solicitud->observaciones_internas, $matches)) {
+                $emailTemporal = trim($matches[1]);
+                if ($emailTemporal === 'N/A' || $emailTemporal === '') {
+                    $emailTemporal = null;
+                }
+            }
+
+            $beneficiario = $beneficiarioParcial ? (object) [
+                'nombre' => $beneficiarioParcial->nombre,
+                'apellido_paterno' => $beneficiarioParcial->apellido_paterno,
+                'apellido_materno' => $beneficiarioParcial->apellido_materno,
+                'telefono' => $beneficiarioParcial->telefono,
+                'curp' => $beneficiarioParcial->curp,
+                'email' => $emailTemporal,
+            ] : (object)[
                 'nombre' => 'Información',
                 'apellido_paterno' => 'Disponible',
                 'apellido_materno' => 'en Detalles',
                 'telefono' => null,
                 'curp' => $solicitud->fk_curp,
-                'email' => 'Ver observaciones'
+                'email' => $emailTemporal
             ];
         }
         
@@ -467,9 +486,9 @@ class CasoAController extends Controller
 
         // Estadísticas
         $estadisticas = [
-            'pendientes' => Documento::where('estado_validacion', 'PENDIENTE')->count(),
-            'completados' => Documento::where('estado_validacion', 'VERIFICADO')->count(),
-            'conError' => Documento::where('estado_validacion', 'RECHAZADO')->count(),
+            'pendientes' => Documento::whereIn('estado_validacion', ['PENDIENTE', 'Pendiente'])->count(),
+            'completados' => Documento::whereIn('estado_validacion', ['Correcto', 'VERIFICADO', 'Validado', 'Aprobado'])->count(),
+            'conError' => Documento::whereIn('estado_validacion', ['Incorrecto', 'RECHAZADO'])->count(),
         ];
 
         return view('admin.caso-a.momento-dos', [
@@ -764,12 +783,20 @@ class CasoAController extends Controller
                 ], 404);
             }
 
-            // Contar documentos cargados
+            // Contar documentos cargados únicos del Momento 2
             $cantidadDocs = Documento::where('fk_folio', $solicitud->folio)
                 ->where('origen_archivo', 'admin_escaneo_presencial')  // Solo los escaneados (Momento 2)
+                ->pluck('fk_id_tipo_doc')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
                 ->count();
 
-            $minimoRequerido = 2; // Mínimo de documentos para confirmar
+            $minimoRequerido = DB::table('Requisitos_Apoyo')
+                ->where('fk_id_apoyo', $solicitud->fk_id_apoyo)
+                ->where('es_obligatorio', 1)
+                ->pluck('fk_id_tipo_doc')
+                ->unique()
+                ->count(); // Documentos obligatorios únicos del apoyo
 
             if ($cantidadDocs < $minimoRequerido) {
                 return response()->json([
@@ -777,6 +804,14 @@ class CasoAController extends Controller
                     'error' => "Debe cargar al menos {$minimoRequerido} documentos. Actualmente tiene {$cantidadDocs}.",
                     'documentosActuales' => $cantidadDocs
                 ], 400);
+            }
+
+            if ($cantidadDocs >= $minimoRequerido) {
+                $solicitud->update([
+                    'fk_id_estado' => 9,
+                    'estado_solicitud' => 'DOCUMENTOS_VERIFICADOS',
+                    'fecha_cambio_estado' => DB::raw('GETDATE()'),
+                ]);
             }
 
             // ✨ NOTA: NO cambiar estado (ya está en DOCUMENTOS_PENDIENTE_VERIFICACIÓN)
@@ -1084,6 +1119,7 @@ class CasoAController extends Controller
             $documentosRequeridos = \DB::table('Requisitos_Apoyo')
                 ->join('Cat_TiposDocumento', 'Requisitos_Apoyo.fk_id_tipo_doc', '=', 'Cat_TiposDocumento.id_tipo_doc')
                 ->where('Requisitos_Apoyo.fk_id_apoyo', $apoyo->id_apoyo)
+                ->where('Requisitos_Apoyo.es_obligatorio', 1)
                 ->select(
                     'Cat_TiposDocumento.id_tipo_doc',
                     'Cat_TiposDocumento.nombre_documento',
@@ -1092,12 +1128,18 @@ class CasoAController extends Controller
                     'Cat_TiposDocumento.peso_maximo_mb',
                     'Requisitos_Apoyo.es_obligatorio'
                 )
-                ->get();
+                ->distinct()
+                ->get()
+                ->unique('id_tipo_doc')
+                ->values();
 
             // Obtener documentos ya cargados
             $documentosCargados = Documento::where('fk_folio', $folio)
                 ->where('origen_archivo', 'admin_escaneo_presencial')
                 ->pluck('fk_id_tipo_doc')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
                 ->toArray();
 
             return response()->json([
@@ -1173,6 +1215,8 @@ class CasoAController extends Controller
                 $documentosRequeridos = \DB::table('Requisitos_Apoyo')
                     ->where('fk_id_apoyo', $apoyo->id_apoyo)
                     ->where('es_obligatorio', true)
+                    ->pluck('fk_id_tipo_doc')
+                    ->unique()
                     ->count();
 
                 if ($documentosRequeridos === 0) {
@@ -1182,6 +1226,9 @@ class CasoAController extends Controller
                 // Contar documentos cargados (solo los escaneados en Momento 2)
                 $documentosCargados = Documento::where('fk_folio', $clave->folio)
                     ->where('origen_archivo', 'admin_escaneo_presencial')
+                    ->pluck('fk_id_tipo_doc')
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
                     ->count();
 
                 // Si faltan documentos, es pendiente

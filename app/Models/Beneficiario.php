@@ -41,6 +41,14 @@ class Beneficiario extends Model
 
     public function getNombreCompletoAttribute(): string
     {
+        if ($this->fk_id_usuario === null) {
+            $nombreParcial = trim((string) $this->nombre);
+
+            if ($nombreParcial !== '') {
+                return $nombreParcial;
+            }
+        }
+
         return trim(collect([
             $this->nombre,
             $this->apellido_paterno,
