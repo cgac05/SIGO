@@ -19,8 +19,10 @@
             $query->select(DB::raw(1))
                 ->from('Documentos_Expediente')
                 ->whereColumn('Documentos_Expediente.fk_folio', 'Solicitudes.folio')
-                ->where('admin_status', '!=', 'aceptado')
-                ->whereNotNull('admin_status');
+                ->where(function($q) {
+                    $q->where('admin_status', '!=', 'aceptado')
+                      ->orWhereNull('admin_status');
+                });
         });
     
     $stats = [
@@ -101,6 +103,20 @@
             <p class="text-sm text-slate-500 mt-2">Administra los ciclos de presupuesto. Consulta disponibilidad y límites de apoyos.</p>
             <a href="/admin/ciclos/1" class="mt-4 inline-block w-full text-center py-2 border border-red-600 text-red-600 rounded-lg font-semibold hover:bg-red-50 transition-colors">
                 Ver Ciclos
+            </a>
+        </div>
+
+        <!-- Gestión de Personal -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:border-red-500 transition-all duration-300">
+            <div class="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 12H9m6 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <h3 class="font-bold text-slate-800 text-lg">Gestión de Personal</h3>
+            <p class="text-sm text-slate-500 mt-2">Administra usuarios y asignación de roles en el sistema.</p>
+            <a href="{{ route('personal.index') }}" class="mt-4 inline-block w-full text-center py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 shadow-sm transition-colors">
+                Acceder
             </a>
         </div>
 
