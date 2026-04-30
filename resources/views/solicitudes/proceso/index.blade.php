@@ -220,8 +220,8 @@
                                                 <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold">CUV</p>
                                                 <p class="text-sm font-mono font-bold text-green-600 mt-1">{{ $sol->cuv }}</p>
                                             @else
-                                                <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Monto</p>
-                                                <p class="text-sm font-bold text-green-600 mt-1">${{ number_format($sol->monto_maximo ?? 0, 2) }}</p>
+                                                <p class="text-xs text-slate-500 uppercase tracking-wide font-semibold">{{ ($sol->tipo_apoyo ?? '') === 'Especie' ? 'Precio Unitario' : 'Monto' }}</p>
+                                                <p class="text-sm font-bold text-green-600 mt-1">${{ number_format(($sol->tipo_apoyo ?? '') === 'Especie' ? ($sol->costo_unitario ?? 0) : ($sol->monto_maximo ?? 0), 2) }}</p>
                                             @endif
                                         </div>
                                     </div>

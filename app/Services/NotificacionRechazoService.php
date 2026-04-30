@@ -30,6 +30,8 @@ class NotificacionRechazoService
                 'folio' => $folio,
                 'beneficiario_nombre' => $beneficiario->nombre,
                 'apoyo_nombre' => $apoyo->nombre_apoyo,
+                'tipo_apoyo' => $apoyo->tipo_apoyo ?? 'Económico',
+                'costo_unitario' => $apoyo->costo_unitario ?? 0,
                 'motivos_generales' => self::obtenerMotivosGenerales(),
                 'motivo_directivo' => $motivoDirectivo,
             ], function (Message $message) use ($asunto, $correoDestino) {
