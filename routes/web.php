@@ -504,12 +504,29 @@ Route::get('/api/beneficiarios/buscar', function (\Illuminate\Http\Request $requ
         ->limit(10)
         ->get(['fk_id_usuario', 'nombre', 'apellido_paterno', 'apellido_materno', 'curp', 'telefono'])
         ->map(function ($b) {
+            $emailTemporal = null;
+
+            if ($b->user) {
+                $emailTemporal = $b->user->email;
+            } else {
+                $ultimaSolicitud = \App\Models\Solicitud::where('fk_curp', $b->curp)
+                    ->orderByDesc('folio')
+                    ->first();
+
+                if ($ultimaSolicitud && $ultimaSolicitud->observaciones_internas && preg_match('/\| Email:\s*([^\|]+)\s*\|/', $ultimaSolicitud->observaciones_internas, $matches)) {
+                    $emailTemporal = trim($matches[1]);
+                    if ($emailTemporal === 'N/A' || $emailTemporal === '') {
+                        $emailTemporal = null;
+                    }
+                }
+            }
+
             return [
                 'fk_id_usuario' => $b->fk_id_usuario,
                 'nombre_completo' => $b->nombre_completo,
                 'curp' => $b->curp,
                 'telefono' => $b->telefono,
-                'email' => $b->user ? $b->user->email : null,
+                'email' => $emailTemporal,
                 'es_registrado' => $b->fk_id_usuario !== null,
             ];
         });

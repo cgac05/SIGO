@@ -153,8 +153,10 @@ class SolicitudProcesoController extends Controller
                 $query->select(DB::raw(1))
                     ->from('Documentos_Expediente')
                     ->whereColumn('Documentos_Expediente.fk_folio', 'Solicitudes.folio')
-                    ->where('admin_status', '!=', 'aceptado')
-                    ->whereNotNull('admin_status');
+                    ->where(function($q) {
+                        $q->where('admin_status', '!=', 'aceptado')
+                          ->orWhereNull('admin_status');
+                    });
             });
         
         $stats = [

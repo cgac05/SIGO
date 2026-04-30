@@ -341,7 +341,9 @@
                                            :max="solActual && solActual.monto_maximo"
                                            :value="solActual && solActual.monto_maximo"
                                            placeholder="0.00"
-                                           class="field-input" :required="solActual && solActual.tipo_apoyo === 'Económico'"/>
+                                           class="field-input bg-slate-100 cursor-not-allowed text-slate-500" 
+                                           readonly
+                                           :required="solActual && solActual.tipo_apoyo === 'Económico'"/>
                                 </div>
                                 <div class="field-group">
                                     <label class="field-label">Fecha de entrega <span>*</span></label>
@@ -354,9 +356,11 @@
 
                         <template x-if="solActual && solActual.tipo_apoyo === 'Económico'">
                             <div class="field-group">
-                                <label class="field-label">Folio de cheque / referencia bancaria</label>
+                                <label class="field-label">Folio de cheque</label>
                                 <input type="text" name="folio_cheque"
-                                       placeholder="Ej. CHQ-2026-001 o REF-123456"
+                                       placeholder="Ej. 1234567"
+                                       pattern="^[0-9]+$"
+                                       title="El folio del cheque debe contener únicamente números"
                                        class="field-input"/>
                             </div>
                         </template>

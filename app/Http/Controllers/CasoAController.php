@@ -321,20 +321,28 @@ class CasoAController extends Controller
                 ->where('curp', $solicitud->fk_curp)
                 ->first();
 
+            $emailTemporal = null;
+            if ($solicitud->observaciones_internas && preg_match('/\| Email:\s*([^\|]+)\s*\|/', $solicitud->observaciones_internas, $matches)) {
+                $emailTemporal = trim($matches[1]);
+                if ($emailTemporal === 'N/A' || $emailTemporal === '') {
+                    $emailTemporal = null;
+                }
+            }
+
             $beneficiario = $beneficiarioParcial ? (object) [
                 'nombre' => $beneficiarioParcial->nombre,
                 'apellido_paterno' => $beneficiarioParcial->apellido_paterno,
                 'apellido_materno' => $beneficiarioParcial->apellido_materno,
                 'telefono' => $beneficiarioParcial->telefono,
                 'curp' => $beneficiarioParcial->curp,
-                'email' => null,
+                'email' => $emailTemporal,
             ] : (object)[
                 'nombre' => 'Información',
                 'apellido_paterno' => 'Disponible',
                 'apellido_materno' => 'en Detalles',
                 'telefono' => null,
                 'curp' => $solicitud->fk_curp,
-                'email' => null
+                'email' => $emailTemporal
             ];
         }
         
