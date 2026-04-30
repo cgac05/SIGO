@@ -83,23 +83,37 @@
                             </x-danger-button>
                         </div>
                     </form>
-                @else
-                    <div class="space-y-5">
-                        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                            <p class="text-sm font-medium text-amber-900">Esta cuenta no tiene contraseña local</p>
-                            <p class="mt-1 text-sm text-amber-800">
-                                Confirma tu identidad iniciando sesión con Google para desactivar la cuenta.
-                            </p>
-                        </div>
+                @endif
 
-                        <div class="flex items-center justify-end gap-3">
+                @if (filled($user?->google_id))
+                    @if (filled($user?->password))
+                        <div class="mt-6 pt-6 border-t border-gray-200">
+                            <p class="text-sm font-medium text-gray-900 mb-4">O verificar identidad con Google</p>
+                        </div>
+                    @else
+                        <div class="space-y-5">
+                            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                                <p class="text-sm font-medium text-amber-900">Esta cuenta no tiene contraseña local</p>
+                                <p class="mt-1 text-sm text-amber-800">
+                                    Confirma tu identidad iniciando sesión con Google para desactivar la cuenta.
+                                </p>
+                            </div>
+                        </div>
+                    @endif
+
+                    <div class="flex items-center justify-end gap-3 mt-4">
+                        @if (!filled($user?->password))
                             <x-secondary-button x-on:click="$dispatch('close')">
                                 Cancelar
                             </x-secondary-button>
-                            <a href="{{ route('profile.delete-account.google') }}" class="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white shadow-sm transition duration-150 ease-in-out hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        @endif
+                        <a href="{{ route('profile.delete-account.google') }}" class="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white shadow-sm transition duration-150 ease-in-out hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                            @if (filled($user?->password))
+                                Desactivar con Google
+                            @else
                                 Iniciar sesión con Google
-                            </a>
-                        </div>
+                            @endif
+                        </a>
                     </div>
                 @endif
             </div>
