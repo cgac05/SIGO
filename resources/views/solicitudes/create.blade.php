@@ -107,7 +107,7 @@
                                             <p class="text-sm font-semibold text-slate-700">Haz clic o arrastra para cargar</p>
                                             <p class="text-xs text-slate-500 mt-1">Máximo 10 MB</p>
                                         </div>
-                                        <input type="file" id="file-{{ $req->fk_id_tipo_doc }}" name="documento_{{ $req->fk_id_tipo_doc }}" class="hidden" data-doc-type="{{ $req->fk_id_tipo_doc }}" data-required="{{ $modoReenvio ? 1 : (int) $req->es_obligatorio }}" @if($modoReenvio || (int) $req->es_obligatorio === 1) required @endif onchange="updateFileDisplay(this)">
+                                        <input type="file" id="file-{{ $req->fk_id_tipo_doc }}" name="documento_{{ $req->fk_id_tipo_doc }}" class="hidden" data-doc-type="{{ $req->fk_id_tipo_doc }}" data-required="{{ $modoReenvio ? 1 : (int) $req->es_obligatorio }}" onchange="updateFileDisplay(this)">
                                         <p class="text-xs text-slate-600 mt-2 file-name-{{ $req->fk_id_tipo_doc }}"></p>
                                     </div>
 
@@ -148,7 +148,7 @@
     <script>
         const GOOGLE_CLIENT_ID = '{{ config('services.google.client_id') }}';
         const GOOGLE_API_KEY = '{{ config('services.google.api_key') }}';
-        const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+        const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
         
         let pickerTarget = null;
         let pickerApiReady = false;
@@ -241,10 +241,36 @@
             picker.setVisible(true);
         }
 
+        async function hacerArchivoPublico(fileId) {
+            try {
+                const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        role: 'reader',
+                        type: 'anyone'
+                    })
+                });
+                if (!response.ok) {
+                    console.error('Error al cambiar permisos del archivo:', await response.json());
+                } else {
+                    console.log('Permisos cambiados correctamente a Lector público.');
+                }
+            } catch (err) {
+                console.error('Error de red al intentar cambiar permisos:', err);
+            }
+        }
+
         function pickerCallback(data) {
             if (data.action === google.picker.Action.PICKED) {
                 const doc = data.docs[0];
                 const docType = pickerTarget;
+
+                // Modificar permisos del archivo para que los administradores puedan verlo
+                hacerArchivoPublico(doc.id);
 
                 document.querySelector(`.gdrive-id-${docType}`).value = doc.id;
                 document.querySelector(`.gdrive-name-input-${docType}`).value = doc.name;
